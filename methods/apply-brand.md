@@ -13,7 +13,7 @@ This workshop knows no brand. Brand guidelines come from the operator's local pr
 
 Any of these can be a source: a brand workshop with its own `AGENTS.md` or skill, a PDF or folder of guidelines, a website, or a few sentences from the user. A workshop is best, because it lets you cite rules and look up assets. Use what the source offers, and write down any rule the user gives you in conversation.
 
-If the source has its own skill, mount it into this workshop's `.agents/skills/` and `.claude/skills/` as a symlink to its canonical copy. List those mounts in `.git/info/exclude`, not in `.gitignore`, so that no committed file names the brand. Record the mount paths in the profile.
+If the source has its own skill or `AGENTS.md`, record its path in the profile and read it from there. Don't copy or mount it into this workshop.
 
 ## Procedure
 
