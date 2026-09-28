@@ -1,0 +1,54 @@
+# Run state — resumable preparation package
+
+Status: `draft` | Run ID: `[short ID]` | Last updated: `[UTC timestamp]`
+
+This is one human-readable state record. A renderer may keep implementation-specific JSON, but this record remains the recovery index.
+
+## Current state
+
+- Current phase: `intake | evidence | narrative | route | audio | pilot | preflight | handoff`
+- Next action: `[single concrete action]`
+- Full-production ceiling: `[hours; adjustable]`
+- External elapsed time: `[controller measurement or unknown]`
+- External spend: `[billing/controller measurement or unknown]`
+- Renderer/version: `[route and pinned versions, or not chosen]`
+- Publication/upload: `not authorized by this workbench`
+
+## Artifact ledger
+
+| Artifact | Status | Derived from | Receipt/check | Invalidated by | Next action |
+|---|---|---|---|---|---|
+| `brief.md` | `missing/draft/checked/invalidated/accepted` | `[inputs]` | `[check]` | `[change]` | `[action]` |
+| `claim-map.md` | `[status]` | `[sources + brief]` | `[source locators]` | `[source/target change]` | `[action]` |
+| `script.md` | `[status]` | `[claim map + target]` | `[word count]` | `[claim/target change]` | `[action]` |
+| `scene-plan.md` | `[status]` | `[script]` | `[coverage check]` | `[script/route/audio change]` | `[action]` |
+| `audio-receipt.md` | `[status]` | `[script or recording]` | `[duration + checksum]` | `[audio edit/script change]` | `[action]` |
+| `timing.md` | `[status]` | `[approved audio]` | `[match report]` | `[audio edit]` | `[action]` |
+| `assets-manifest.md` | `[status]` | `[scene plan]` | `[paths + rights]` | `[asset/route change]` | `[action]` |
+| `pilot-review.md` | `[status]` | `[pilot media + artifacts]` | `[stills + contiguous clip]` | `[audio/code/asset/FPS change]` | `[action]` |
+| `pre-render-review.md` | `[status]` | `[claim/script/scene/audio]` | `[scorecard]` | `[any upstream change]` | `[action]` |
+| `production-prompt.md` | `[status]` | `[accepted preparation package]` | `[filled route/limits/checklist]` | `[contract, route, limit, or acceptance change]` | `[action]` |
+| `handoff.md` | `[status]` | `[all accepted artifacts]` | `[file list]` | `[new run or changed outputs]` | `[action]` |
+
+## Resume protocol
+
+1. Read this ledger, then inspect the filesystem for each `accepted` artifact.
+2. Treat a missing, empty, corrupt, or mismatched artifact as invalid even if the ledger says accepted.
+3. Verify receipts against the current source, script, audio, renderer, and output where a receipt declares a dependency.
+4. Rebuild only the invalid artifact and its dependents. Keep old artifacts in a dated archive or mark them historical; never present an old MP4 as the new result.
+5. Append the reason, action, result, and next action below.
+
+## Decisions and failures
+
+| Time | Phase | Decision or failure | Evidence | Consequence/invalidations | Next action |
+|---|---|---|---|---|---|
+| `[UTC]` | `[phase]` | `[what happened]` | `[receipt/path]` | `[what changed]` | `[action]` |
+
+## Completion claim
+
+- Preparation package scored: `not scored | pass | fail`
+- Local pilot actually run: `yes/no` (if no, say why)
+- Full render actually run: `yes/no`
+- Exact final-byte review: `not applicable | pending | complete`
+- Remaining uncertainty: `[list]`
+- Safe claim to make now: `[prepared package only / other evidence-backed claim]`
