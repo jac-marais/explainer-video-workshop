@@ -138,6 +138,11 @@ M4 — Selective inspection and repair
 - Inspect changed scenes and their neighboring transitions at delivery size. Check formulas,
   labels, contrast, visual hierarchy, motion purpose, pronunciation, caption text, and
   timing against the approved audio.
+- Give a fresh reviewer the sources, the script, and the built scene source, and withhold
+  the claim map. Ask them to list every element that moves between parts of the picture,
+  with its label, start, end, and cue, and to name the source step that supports each move
+  and each spoken statement about what goes where. Repair every move or statement that no
+  source step supports.
 - Apply at most [max selective-repair cycles] selective-repair cycles. Stop with a repair report when the
   limit is reached or an upstream dependency needs to be reopened.
 
@@ -159,6 +164,9 @@ Checkpoint: a new output exists and objective checks pass.
 
 M6 — Full playback, listening, and final review
 
+- Before the watch, inspect one delivery-size frame near the end of every sentence against
+  its caption and the script, because machine checks can skip elements marked to allow
+  overlap. After a repair, inspect frames through each changed beat.
 - Watch and listen to the complete exact MP4 at the delivery resolution and normal speed.
 - Check every claim against the claim map and source receipts; check whether the learning
   target is served; check scene order, visual explanation, motion, legibility, audio levels,
