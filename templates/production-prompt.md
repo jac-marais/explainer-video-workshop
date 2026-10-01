@@ -1,6 +1,6 @@
 # Production prompt — execute a prepared explainer run
 
-**Prompt provenance:** original workshop reconstruction. This is a documented, unexecuted route for a future production agent. It is not a creator's prompt, a named-model recipe, or evidence that this workshop has rendered a successful video. It assumes the preparation package has already passed its preparation scorecard.
+**Prompt provenance:** original workshop reconstruction. This is a documented route for a production agent, and local runs in this workshop have executed it end to end. It is not a creator's prompt, a named-model recipe, or evidence that the route reliably produces a successful video. It assumes the preparation package has already passed its preparation scorecard.
 
 **Evidence basis:** measured audio as timing truth and invalidation rule (S-TC-001, S-TC-003, S-TC-006, S-TC-008); contiguous pilot and exact-output review (S-TC-001, S-TC-004, S-TC-009); durable state and missing-only resume (S-TC-005, S-TC-007, S-TC-008). The milestones, limits, parallelism, and acceptance language are workshop design choices derived from those sources.
 
@@ -68,6 +68,13 @@ Checkpoint: the route, inputs, limits, and current dependency graph are explicit
 
 M1 — Narration and timing
 
+- Before full synthesis, synthesize one test sentence that says every term in the script's
+  pronunciation line. Transcribe it with a local speech-to-text model, such as Whisper, and
+  respell each term that it hears wrong. Then get the user's approval by ear, which overrules
+  the transcript. The ear check is required unless the user waives it. Without it, accept a
+  term only when the transcript hears it correctly. If no spelling passes, keep the closest
+  one and list it in the audio receipt for the final listen. Record the approved spoken
+  forms in the script and the audio receipt.
 - Use the supplied approved audio when valid. If production is authorized and audio is
   pending, create or record it using the provider/recorder allowed by the package.
 - Save the audio receipt with path, provider or recorder, language, measured duration, and
@@ -141,6 +148,10 @@ M5 — Full render
 
 - Render only after M4 passes. Record the exact command, dependency versions, start/end
   time, exit status, output path, dimensions, FPS, duration, and output checksum.
+- Compare the MP4 audio with the approved final mix. When both MP4 channels carry the same
+  mono narration, measure one channel, because a loudness meter adds the power of both. If
+  the integrated loudness differs by more than 1 LU or the voice onset moved, mux the approved
+  mix into the MP4 with the video stream copied, then measure again.
 - Reject an absent, empty, stale, or failed output. Preserve failed-render diagnostics and
   do not let a previous MP4 satisfy this checkpoint.
 

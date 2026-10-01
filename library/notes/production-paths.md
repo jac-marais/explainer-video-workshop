@@ -35,7 +35,7 @@ The path is a workshop synthesis from S-TC-001, S-TC-003, S-TC-006, S-TC-008, an
 7. Scale only after the pilot and pre-render review pass; checkpoint state and regenerate missing dependents on resume.
 8. Review the exact final MP4 and deliver editable source, commands, manifests, receipts, and remaining uncertainty.
 
-This recipe is a workshop reconstruction from S-TC-001, S-TC-005–S-TC-009. The mounted preparation skill covers its planning and handoff. The full production recipe remains unexecuted and must be trialed before claiming production operability.
+This recipe is a workshop reconstruction from S-TC-001, S-TC-005–S-TC-009. The mounted preparation skill covers its planning and handoff. Local runs in this workshop have executed the full recipe on the HyperFrames route only. Trial each other route before claiming that it works.
 
 ## What HyperFrames renders
 
@@ -58,9 +58,10 @@ Use these checks when the route is HyperFrames. They are route-specific acceptan
 - Require every referenced audio ID to resolve to an intended asset before timing or render acceptance.
 - Run the lint/check path and treat any lint error that disables layout or contrast audits as a failure requiring repair.
 - Require positive layout/contrast samples. A report with zero samples or `0-of-0` checks is not a pass.
+- Set `HYPERFRAMES_NO_UPDATE_CHECK=1` and `HYPERFRAMES_NO_AUTO_INSTALL=1` for `check` and `render`. In a local 0.8.57 run, the CLI's background self-update installed 0.8.99 during a render, deleted files in `dist/`, and failed the render with "Missing manifest".
 - Persist Studio caption/timing changes into source files and refresh the preview before accepting them (S-HF-005).
 
-HyperFrames itself has not been executed in this workshop. Node and FFmpeg availability in the current environment is an environment observation, not a renderer validation receipt.
+Local HyperFrames runs in this workshop are environment observations, not renderer validation receipts.
 
 ## Timing choices
 

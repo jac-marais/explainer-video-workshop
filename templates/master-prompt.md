@@ -2,7 +2,7 @@
 
 **Prompt provenance:** original workshop reconstruction for this workbench. It is model-neutral and is not an exact prompt from a creator or vendor. Fill the bracketed fields from `templates/brief.md`; keep the evidence and design-choice labels.
 
-Route basis: S-TC-001–S-TC-004, S-HF-001–S-HF-005, and S-PX-003. HyperFrames remains unexecuted locally in this workshop; Pexo is a hosted optional route with separate credentials, billing, and data-transfer boundaries.
+Route basis: S-TC-001–S-TC-004, S-HF-001–S-HF-005, and S-PX-003. Local HyperFrames runs in this workshop are environment observations, not route validation; Pexo is a hosted optional route with separate credentials, billing, and data-transfer boundaries.
 
 ```text
 You are preparing a reproducible explainer-video production run.
@@ -76,7 +76,8 @@ Phase 1 — Evidence: write learning target and claim map with exact locators.
 Checkpoint: no essential unsupported claim is hidden in prose.
 Phase 2 — Narrative: write script estimate and scene/shot plan.
 Checkpoint: each scene has one comprehension job, target coverage, and a feasible narration
-window; global word arithmetic cannot hide an infeasible scene.
+window; global word arithmetic cannot hide an infeasible scene. A cold listener can explain
+the mechanism from the narration and scene descriptions (method step 3).
 Phase 3 — Route: choose renderer, versions/dependencies, commands, and disqualifiers.
 Checkpoint: route can be inspected and has an editable source path when available.
 Phase 4 — Audio: obtain or plan approved audio; write its receipt and timing plan, measuring

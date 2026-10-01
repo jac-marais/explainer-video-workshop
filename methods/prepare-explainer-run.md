@@ -62,6 +62,10 @@ Promote a claim into the script only when its source receipt is readable and the
 
 Draft the narration in scenes. Each scene must have one comprehension job, one central visual idea, one sentence describing why motion helps, and a planned transition. Keep spoken words, screen text, and source citations separate so a crowded frame does not become the teaching method.
 
+Write the narration for a listener who hears it once and cannot reread it. Use full sentences, and keep the linking words, such as "because", "so", and "until", that carry the logic from one sentence to the next. Avoid "this, not that" constructions. Never use an em dash or colon in the middle of a sentence. Split the thought into two sentences or rewrite it. Say why a mechanism exists before saying how it works. Explain each term that the audience does not already know in plain words before naming it, and then use that one name every time. Keep code identifiers out of speech unless the learner must say or type them. On screen, lead with the plain name and show the identifier beside it. Speak only the numbers that the learning target needs.
+
+List every acronym, product name, code identifier, and number in the narration with its planned spoken form in the script's pronunciation line. Try each term as written first, and spell letters with hyphens, such as `A-C-S`, because spaced letters and spelled-out words can misread in a synthetic voice.
+
 Estimate the script duration explicitly:
 
 ```text
@@ -70,7 +74,9 @@ estimated_seconds = narration_word_count / chosen_words_per_minute × 60
 
 Record the word count and the chosen WPM range (for example, 130–165 WPM) beside the estimate. This is planning arithmetic. It is not measured audio. Once audio exists, record its actual file duration and derive scene, sentence, word, and caption timing from that file. A later trim, re-record, speed change, or pause edit invalidates timing and every visual or caption artifact that consumes it (S-TC-001, S-TC-003, S-TC-006, S-TC-008).
 
-Run the same arithmetic per scene. Record narration words, target WPM or range, speech seconds, breathing-pause budget, learner-processing-pause budget, and the total planned scene window. Speech seconds are `words / WPM × 60` and exclude both kinds of pause. Require each rough scene window to cover speech plus its declared pauses, and require the scene-window sum to match the target duration within declared transition or end-card tolerance. A global word count can fit while one scene demands implausible speech; repair the scene words, window, or narrative before production. Final approved audio remains authoritative when it exists.
+Run the same arithmetic per scene. Record narration words, target WPM or range, speech seconds, breathing-pause budget, learner-processing-pause budget, and the total planned scene window. Speech seconds are `words / WPM × 60` and exclude both kinds of pause. Require each rough scene window to cover speech plus its declared pauses, and require the scene-window sum to match the target duration within declared transition or end-card tolerance. A global word count can fit while one scene demands implausible speech; repair the scene words, window, or narrative before production. To fit a duration, remove whole claims or narrow the learning target, and keep the explanation that each remaining claim needs. If the learning target needs a longer duration, tell the user how long it needs and record that duration in the brief. Continue with that duration unless the user directly asks to keep the original one. In that case, offer one to three narrower targets for the user to choose from. Final approved audio remains authoritative when it exists.
+
+Before any audio exists, test the narration on a cold listener. Give a fresh agent or person the audience's starting knowledge from the brief, the spoken text, and a plain description of what each scene shows. Withhold the claim map and sources. Ask them to explain the mechanism in their own words, answer the learning-target check, and name each sentence that they had to guess at or that seemed to contradict another. Repair each problem, check the changed sentences against the claim map, and repeat the test until the explanation and the answer match the claim map. Record each round in `run-state.md`.
 
 ### 4. Convert the narrative into a scene and shot sequence
 
@@ -106,7 +112,7 @@ Use this invalidation table:
 | Changed artifact | Invalidate and rebuild |
 |---|---|
 | source, claim status, or learning target | claim map; affected script, scene plan, review, audio, timing, pilot |
-| script words or scene order | audio; timing; captions; affected scenes; script-bound pre-render review |
+| script words or scene order | cold-listener test and claim check of the changed sentences; audio; timing; captions; affected scenes; script-bound pre-render review |
 | approved audio bytes or trim | timing; captions; all audio-bound visual cues; pilot and pre-render review |
 | scene code, assets, renderer, FPS, or dimensions | affected scene preview; machine checks; pilot; pre-render review |
 | final MP4 bytes | final review receipt only; retain the old receipt as historical evidence |
