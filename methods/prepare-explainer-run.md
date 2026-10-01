@@ -56,7 +56,7 @@ Give every factual, numerical, causal, historical, API, or safety claim a stable
 | planned use | Spoken line, on-screen text, diagram, or omitted |
 | check | How a reviewer will verify it |
 
-Promote a claim into the script only when its source receipt is readable and the status is supported or properly qualified. If sources disagree, preserve the disagreement and state the scope in the script or omit the claim; do not average it into an untraceable sentence. Put a qualified claim in the narration or on screen only when the brief, the learning target, or its check needs it, and then keep its qualification with it. Otherwise mark it `omit` and give the reason. This is the workshop application of NIST's fact-checking and domain-review guidance and its warning about confabulation and automation bias (S-FA-005).
+Promote a claim into the script only when its source receipt is readable and the status is supported or properly qualified. If sources disagree, preserve the disagreement and state the scope in the script or omit the claim; do not average it into an untraceable sentence. Put a qualified claim in the narration or on screen only when the brief, the learning target, or its check needs it, and then keep its qualification with it. Otherwise set its planned use to omitted and give the reason. This is the workshop application of NIST's fact-checking and domain-review guidance and its warning about confabulation and automation bias (S-FA-005).
 
 ### 3. Draft the narrative and honest time estimate
 
@@ -76,7 +76,7 @@ Record the word count and the chosen WPM range (for example, 130–165 WPM) besi
 
 Run the same arithmetic per scene. Record narration words, target WPM or range, speech seconds, breathing-pause budget, learner-processing-pause budget, and the total planned scene window. Speech seconds are `words / WPM × 60` and exclude both kinds of pause. Require each rough scene window to cover speech plus its declared pauses, and require the scene-window sum to match the target duration within declared transition or end-card tolerance. A global word count can fit while one scene demands implausible speech; repair the scene words, window, or narrative before production. To fit a duration, remove whole claims or narrow the learning target, and keep the explanation that each remaining claim needs. If the learning target needs a longer duration, tell the user how long it needs and record that duration in the brief. Continue with that duration unless the user directly asks to keep the original one. In that case, offer one to three narrower targets for the user to choose from. Final approved audio remains authoritative when it exists.
 
-Before any audio exists, test the narration on a cold listener. Give a fresh agent or person the audience's starting knowledge from the brief, the spoken text, and a plain description of what each scene shows, written from the scene plan without filling its gaps. Withhold the claim map and sources. Ask them to explain the mechanism in their own words, answer the learning-target check, and name each sentence that they had to guess at or that seemed to contradict another. Also ask them to name anything the check relies on that the film had not shown before the check, and what the viewer sees that confirms the answer. Repair each problem, check the changed sentences against the claim map, and repeat the test until the explanation and the answer match the claim map. Record each round in `run-state.md`.
+Before any audio exists, test the narration on a cold listener. Give a fresh agent or person the audience's starting knowledge from the brief, the spoken text, and a plain description of what each scene shows, written from each scene's planned visual idea without filling its gaps. Withhold the claim map and sources. Ask them to explain the mechanism in their own words, answer the learning-target check, and name each sentence that they had to guess at or that seemed to contradict another. Also ask them to name anything the check relies on that the film had not shown before the check, and what the viewer sees that confirms the answer. Repair each problem, check the changed sentences against the claim map, and repeat the test until the explanation and the answer match the claim map. Record each round in `run-state.md`.
 
 ### 4. Convert the narrative into a scene and shot sequence
 
@@ -113,6 +113,7 @@ Use this invalidation table:
 |---|---|
 | source, claim status, or learning target | claim map; affected script, scene plan, review, audio, timing, pilot |
 | script words or scene order | cold-listener test and claim check of the changed sentences; audio; timing; captions; affected scenes; script-bound pre-render review |
+| a scene's planned visual idea | cold-listener test; affected scenes; pre-render review |
 | approved audio bytes or trim | timing; captions; all audio-bound visual cues; pilot and pre-render review |
 | scene code, assets, renderer, FPS, or dimensions | affected scene preview; machine checks; pilot; pre-render review |
 | final MP4 bytes | final review receipt only; retain the old receipt as historical evidence |

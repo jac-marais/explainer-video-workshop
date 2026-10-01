@@ -165,8 +165,8 @@ Checkpoint: a new output exists and objective checks pass.
 M6 — Full playback, listening, and final review
 
 - Before the watch, inspect one delivery-size frame near the end of every sentence against
-  its caption and the script, because machine checks can skip elements marked to allow
-  overlap. After a repair, inspect frames through each changed beat.
+  its caption and the script, because a layout check can pass a frame that shows the wrong
+  thing.
 - Watch and listen to the complete exact MP4 at the delivery resolution and normal speed.
 - Check every claim against the claim map and source receipts; check whether the learning
   target is served; check scene order, visual explanation, motion, legibility, audio levels,
