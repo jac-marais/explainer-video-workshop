@@ -36,14 +36,14 @@ templates/                  brief, scene plan, state, preparation/production pro
 scorecards/                 preparation and production-evidence gates
 outputs/                    new user work (git-ignored)
 local/                      operator's brand profile (git-ignored)
-.agents/skills/             mounts of the canonical preparation and brand skills
-.claude/skills/             Claude-compatible mounts of the same skills
+.agents/skills/             preparation and brand skills
+.claude/skills/             link to .agents/skills for Claude Code
 ```
 
-Only the workshop itself is committed: routing, methods, templates, scorecards, the library, and skill mounts. Everything an agent produces while working stays local and git-ignored, under `outputs/` and `local/`.
+Only the workshop itself is committed: routing, methods, templates, scorecards, the library, and the skills. Everything an agent produces while working stays local and git-ignored, under `outputs/` and `local/`.
 
-New canonical skills live in `~/.agents/skills/`, following the owner's global rule. This workshop mounts that location rather than keeping another editable skill copy. `CLAUDE.md` points to `AGENTS.md`. The skill relies on this workshop's maintained methods/templates and is not a standalone video engine. When moving the workshop, restore the mounts and update the global skill's workshop location.
+The skills live in `.agents/skills/`, and `.claude/skills` links to that folder, so Codex and Claude Code share one copy. `CLAUDE.md` points to `AGENTS.md`. The skills rely on this workshop's maintained methods/templates and resolve paths from the repository root; they are not standalone video engines.
 
-No MCP server, cloud renderer, voice API, or vendor skill bundle is required to prepare a run. Follow the selected route's current, pinned setup instructions and record actual versions in a production project. Vendor installers may refresh global skill sets; preserve the owner's `~/.agents/skills/` placement rule.
+No MCP server, cloud renderer, voice API, or vendor skill bundle is required to prepare a run. Follow the selected route's current, pinned setup instructions and record actual versions in a production project. Vendor installers may refresh global skill sets; check their target before running them.
 
 This workshop is not a generic video studio, a model leaderboard, a collection of copied third-party prompts, or a scheduler that keeps an agent alive for eight hours. Source videos, voices, service credits, and private documents retain their own use boundaries. See [source use](library/source-use-policy.md).

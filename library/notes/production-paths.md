@@ -35,7 +35,7 @@ The path is a workshop synthesis from S-TC-001, S-TC-003, S-TC-006, S-TC-008, an
 7. Scale only after the pilot and pre-render review pass; checkpoint state and regenerate missing dependents on resume.
 8. Review the exact final MP4 and deliver editable source, commands, manifests, receipts, and remaining uncertainty.
 
-This recipe is a workshop reconstruction from S-TC-001, S-TC-005–S-TC-009. The mounted preparation skill covers its planning and handoff. Local runs in this workshop have executed the full recipe on the HyperFrames route only. Trial each other route before claiming that it works.
+This recipe is a workshop reconstruction from S-TC-001, S-TC-005–S-TC-009. The preparation skill covers its planning and handoff. Local runs in this workshop have executed the full recipe on the HyperFrames route only. Trial each other route before claiming that it works.
 
 ## What HyperFrames renders
 

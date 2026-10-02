@@ -8,10 +8,10 @@ Before any other work, read `local/brand.md`. It is git-ignored, so this worksho
 
 ## Route once
 
-- **Prepare a run, script/storyboard package, or production brief:** use `prepare-explainer-video` mounted at `.agents/skills/prepare-explainer-video/SKILL.md`. Follow `methods/prepare-explainer-run.md` and the preparation scorecard. This is the trialed workbench.
+- **Prepare a run, script/storyboard package, or production brief:** use the `prepare-explainer-video` skill at `.agents/skills/prepare-explainer-video/SKILL.md`. Follow `methods/prepare-explainer-run.md` and the preparation scorecard. This is the trialed workbench.
 - **Produce a video from a viable package:** use the filled `production-prompt.md`, with `templates/production-prompt.md` as the reference contract. This is a documented production route; establish local renderer/audio/pilot evidence before scaling. Do not restart preparation unless its dependencies changed.
 - **Investigate a creator, prompt, skill, or research claim:** use `library/source-map.md`, `library/manifest.json`, and the evidence distinctions below. Do not run the production workflow merely to answer a research question.
-- **Align output with a brand, or audit it against one:** use `brand-explainer-video` mounted at `.agents/skills/brand-explainer-video/SKILL.md`, and follow `methods/apply-brand.md`. The brand's rules come from the source that `local/brand.md` points to.
+- **Align output with a brand, or audit it against one:** use the `brand-explainer-video` skill at `.agents/skills/brand-explainer-video/SKILL.md`, and follow `methods/apply-brand.md`. The brand's rules come from the source that `local/brand.md` points to.
 - **Review or resume an existing production:** inspect its actual artifacts/state and the quality gate. Repair affected dependencies. Do not regenerate a brief or unrelated scenes automatically.
 
 These triggers are mutually exclusive initial routes. A task can move to the next route after completing the earlier requested stage. Generic filmmaking, marketing strategy, and standalone presentations belong elsewhere.
@@ -28,4 +28,4 @@ Run only checks that substantiate the requested result. A zero-sample audit, suc
 
 Agent checkpoints may proceed autonomously within the user's authorization. A budget in a prompt is not an enforced spending or wall-clock limit. Stop at acceptance or the external limit; do not wait to fill eight hours. Record model/version, tools, source/assets, revisions, elapsed/cost evidence when available, and remaining uncertainty. Do not contact creators, purchase services, or publish without the user's authorization.
 
-Canonical new skills belong in `~/.agents/skills/`; the local harness directories only mount them. Keep the maintained method, scorecard, templates, and source map consistent when changing behavior. Commit only the workshop itself; agent work stays in the git-ignored `outputs/` and `local/`.
+The workshop's skills live in `.agents/skills/`; `.claude/skills` links there. Keep the maintained method, scorecard, templates, and source map consistent when changing behavior. Commit only the workshop itself; agent work stays in the git-ignored `outputs/` and `local/`.
