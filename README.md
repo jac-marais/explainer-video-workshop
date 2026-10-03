@@ -47,3 +47,7 @@ The skills live in `.agents/skills/`, and `.claude/skills` links to that folder,
 No MCP server, cloud renderer, voice API, or vendor skill bundle is required to prepare a run. Follow the selected route's current, pinned setup instructions and record actual versions in a production project. Vendor installers may refresh global skill sets; check their target before running them.
 
 This workshop is not a generic video studio, a model leaderboard, a collection of copied third-party prompts, or a scheduler that keeps an agent alive for eight hours. Source videos, voices, service credits, and private documents retain their own use boundaries. See [source use](library/source-use-policy.md).
+
+## License
+
+The workshop is [MIT licensed](LICENSE). Cited third-party sources keep their own licenses.
