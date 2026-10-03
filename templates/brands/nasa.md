@@ -174,7 +174,7 @@ Ship the OFL texts beside the font files (`OFL-Inter.txt`, `OFL-SourceCodePro.tx
 
 ## Provenance
 
-Read on 2026-10-03: the scanned NASA Graphics Standards Manual, NHB 1430.2, January 1976 (`https://www.nasa.gov/wp-content/uploads/2015/01/nasa_graphics_manual_nhb_1430-2_jan_1976.pdf`, local copy, 60 PDF pages). Text was extracted with `pdftotext`, and pages 1.5, 5.8 and 5.14 were also viewed as images. Pages read:
+Read on 2026-10-03: the scanned [NASA Graphics Standards Manual, NHB 1430.2, January 1976](https://www.nasa.gov/wp-content/uploads/2015/01/nasa_graphics_manual_nhb_1430-2_jan_1976.pdf) (local copy, 60 PDF pages). Text was extracted with `pdftotext`, and pages 1.5, 5.8 and 5.14 were also viewed as images. Pages read:
 
 - p. 1.3 "The NASA Color": red only on white or a light neutral background; not with other bright saturated colors or medium and dark value colors.
 - p. 1.4 "Use of Color": red never on a medium-value background.

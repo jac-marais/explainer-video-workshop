@@ -176,10 +176,10 @@ Ship the OFL text beside the font files. No other assets are needed. No IBM logo
 
 Read on 2026-10-03 (direct `curl` of the public pages; text read, not just search results):
 
-- IBM Design Language, "2x Grid" (`https://www.ibm.com/design/language/2x-grid/`), section "2x Grid for video": 1920×1080, 7.5 px mini unit, 30 px increments, 8 columns "sufficient for most layouts", 16 optional, snap to 30 px. Gives no video margin.
-- Carbon Design System, "Motion overview" (`https://carbondesignsystem.com/elements/motion/overview/`): all six productive/expressive curves and the duration set 70/110/150/240/400/700 ms appear on the page.
-- IBM Design Language, "Color" (`https://www.ibm.com/design/language/color/`): all 14 palette hex values in this file appear in the page source. Note: they were found as values in the page's CSS (observed implementation), so the hex values are confirmed but their palette names (for example "Gray 100" for `#161616`) are **unverified** here and deliberately not used.
-- Carbon "Color tokens" (`https://carbondesignsystem.com/elements/color/tokens/`): 12 of the 14 values appear; `#262626` and `#3ddbd9` do not appear in the fetched page. (An earlier draft note claimed all appeared there; that was wrong.)
+- [IBM Design Language, "2x Grid"](https://www.ibm.com/design/language/2x-grid/), section "2x Grid for video": 1920×1080, 7.5 px mini unit, 30 px increments, 8 columns "sufficient for most layouts", 16 optional, snap to 30 px. Gives no video margin.
+- [Carbon Design System, "Motion overview"](https://carbondesignsystem.com/elements/motion/overview/): all six productive/expressive curves and the duration set 70/110/150/240/400/700 ms appear on the page.
+- [IBM Design Language, "Color"](https://www.ibm.com/design/language/color/): all 14 palette hex values in this file appear in the page source. Note: they were found as values in the page's CSS (observed implementation), so the hex values are confirmed but their palette names (for example "Gray 100" for `#161616`) are **unverified** here and deliberately not used.
+- [Carbon "Color tokens"](https://carbondesignsystem.com/elements/color/tokens/): 12 of the 14 values appear; `#262626` and `#3ddbd9` do not appear in the fetched page. (An earlier draft note claimed all appeared there; that was wrong.)
 - Fonts: OFL texts read from the npm packages.
 
 Workshop adaptations, not from any IBM source: every color **role**, the type scale and tracking, the 120 px margin, the caption zone, the 120 ms stagger, the choice of which Carbon duration maps to fast/base/slow, the scene fade-out, the "one blue block per scene" rule, the narration voice, and the accessibility rules. Contrast ratios are computed by the workshop from the hex values.
