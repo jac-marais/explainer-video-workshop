@@ -35,7 +35,7 @@ methods/                    maintained preparation procedure
 templates/                  brief, scene plan, state, preparation/production prompts
 scorecards/                 preparation and production-evidence gates
 outputs/                    new user work (git-ignored)
-local/                      operator's brand profile (git-ignored)
+local/                      operator's brand profile and pronunciation verdicts (git-ignored)
 .agents/skills/             preparation and brand skills
 .claude/skills/             link to .agents/skills for Claude Code
 ```

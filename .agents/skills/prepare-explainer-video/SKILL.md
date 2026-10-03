@@ -17,6 +17,8 @@ Use reasonable stated defaults for reversible presentation choices. If an essent
 
 Compute narration timing per scene: words / stated WPM plus breathing and learner-processing pauses. Check that feasible scene windows sum to the target. Global duration arithmetic alone is insufficient. These are estimates until approved audio exists; audio changes invalidate its dependent timing, captions, cues, and reviews.
 
+Keep the operator's pronunciation verdicts in the git-ignored `local/pronunciation.md`; copy `templates/pronunciation.md` there if it is missing. Add its candidate-list words in the narration to the script's pronunciation line, and apply its known fixes for the planned voice. After each ear check, record the new verdicts there.
+
 Apply the scorecard, including its critical failures, before calling the package prepared. Do not claim audio, a pilot, a render, playback, synchronization, or learning outcomes that were not observed. Public source code and skill instructions do not prove a creator used them. Workshop-authored prompts are reconstructions, never exact recovered creator prompts.
 
 ## Boundaries
