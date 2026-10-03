@@ -12,7 +12,7 @@ The [preparation method](methods/prepare-explainer-run.md) produces a usable pac
 
 ## Brand guidelines
 
-The workshop is brand-neutral. On first use, the agent asks whether you have brand guidelines, then records your answer in `local/brand.md`, which is git-ignored. The answer can be a path to a brand workshop, a document, a URL, or "none". From then on, every run styles and audits its output against that source through [the brand method](methods/apply-brand.md). To change brands, edit or delete `local/brand.md`. The [profile template](templates/brand-profile.md) shows its shape.
+The workshop is brand-neutral. On first use, the agent asks whether you have brand guidelines, then records your answer in `local/brand.md`, which is git-ignored. The answer can be a path to a brand workshop, a document, a URL, or "none". No guidelines? [See the nine workshop styles](https://jac-marais.github.io/explainer-video-workshop/templates/brands/) and tell the agent which one you want. From then on, every run styles and audits its output against that source through [the brand method](methods/apply-brand.md). To change brands, edit or delete `local/brand.md`. The [profile template](templates/brand-profile.md) shows its shape.
 
 ## Use the shelves by job
 
