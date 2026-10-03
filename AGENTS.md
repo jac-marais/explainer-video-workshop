@@ -4,7 +4,7 @@ Make accurate, understandable narrated explainers from source material. Preserve
 
 ## First use: brand
 
-Before any other work, read `local/brand.md`. It is git-ignored, so this workshop never records a brand. If the file is missing, follow "First use" in `methods/apply-brand.md`: ask for brand guidelines, offer the workshop's ten styles when there are none, and record the answer as `local/brand.md`. Every run then uses that profile for its visual system.
+Before any other work, read `local/brand.md`. It is git-ignored, so this workshop never records a brand. If the file is missing, follow "First use" in `methods/apply-brand.md`: ask for brand guidelines, offer the workshop's nine styles when there are none, and record the answer as `local/brand.md`. Every run then uses that profile for its visual system.
 
 ## Route once
 

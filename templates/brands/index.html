@@ -9,7 +9,11 @@
   main { max-width: 1000px; margin: 0 auto; }
   h1 { margin: 0 0 4px; font-size: 28px; }
   .lead { margin: 0 0 32px; color: #525252; }
-  .card { margin: 0 0 32px; }
+  .card { margin: 0 0 32px; scroll-margin-top: 16px; }
+  #tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 600px; margin: 0 0 48px; }
+  .tile { display: flex; align-items: flex-end; aspect-ratio: 1; padding: 16px; border: 1px solid #8d8d8d; border-top: 10px solid; border-radius: 10px; font-size: clamp(15px, 3.4vw, 24px); font-weight: 600; line-height: 1.15; text-decoration: none; }
+  .tile:hover { transform: translateY(-2px); }
+  html { scroll-behavior: smooth; }
   .card-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; margin: 0 0 10px; }
   .card-head h2 { margin: 0 auto 0 0; font-size: 20px; }
   button { font: inherit; font-size: 14px; padding: 6px 14px; border: 1px solid #161616; border-radius: 6px; background: #161616; color: #fff; cursor: pointer; }
@@ -29,13 +33,14 @@
   dialog video { display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; background: #000; }
   dialog .close { display: block; margin: 0 0 8px auto; border-color: rgb(255 255 255 / 60%); }
 
-  @media (prefers-reduced-motion: reduce) { .frame { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { .frame { transition: none; } html { scroll-behavior: auto; } }
 </style>
 </head>
 <body>
 <main>
   <h1>Pick a style</h1>
-  <p class="lead">Slide across a strip to scan the video's key frames. Press Play video to watch it with sound. Then tell the agent the style's name.</p>
+  <p class="lead">Pick a square to jump to its style. Slide across a strip to scan the video's key frames. Press Play video to watch it with sound. Then tell the agent the style's name.</p>
+  <nav id="tiles" aria-label="Styles"></nav>
   <div id="cards"></div>
 </main>
 
@@ -46,17 +51,17 @@
 
 <script>
   const FRAMES = 16;
+  // Tile colors are each preset's canvas, text and accent tokens.
   const STYLES = [
-    ["ibm", "IBM-inspired"],
-    ["mozilla", "Mozilla-inspired"],
-    ["nasa", "NASA-inspired"],
-    ["mit-media-lab", "MIT Media Lab-inspired"],
-    ["uber", "Uber-inspired"],
-    ["channel-4", "Channel 4-inspired"],
-    ["nps-unigrid", "NPS Unigrid-inspired"],
-    ["airbnb", "Airbnb-inspired"],
-    ["nycta", "NYCTA-inspired"],
-    ["spotify", "Spotify-inspired"],
+    ["ibm", "IBM-inspired", "IBM", "#161616", "#f4f4f4", "#0f62fe"],
+    ["mozilla", "Mozilla-inspired", "Mozilla", "#fafafa", "#000000", "#00d230"],
+    ["nasa", "NASA-inspired", "NASA", "#f5f3ee", "#141414", "#ca243a"],
+    ["mit-media-lab", "MIT Media Lab-inspired", "MIT Media Lab", "#ffffff", "#000000", "#e5178f"],
+    ["uber", "Uber-inspired", "Uber", "#ffffff", "#000000", "#000000"],
+    ["channel-4", "Channel 4-inspired", "Channel 4", "#151719", "#ffffff", "#aaff89"],
+    ["nps-unigrid", "NPS Unigrid-inspired", "National Park Service", "#f3efe4", "#161616", "#000000"],
+    ["airbnb", "Airbnb-inspired", "Airbnb", "#f7f6f2", "#222222", "#ff385c"],
+    ["spotify", "Spotify-inspired", "Spotify", "#191414", "#ffffff", "#1ed760"],
   ];
 
   const player = document.getElementById("player");
@@ -113,12 +118,17 @@
       video.play();
     });
 
-    return build("section", { className: "card" }, [
+    return build("section", { className: "card", id: slug }, [
       build("div", { className: "card-head" }, [build("h2", { textContent: name }, []), play]),
       build("div", { className: "strip" }, [bar]),
     ]);
   }
 
+  document.getElementById("tiles").append(...STYLES.map(([slug, , short, bg, fg, accent]) => {
+    const tile = build("a", { className: "tile", href: `#${slug}`, textContent: short }, []);
+    tile.style.cssText = `background:${bg};color:${fg};border-top-color:${accent}`;
+    return tile;
+  }));
   document.getElementById("cards").append(...STYLES.map(makeCard));
 
   // Closing by any route (Esc, button, backdrop) fires "close", so one handler stops the audio.

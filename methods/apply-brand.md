@@ -8,7 +8,7 @@ This workshop knows no brand. Brand guidelines come from the operator's local pr
 
 1. Read `local/brand.md`.
 2. If the file is missing, your first question to the user is: **"Do you have brand guidelines that you can point me toward?"** Ask it before you do any other work.
-3. If they have none, offer the workshop's ten styles. Link the gallery `templates/brands/index.html`, where each style plays the same explainer, and then list each style's name as a link to its video, for example [NASA-inspired](templates/brands/nasa.mp4). Use absolute paths so the links open. Each style's preset is `templates/brands/<slug>.md`. The neutral readable default from `methods/prepare-explainer-run.md` remains an option.
+3. If they have none, offer the workshop's nine styles. Link the gallery `templates/brands/index.html`, where each style plays the same explainer, and then list each style's name as a link to its video, for example [NASA-inspired](templates/brands/nasa.mp4). Use absolute paths so the links open. Each style's preset is `templates/brands/<slug>.md`. The neutral readable default from `methods/prepare-explainer-run.md` remains an option.
 4. Write the answer to `local/brand.md` with `templates/brand-profile.md` as the shape. A chosen style's preset is its Guidelines path. Record "none" when the user picks no style, so nobody asks again.
 5. When the user changes brands or corrects a decision, update the profile. Don't keep a second copy somewhere else.
 
