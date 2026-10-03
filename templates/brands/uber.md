@@ -120,17 +120,13 @@ Rules: every element arrives on the narration cue that names it, with a short sl
 
 ## Narration voice
 
-Voice means tone and register, not subject matter. This style talks the way a confident product company talks to a busy person:
+This style talks the way a confident product company talks to a busy person:
 
 - **Plain and direct.** Everyday words ("finds", "gives you", "tests", "checks"). Say what happens and who does it. Second person, present tense.
 - **Few words.** One idea per sentence; cut every word that does not change the meaning. No setup phrases ("Let's take a look at…").
 - **Confident, not loud.** No hype, superlatives, exclamation marks or rhetorical questions.
-- **No theme puns.** Never borrow vocabulary from what the company sells: no "route", "trip", "ride", "first stop", "last stop", "destination", "journey", "on the way", "buckle up". Revision 1 did this and the user rejected it: it is a joke about the brand, not the brand's voice.
-- No colons or dashes in spoken text, no "X, not Y" constructions.
 
 Example (reference video, S03): "Then give it a topic and an audience. The prepare skill finds sources, and gives you a sourced script, a scene plan, a renderer choice, and a production prompt."
-
-On-screen text follows the same rules: short sentence-case labels, no theme words.
 
 The reference video used local Kokoro `af_heart` at speed 0.92 (workshop choice) and measured 106 words in 42.7 s including pauses.
 
