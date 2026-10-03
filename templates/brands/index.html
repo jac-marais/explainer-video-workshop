@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explainer Video Workshop: pick a style</title>
+<style>
+  body { margin: 0; padding: 32px 16px 64px; font: 16px/1.4 system-ui, sans-serif; background: #f4f4f4; color: #161616; }
+  main { max-width: 1000px; margin: 0 auto; }
+  h1 { margin: 0 0 4px; font-size: 28px; }
+  .lead { margin: 0 0 32px; color: #525252; }
+  .card { margin: 0 0 32px; }
+  .card-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; margin: 0 0 10px; }
+  .card-head h2 { margin: 0 auto 0 0; font-size: 20px; }
+  button { font: inherit; font-size: 14px; padding: 6px 14px; border: 1px solid #161616; border-radius: 6px; background: #161616; color: #fff; cursor: pointer; }
+  button:hover { background: #393939; }
+  :focus-visible { outline: 2px solid #0f62fe; outline-offset: 3px; }
+
+  /* The container makes cqw track the bar's width, so the bar height and the expanded frame scale together. */
+  .strip { container-type: inline-size; }
+  .bar { --h: 30cqw; display: flex; height: var(--h); touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+  .frame { position: relative; flex: 1 1 0; min-width: 0; margin-left: -1cqw; overflow: hidden; border: 1px solid #8d8d8d; border-radius: 10px; background: #ddd; transition: flex-basis 200ms ease, flex-grow 200ms ease; }
+  .frame:first-child { margin-left: 0; }
+  .frame.open { flex: 0 0 calc(var(--h) * 16 / 9); z-index: 1; }
+  .frame img { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; -webkit-user-drag: none; }
+
+  dialog { width: min(960px, 94vw); padding: 0; border: 0; background: none; overflow: visible; }
+  dialog::backdrop { background: rgb(0 0 0 / 70%); }
+  dialog video { display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; background: #000; }
+  dialog .close { display: block; margin: 0 0 8px auto; border-color: rgb(255 255 255 / 60%); }
+
+  @media (prefers-reduced-motion: reduce) { .frame { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Pick a style</h1>
+  <p class="lead">Slide across a strip to scan the video's key frames. Press Play video to watch it with sound. Then tell the agent the style's name.</p>
+  <div id="cards"></div>
+</main>
+
+<dialog id="player" aria-label="Video preview">
+  <button class="close" type="button">Close</button>
+  <video controls playsinline></video>
+</dialog>
+
+<script>
+  const FRAMES = 16;
+  const STYLES = [
+    ["ibm", "IBM-inspired"],
+    ["mozilla", "Mozilla-inspired"],
+    ["nasa", "NASA-inspired"],
+    ["mit-media-lab", "MIT Media Lab-inspired"],
+    ["uber", "Uber-inspired"],
+    ["channel-4", "Channel 4-inspired"],
+    ["nps-unigrid", "NPS Unigrid-inspired"],
+    ["airbnb", "Airbnb-inspired"],
+    ["nycta", "NYCTA-inspired"],
+    ["spotify", "Spotify-inspired"],
+  ];
+
+  const player = document.getElementById("player");
+  const video = player.querySelector("video");
+
+  function build(tag, props, children) {
+    const node = document.createElement(tag);
+    Object.assign(node, props);
+    node.append(...children);
+    return node;
+  }
+
+  function makeCard([slug, name]) {
+    const frames = Array.from({ length: FRAMES }, (_, i) => {
+      const img = build("img", {
+        src: `frames/${slug}/${i + 1}.jpg`,
+        alt: `${name}, frame ${i + 1} of ${FRAMES}`,
+        loading: "lazy",
+        draggable: false,
+      }, []);
+      return build("div", { className: "frame" }, [img]);
+    });
+
+    const bar = build("div", { className: "bar", tabIndex: 0 }, frames);
+    bar.setAttribute("role", "group");
+    bar.setAttribute("aria-label", `${name} key frames. Use the left and right arrow keys to browse.`);
+
+    let selected = -1;
+    const select = (i) => {
+      i = Math.max(0, Math.min(FRAMES - 1, i));
+      if (i === selected) return;
+      if (selected >= 0) frames[selected].classList.remove("open");
+      frames[i].classList.add("open");
+      selected = i;
+    };
+    // Equal zones over the bar's fixed width keep the mapping stable while frame widths animate.
+    const fromPointer = (e) => {
+      const r = bar.getBoundingClientRect();
+      select(Math.floor(((e.clientX - r.left) / r.width) * FRAMES));
+    };
+    bar.addEventListener("pointermove", fromPointer);
+    bar.addEventListener("pointerdown", fromPointer);
+    bar.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight") { select(selected + 1); e.preventDefault(); }
+      if (e.key === "ArrowLeft") { select(selected - 1); e.preventDefault(); }
+    });
+    select(0);
+
+    const play = build("button", { type: "button", textContent: "Play video" }, []);
+    play.addEventListener("click", () => {
+      video.src = `${slug}.mp4`;
+      player.setAttribute("aria-label", `${name} video`);
+      player.showModal();
+      video.play();
+    });
+
+    return build("section", { className: "card" }, [
+      build("div", { className: "card-head" }, [build("h2", { textContent: name }, []), play]),
+      build("div", { className: "strip" }, [bar]),
+    ]);
+  }
+
+  document.getElementById("cards").append(...STYLES.map(makeCard));
+
+  // Closing by any route (Esc, button, backdrop) fires "close", so one handler stops the audio.
+  player.addEventListener("close", () => video.pause());
+  player.querySelector(".close").addEventListener("click", () => player.close());
+  player.addEventListener("click", (e) => { if (e.target === player) player.close(); });
+</script>
+</body>
+</html>
