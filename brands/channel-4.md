@@ -146,7 +146,7 @@ Direct, warm and a little cheeky; second person; present tense. Short sentences,
 
 ```css
 /* STYLE TOKENS: the only place that holds colors, fonts, type scale, grid, easing and durations.
-   Mirrors templates/brands/channel-4.md. A new style replaces this file. */
+   Mirrors brands/channel-4.md. A new style replaces this file. */
 @font-face { font-family: "Archivo"; font-weight: 100 900; font-stretch: 62% 125%; src: url("fonts/Archivo-Variable.ttf") format("truetype"); }
 @font-face { font-family: "Space Mono"; font-weight: 400; src: url("fonts/SpaceMono-Regular.ttf") format("truetype"); }
 @font-face { font-family: "Space Mono"; font-weight: 700; src: url("fonts/SpaceMono-Bold.ttf") format("truetype"); }

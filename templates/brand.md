@@ -1,6 +1,6 @@
 # Brand profile
 
-Copy this file to `local/brand.md`, which is git-ignored, and fill it in. `methods/apply-brand.md` describes how an agent uses it.
+Copy this file to `local/brand.md`, which is git-ignored, and fill it in. `methods/brand-explainer-video.md` describes how an agent uses it.
 
 - **Guidelines:** `[none | path to a brand workshop | path to a document or folder | URL | "user rules below"]`
 - **Route into the guidelines:** `[path to the source's skill, AGENTS.md or method; blank if there is none]`

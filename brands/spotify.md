@@ -152,11 +152,11 @@ Warm, upbeat, second person, present tense, a little casual: "First up", "Next",
 
 ## Tokens
 
-This block is byte-identical to the reference `tokens.css`. It defines every custom property of `ibm.md` under the same names, plus `--field-1..3-bg/fg`, `--font-label`, `--w-label`, `--radius-pill`, `--caption-radius` and `--pop-scale`. Font paths are relative to the composition folder.
+This block defines every custom property of `ibm.md` under the same names, plus `--field-1..3-bg/fg`, `--font-label`, `--w-label`, `--radius-pill`, `--caption-radius` and `--pop-scale`. Font paths are relative to the composition folder.
 
 ```css
 /* STYLE TOKENS: the only place that holds colors, fonts, type scale, grid, easing and durations.
-   Mirrors templates/brands/spotify.md. A new style replaces this file. */
+   Mirrors brands/spotify.md. A new style replaces this file. */
 @font-face { font-family: "Figtree"; font-weight: 300 900; src: url("fonts/Figtree-Variable.ttf") format("truetype"); }
 @font-face { font-family: "DM Mono"; font-weight: 400; src: url("fonts/DMMono-Regular.ttf") format("truetype"); }
 @font-face { font-family: "DM Mono"; font-weight: 500; src: url("fonts/DMMono-Medium.ttf") format("truetype"); }

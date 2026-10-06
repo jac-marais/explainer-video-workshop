@@ -8,8 +8,8 @@ This workshop knows no brand. Brand guidelines come from the operator's local pr
 
 1. Read `local/brand.md`.
 2. If the file is missing, your first question to the user is: **"Do you have brand guidelines that you can point me toward?"** Ask it before you do any other work.
-3. If they have none, offer the workshop's nine styles. Link the gallery at https://jac-marais.github.io/explainer-video-workshop/templates/brands/, where each style plays the same explainer; offline, link `templates/brands/index.html` by its absolute path. List the nine style names and ask the user to reply with one. Each style's preset is `templates/brands/<slug>.md`. The neutral readable default from `methods/prepare-explainer-run.md` remains an option.
-4. Write the answer to `local/brand.md` with `templates/brand-profile.md` as the shape. A chosen style's preset is its Guidelines path. Record "none" when the user picks no style, so nobody asks again.
+3. If they have none, offer the workshop's nine styles. Link the gallery at https://jac-marais.github.io/explainer-video-workshop/brands/, where each style plays the same explainer; offline, link `brands/index.html` by its absolute path. List the nine style names and ask the user to reply with one. Each style's preset is `brands/<slug>.md`. The neutral readable default from `methods/prepare-explainer-video.md` remains an option.
+4. Write the answer to `local/brand.md` with `templates/brand.md` as the shape. A chosen style's preset is its Guidelines path. Record "none" when the user picks no style, so nobody asks again.
 5. When the user changes brands or corrects a decision, update the profile. Don't keep a second copy somewhere else.
 
 Any of these can be a source: a brand workshop with its own `AGENTS.md` or skill, a PDF or folder of guidelines, a website, or a few sentences from the user. A workshop is best, because it lets you cite rules and look up assets. Use what the source offers, and write down any rule the user gives you in conversation.
@@ -46,7 +46,7 @@ The user decides anything the guidelines leave open: substitute fonts, weight ex
 - Load fonts from local files with `@font-face` inside the project, and symlink them into the build output. Don't rely on system or container font packages, which fall back silently. Before capture, check that each face loaded.
 - Stretch a limited palette with alpha only when the brand allows it, and label the result a derived value.
 - Give the accent one meaning across the whole film. Show status with glyphs or outlines, not with color.
-- Brand voice means tone and register: how the brand talks, not what it sells. One light nod to its world is fine, but a script built from its vocabulary is a joke about the brand. The narration rules in `methods/prepare-explainer-run.md` still apply.
+- Brand voice means tone and register: how the brand talks, not what it sells. One light nod to its world is fine, but a script built from its vocabulary is a joke about the brand. The narration rules in step 3 of `methods/prepare-explainer-video.md` still apply.
 - Brand never overrides a claim. A wording change that alters meaning goes through the claim map, not the brand pass.
 
 ### 5. Verify

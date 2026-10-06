@@ -14,20 +14,13 @@ One scene has one learner-facing comprehension job. One shot is a contiguous ren
 
 ## Narration-window consistency
 
-Before accepting the plan, check:
-
-- scene word counts sum to the script's narration word count, excluding explicitly marked non-spoken text;
-- each scene's speech seconds use the stated WPM/range and do not hide pauses inside an inflated WPM;
-- each total planned window is at least speech seconds plus breathing and learner pause budgets;
-- the sum of scene windows matches the target duration within declared transition/end-card tolerance;
-- any scene outside the approved WPM range is repaired by changing words, window, or structure rather than forcing delivery speed;
-- measured audio, when it exists, supersedes every estimate and invalidates dependent timing when edited.
+Before accepting the plan, apply the per-scene timing rule in step 3 of `methods/prepare-explainer-video.md`. Also check that scene word counts sum to the script's narration word count, excluding explicitly marked non-spoken text.
 
 ## Shot sequence
 
 | Shot | Scene | Audio segment | Start/end or timing key | Visual elements and motion grammar | On-screen text | Assets and rights | Renderer/dependency | Entry/exit condition |
 |---|---|---|---|---|---|---|---|---|
-| `S01-01` | `S01` | `[line or audio range]` | `[estimate or word IDs]` | `[what moves and why]` | `[exact text]` | `[path, source, license]` | `[Remotion/Manim/Motion Canvas/HTML]` | `[condition]` |
+| `S01-01` | `S01` | `[line or audio range]` | `[estimate or word IDs]` | `[what moves and why]` | `[exact text]` | `[path, source, license]` | `[HyperFrames/Remotion/Manim/Motion Canvas/HTML-Canvas/Pexo]` | `[condition]` |
 
 ## Required scene checks
 

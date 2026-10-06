@@ -141,11 +141,11 @@ Warm, welcoming, second person, present tense, like a good host showing a guest 
 
 ## Tokens
 
-This block is byte-identical to the reference `tokens.css`. It defines every custom property of the IBM-inspired preset (same names) plus the shape tokens this style needs: `--font-label`, `--w-bold`, `--w-label`, `--radius-pill`, `--border`, `--dot`, `--guide-w`, `--shadow`, `--caption-radius`. A composition that predates these tokens needs the small CSS overrides listed under "Assets and licenses".
+This block defines every custom property of the IBM-inspired preset (same names) plus the shape tokens this style needs: `--font-label`, `--w-bold`, `--w-label`, `--radius-pill`, `--border`, `--dot`, `--guide-w`, `--shadow`, `--caption-radius`. A composition that predates these tokens needs the small CSS overrides listed under "Assets and licenses".
 
 ```css
 /* STYLE TOKENS: the only place that holds colors, fonts, type scale, grid, shapes, easing and durations.
-   Mirrors templates/brands/airbnb.md. A new style replaces this file. */
+   Mirrors brands/airbnb.md. A new style replaces this file. */
 @font-face { font-family: "DM Sans"; font-weight: 100 1000; src: url("fonts/DMSans-VF.ttf") format("truetype"); }
 @font-face { font-family: "DM Mono"; font-weight: 400; src: url("fonts/DMMono-Regular.ttf") format("truetype"); }
 @font-face { font-family: "DM Mono"; font-weight: 500; src: url("fonts/DMMono-Medium.ttf") format("truetype"); }

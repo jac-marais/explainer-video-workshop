@@ -1,12 +1,12 @@
 # Prepare an explainer-video agent run — v0.1
 
-Status: promoted preparation method. This prepares a production run and its handoff. Local rendering, sustained production, and educational effectiveness remain unvalidated.
+Status: promoted preparation method. This prepares a production run and its handoff. Production has run end to end only on the HyperFrames route, through render and agent final review; `library/renderers.md` gives the status of each route. Sustained or multi-hour production and educational effectiveness remain unvalidated.
 
 This method is an original workshop reconstruction. It is not a creator's prompt and does not copy a published skill. Source IDs resolve to original URLs through `library/manifest.json`.
 
 ## Job and trigger
 
-Use this workbench when the request supplies, or asks the agent to collect, a subject, audience, sources, and a time or money budget for an explainer. The output is a preparation package that another agent can execute or resume:
+Use this method when the request supplies, or asks the agent to collect, a subject, audience, sources, and a time or money budget for an explainer. The output is a preparation package that another agent can execute or resume:
 
 ```text
 brief → claim map → learning target → script estimate → scene/shot plan
@@ -14,11 +14,11 @@ brief → claim map → learning target → script estimate → scene/shot plan
       → representative-scene pilot plan → scored handoff
 ```
 
-The workbench handles conceptual, procedural, scientific, and product explainers. It does not handle generic filmmaking, entertainment shorts, advertising strategy, voice impersonation without consent, or publication/upload.
+The method handles conceptual, procedural, scientific, and product explainers. It does not handle generic filmmaking, entertainment shorts, advertising strategy, voice impersonation without consent, or publication/upload.
 
 ## Intake contract
 
-Collect these fields before drafting a script. If a non-factual preference is absent, use a labeled default instead of blocking a natural request: 16:9, 1920×1080, 30 fps, captions when narration is present, a neutral readable visual system (or the brand in `local/brand.md`, applied through `methods/apply-brand.md`), and no publication/upload. Ask only when the missing value changes the route, acceptance claim, rights, or learning target.
+Collect these fields before drafting a script. If a non-factual preference is absent, use a labeled default instead of blocking a natural request: 16:9, 1920×1080, 30 fps, captions when narration is present, a neutral readable visual system (or the brand in `local/brand.md`, applied through `methods/brand-explainer-video.md`), and no publication/upload. Ask only when the missing value changes the route, acceptance claim, rights, or learning target.
 
 - subject and the learner's starting knowledge;
 - one observable learning target and the check that would show it was met;
@@ -27,11 +27,11 @@ Collect these fields before drafting a script. If a non-factual preference is ab
 - available assets and audio, prohibited assets, renderer/tool constraints, and the externally imposed cost or wall-clock limit;
 - creator preferences and exclusions, keeping them separate from factual claims.
 
-If an essential source is missing, unreadable, inaccessible, or only represented by a search snippet, stop before making claims from it. Record the source, attempted access, the claim that depends on it, and the smallest safe next action. Continue only with a narrowed brief that explicitly excludes those claims. A readable source is not automatically authoritative; record what its owner is qualified to establish.
+If an essential source is missing, unreadable, inaccessible, or only represented by a search snippet, stop the claims that depend on it. Record the source, attempted access, the dependent claims, and the smallest safe next action. Continue only on a narrowed brief that explicitly excludes those claims, and continue independent work that does not rely on the blocked source. Never invent a missing source, prompt, or result. A readable source is not automatically authoritative; record what its owner is qualified to establish.
 
-If intake stops, do not manufacture empty script, scene, audio, pilot, or production-prompt files. Write one concise `handoff.md` containing the blocked source, dependent claims, attempted access, missing authority, and next action. Add `run-state.md` only when it preserves useful recovery information. The full downstream package below applies after intake yields a viable, narrowed brief.
+If no viable brief remains, the intake is blocked. Call the result "blocked at intake", record it in `run-state.md` with the phase `blocked at intake`, the blocked source, dependent claims, attempted access, missing authority, and next action, and stop. Fill only the parts of the template that carry this information. Do not manufacture empty script, scene, audio, pilot, scorecard, or production-prompt files. Do not call the result a prepared package or emit a filled production prompt for a route whose essential inputs do not exist. The full downstream package below applies after intake yields a viable, narrowed brief.
 
-Do not infer a model identity, elapsed run time, human intervention level, final video duration, or quality result from a post, screenshot, index label, or repository alone. Public prompt material is limited and does not prove the prompt was executed as shown; this research recovered no independent eight-hour reproduction for the reported examples (S-EX-001–S-EX-025). The model and task-budget sources likewise do not establish an explainer-video SLA or wall-clock allowance (S-FA-001–S-FA-004).
+Do not infer a model identity, elapsed run time, human intervention level, final video duration, or quality result from a post, screenshot, index label, or repository alone. Public prompt material is limited and does not prove the prompt was executed as shown. A source repository, published skill text, or visible prompt receipt supports an inspectable method or prompt artifact, not that a creator used it or that the run was unattended (S-EX-004, S-EX-011, S-EX-018–S-EX-021, S-TC-009). This research recovered no independent eight-hour reproduction for the reported examples (S-EX-001–S-EX-025). The model and task-budget sources likewise do not establish an explainer-video SLA or wall-clock allowance (S-FA-001–S-FA-004).
 
 ## Ordered procedure
 
@@ -52,7 +52,7 @@ Give every factual, numerical, causal, historical, API, or safety claim a stable
 | `claim_id` | `C-001`, `C-002`, … |
 | proposition | One testable statement, with units and conditions |
 | source | Source ID plus exact page, section, timestamp, or code locator |
-| status | `supported`, `qualified`, `disputed`, `assumption`, or `omit` |
+| status | `supported`, `qualified`, `disputed`, `assumption`, `design choice` (a deliberate non-factual decision, such as a route or style), or `omit` |
 | planned use | Spoken line, on-screen text, diagram, or omitted |
 | check | How a reviewer will verify it |
 
@@ -64,7 +64,7 @@ Draft the narration in scenes. Each scene must have one comprehension job, one c
 
 Write the narration for a listener who hears it once and cannot reread it. Use full sentences, and keep the linking words, such as "because", "so", and "until", that carry the logic from one sentence to the next. Avoid "this, not that" constructions. Never use an em dash or colon in the middle of a sentence. Split the thought into two sentences or rewrite it. Say why a mechanism exists before saying how it works. Explain each term that the audience does not already know in plain words before naming it, and then use that one name every time. Keep code identifiers out of speech unless the learner must say or type them. On screen, lead with the plain name and show the identifier beside it. Speak only the numbers that the learning target needs.
 
-List every acronym, product name, code identifier, and number in the narration with its planned spoken form in the script's pronunciation line. Try each term as written first, and spell letters with hyphens, such as `A-C-S`, because spaced letters and spelled-out words can misread in a synthetic voice.
+List every acronym, product name, code identifier, and number in the narration with its planned spoken form in the script's pronunciation line. Try each term as written first, and spell letters with hyphens, such as `A-C-S`, because spaced letters and spelled-out words can misread in a synthetic voice. Keep the operator's verdicts in the git-ignored `local/pronunciation.md`, and copy `templates/pronunciation.md` there if it is missing. Add the candidate-list words that the narration uses to the pronunciation line, and apply the known fixes for the planned voice. After each ear check, record the new verdicts there.
 
 Estimate the script duration explicitly:
 
@@ -74,7 +74,7 @@ estimated_seconds = narration_word_count / chosen_words_per_minute × 60
 
 Record the word count and the chosen WPM range (for example, 130–165 WPM) beside the estimate. This is planning arithmetic. It is not measured audio. Once audio exists, record its actual file duration and derive scene, sentence, word, and caption timing from that file. A later trim, re-record, speed change, or pause edit invalidates timing and every visual or caption artifact that consumes it (S-TC-001, S-TC-003, S-TC-006, S-TC-008).
 
-Run the same arithmetic per scene. Record narration words, target WPM or range, speech seconds, breathing-pause budget, learner-processing-pause budget, and the total planned scene window. Speech seconds are `words / WPM × 60` and exclude both kinds of pause. Require each rough scene window to cover speech plus its declared pauses, and require the scene-window sum to match the target duration within declared transition or end-card tolerance. A global word count can fit while one scene demands implausible speech; repair the scene words, window, or narrative before production. To fit a duration, remove whole claims or narrow the learning target, and keep the explanation that each remaining claim needs. If the learning target needs a longer duration, tell the user how long it needs and record that duration in the brief. Continue with that duration unless the user directly asks to keep the original one. In that case, offer one to three narrower targets for the user to choose from. Final approved audio remains authoritative when it exists.
+Run the same arithmetic per scene. Record narration words, target WPM or range, speech seconds, breathing-pause budget, learner-processing-pause budget, and the total planned scene window. Speech seconds are `words / WPM × 60` and exclude both kinds of pause. Require each rough scene window to cover speech plus its declared pauses, and require the scene-window sum to match the target duration within declared transition or end-card tolerance. A global word count can fit while one scene demands implausible speech; repair the scene words, window, or narrative before production, never by faster delivery. To fit a duration, remove whole claims or narrow the learning target, and keep the explanation that each remaining claim needs. If the learning target needs a longer duration, tell the user how long it needs and record that duration in the brief. Continue with that duration unless the user directly asks to keep the original one. In that case, offer one to three narrower targets for the user to choose from. Final approved audio remains authoritative when it exists.
 
 Before any audio exists, test the narration on a cold listener. Give a fresh agent or person the audience's starting knowledge from the brief, the spoken text, and a plain description of what each scene shows, written from each scene's planned visual idea without filling its gaps. Withhold the claim map and sources. Ask them to explain the mechanism in their own words, answer the learning-target check, and name each sentence that they had to guess at or that seemed to contradict another. Also ask them to name anything the check relies on that the film had not shown before the check, and what the viewer sees that confirms the answer. Repair each problem, check the changed sentences against the claim map, and repeat the test until the explanation and the answer match the claim map. Record each round in `run-state.md`.
 
@@ -93,17 +93,17 @@ Choose the path after the shot plan, not before it:
 | Existing React/UI project, charts, captions, supplied recordings, reusable React scenes | Remotion | The project cannot satisfy its Node/React/Chrome or license constraints |
 | New plain-HTML/browser-native diagrams, captions, supplied recordings, or brand motion | HyperFrames local route | The composition cannot satisfy its standalone HTML, `data-*` timing, paused seekable timeline, Node/FFmpeg, or Apache-2.0 constraints |
 | Formula, geometry, precise mathematical or scientific transformation | Manim + Manim Voiceover | The lesson is mostly UI, arbitrary web assets, or brand layout |
-| TypeScript vector scenes where seek, screenshots, and scene graph inspection matter | Motion Canvas | The browser/editor bridge or FFmpeg dependency is unavailable |
-| Small generic diagrams or canvas scenes | HTML/Canvas or Motion Canvas | HyperFrames is a better fit for a new browser-native composition, or a specialized route has a clear acceptance advantage |
-| Photoreal multi-shot generation or hosted asset orchestration | Pexo optional hosted route | Credentials, account, credits, data-transfer terms, or final assembly evidence are unavailable |
+| TypeScript vector scenes where seek, screenshots, scene graph, and error inspection matter | Motion Canvas | The browser/editor bridge or FFmpeg dependency is unavailable |
+| Small generic diagrams or canvas scenes, when direct canvas is the simplest sufficient route | HTML/Canvas or Motion Canvas | HyperFrames is a better fit for a new browser-native composition, or a specialized route has a clear acceptance advantage |
+| Photoreal multi-shot generation or hosted asset orchestration | Pexo optional hosted route, only when the user explicitly chooses it | Credentials, account, credits, data-transfer terms, or final assembly evidence are unavailable |
 
-The route capabilities are source-backed; the learner-job mapping is a workshop design choice (S-TC-001–S-TC-004, S-HF-001–S-HF-005, S-PX-003). HyperFrames is a candidate local route, not a claim of local execution or universal superiority. Pexo is a hosted, credentialed optional route; the public client repository does not make its service free and does not prove final assembly quality (S-PX-003). Do not silently change routes when a dependency, license, account, or data-transfer condition fails: record the disqualifier and revise the plan. The route must leave an editable source and an inspectable render command when the local stack supports them.
+The route capabilities are source-backed; the learner-job mapping is a workshop design choice (S-TC-001–S-TC-004, S-HF-001–S-HF-005, S-PX-003). HyperFrames is the only route run locally so far (`library/renderers.md`), which does not make it better for every learner job. Pexo is a hosted, credentialed optional route; the public client repository does not make its service free and does not prove final assembly quality (S-PX-003). Do not silently change routes when a dependency, license, account, or data-transfer condition fails: record the disqualifier and revise the plan. The route must leave an editable source and an inspectable render command when the local stack supports them. The narration-bound path of approved audio, measured timing, visuals that consume timing, a pilot, and exact-output review survives a renderer swap; only its implementation changes (S-TC-001, S-TC-003, S-TC-006, S-TC-008, S-TC-009).
 
-When HyperFrames is selected, apply the route-specific preflight traps in `library/notes/production-paths.md`; a lint-disabled audit or `0-of-0` sample report is not acceptance evidence.
+When HyperFrames is selected, apply the route-specific preflight traps in `library/renderers.md`; a lint-disabled audit or `0-of-0` sample report is not acceptance evidence.
 
 ### 6. Plan audio and timing as invalidatable artifacts
 
-When audio exists, the approved voice track is the timing authority. Before audio exists, record the intended source and timing plan and mark measured timing pending. The exact implementation can use measured scene durations (for example, Remotion metadata) or in-scene duration/bookmark tracking (for example, Manim Voiceover); both still consume approved audio when production runs (S-TC-001, S-TC-003, S-TC-008).
+When audio exists, the approved voice track is the timing authority. Before audio exists, `audio-receipt.md` and `timing.md` record the intended source and timing plan, say why measured audio is not available, and mark measured timing pending. The exact implementation can use measured scene durations, which suit scene-based UI or vector explainers and captions (for example, Remotion or Claude Video Kit metadata), or in-scene duration/bookmark tracking, which suits word-triggered formula or diagram motion (for example, Manim Voiceover); both still consume approved audio when production runs (S-TC-001, S-TC-003, S-TC-008).
 
 Record an audio receipt with path, provider or recorder, language, sample rate if known, duration, checksum if available, and approval status. Record timing with scene and word/sentence bounds, match confidence, and the audio receipt it was derived from. Do not edit audio after timing without rebuilding the timing artifact.
 
@@ -150,40 +150,43 @@ pilot-review.md
 pre-render-review.md
 run-state.md
 production-prompt.md
-handoff.md
 ```
+
+Start each file from its template in `templates/` when one exists.
 
 Each artifact has a status (`missing`, `draft`, `checked`, `invalidated`, `accepted`) and an explicit dependency. A renderer may also require JSON or TypeScript inputs; keep those as implementation files, not as the workshop's only record.
 
-The run state records the current phase, completed artifacts, invalidations, retries, external time and spend measurements, renderer/version, and next action. Resume by reconciling state with the filesystem: a missing or corrupt artifact is not complete merely because a flag says so. Regenerate only the affected artifact and its dependents. Dependency waves are useful for generated assets: gate roots before dependent continuations (S-TC-005, S-TC-007).
+The run state records the current phase, completed artifacts, invalidations, retries, external time and spend measurements, renderer/version, and next action. Resume by reconciling state with the filesystem: a missing, empty, corrupt, or mismatched artifact is not complete merely because a flag says so. Regenerate only the affected artifact and its dependents, using the step 6 invalidation table. Dependency waves are useful for generated assets: gate roots before dependent continuations (S-TC-005, S-TC-007).
 
-Checkpoints are agent gates, not mandatory human approvals. The agent may proceed when the gate evidence is present. Stop for user authority only for a purchase, publication, irreversible external write, or a private preference the brief cannot resolve.
+Checkpoints are agent gates, not human approvals. `AGENTS.md` says when to ask the user.
 
 ### 9. Score the preparation package
 
-Use `scorecards/preparation-quality.md`. Score a preparation package against planned evidence and score production evidence against measured artifacts. A weighted total helps prioritize work, but it cannot erase a critical failure. Essential unreadable sources, unsupported promoted claims, missing timing or pilot plans, infeasible per-scene narration windows, render errors in a claimed pilot, missing rights evidence, or a stale receipt fail the relevant claim regardless of the numeric score.
+Use `scorecards/run-quality.md`. Score a preparation package against planned evidence and score production evidence against measured artifacts. A weighted total helps prioritize work, but it cannot erase a critical failure. Any critical failure in the scorecard fails the relevant claim regardless of the numeric score.
 
 ### 10. Final handoff
 
-For a viable brief, the preparation handoff contains:
+For a viable brief, the step 8 files together contain:
 
 - brief, learning target, audience assumptions, and duration estimate with word count/WPM;
 - readable source receipts, claim map, unresolved claims, and rights/privacy notes;
 - script, scene/shot plan, route decision with alternatives and disqualifiers;
 - audio receipt and timing plan, including what invalidates them;
 - pilot plan, plus pilot media when production was requested and actually run, or an explicit statement that no local pilot was run;
-- scorecard, machine-check plan, run state, renderer/version commands, and external cost/time instrumentation plan;
-- a filled `production-prompt.md` that accepts this package and can execute the future narration, pilot, scene build, render, full playback, review, resume, and exact handoff route;
+- scorecard result, machine-check plan in `pre-render-review.md`, run state, renderer/version commands, and the external cost/time instrumentation plan in `run-state.md`;
+- a `production-prompt.md` filled from `templates/production-prompt.md`, so the next agent executes the run instead of receiving another preparation request. It accepts this package and can execute the future narration, pilot, scene build, render, full playback, review, resume, and exact handoff route;
 - editable project and asset/source manifest when they exist;
-- remaining uncertainty and the next concrete validation trial.
+- remaining uncertainty and the next concrete validation trial, recorded in `run-state.md`.
 
-Call the package “prepared” only when the preparation scorecard passes. Call a scene “piloted” only when a voiced pilot actually ran and was reviewed. Call a video “rendered” only after an actual render and exact-byte final review. Call it “successful,” “accurate,” or “educationally effective” only when the relevant evidence exists. The workshop's current task ends at preparation unless the user explicitly requests production.
+Call the package “prepared” only when it passes the scorecard's preparation mode. Call a scene “piloted” only when a voiced pilot actually ran and was reviewed. Call a video “rendered” only after an actual render and exact-byte final review. Call it “successful,” “accurate,” or “educationally effective” only when the relevant evidence exists. The workshop's current task ends at preparation unless the user explicitly requests production.
 
-For a blocked intake, call the result “blocked at intake,” deliver the concise `handoff.md`, and stop. Do not call it a prepared package or emit a filled production prompt for a route whose essential inputs do not exist.
+The final response reports the preparation status, learning target, source and readability stops, claim coverage, estimated words and WPM against any measured audio, scene count, renderer route with disqualifiers, pilot evidence, scorecard result, measured time and spend, and unanswered choices. It states whether a local pilot or full render actually ran, and it says "prepared package" unless an actual render and exact-byte review are evidenced.
+
+A blocked intake never reaches this step. See "Intake contract".
 
 ## Adjustable eight-hour ceiling
 
-An eight-hour figure is a planning ceiling for an end-to-end production attempt, not eight hours of paperwork, a promise, a required runtime, or a quality target. Preparation-only work can finish earlier after its package passes. The user or external controller enforces actual wall-clock and money limits; an advisory prompt cannot enforce them. Record actual elapsed time and spend from the controller or billing source.
+An eight-hour figure is a planning ceiling for an end-to-end production attempt, not eight hours of paperwork, a promise, a required runtime, or a quality target. Preparation-only work can finish earlier after its package passes. Stop at acceptance or the external limit. The user or external controller enforces actual wall-clock and money limits; an advisory prompt cannot enforce them. Record actual elapsed time and spend from the controller or billing source.
 
 One adjustable starting allocation for a full production attempt is:
 
@@ -203,7 +206,6 @@ If the external limit is smaller, reduce scope and declare the omitted scenes or
 
 - This method is strongest for a bounded explainer with readable sources and an editable code-first or vector route.
 - It does not establish that a model can run unattended for eight hours, that a specific model is best, or that a polished-looking film teaches well (S-FA-001–S-FA-004, S-EX-001–S-EX-025).
-- A source repository or visible prompt receipt supports an inspectable method or prompt artifact, not that the posted artifact used it or that the run was unattended (S-EX-004, S-EX-011, S-EX-018–S-EX-021, S-TC-009).
 - Still frames cannot establish continuous motion, audio quality, synchronization, or whole-film quality; the contiguous pilot and final exact-byte review are required (S-TC-009).
 - Tool instructions with no declared license must be paraphrased and reimplemented unless a license decision permits reuse (S-TC-001, S-TC-006). Keep provider secrets outside source artifacts.
 - Voice quality, pronunciation, and caption matching vary by language and provider. A recorded and a generated-audio variant should be trialed before treating either as default (S-TC-003, S-TC-006).

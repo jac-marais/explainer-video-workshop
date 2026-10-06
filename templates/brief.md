@@ -20,7 +20,7 @@ This is a preparation brief. A complete brief does not claim that a renderer ran
 - Aspect ratio / resolution / FPS: `[values]`
 - Language / captions / accessibility: `[values]`
 - Tone and visual constraints: `[values]`
-- Required handoff files: `[editable project, MP4, captions, sources, receipts, etc.]`
+- Required delivery files: `[editable project, MP4, captions, sources, receipts, etc.]`
 
 The word/WPM figure is planning arithmetic. Replace it with measured audio timing after an approved voice track exists.
 

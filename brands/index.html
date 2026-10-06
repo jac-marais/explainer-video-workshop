@@ -112,7 +112,7 @@
     });
     select(0);
 
-    const sources = build("a", { href: `${REPO}/blob/main/templates/brands/${slug}.md#provenance`, textContent: "Sources", target: "_blank", rel: "noopener" }, []);
+    const sources = build("a", { href: `${REPO}/blob/main/brands/${slug}.md#provenance`, textContent: "Sources", target: "_blank", rel: "noopener" }, []);
     const play = build("button", { type: "button", textContent: "Play video" }, []);
     play.addEventListener("click", () => {
       video.src = `${slug}.mp4`;

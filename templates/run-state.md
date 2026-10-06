@@ -1,4 +1,4 @@
-# Run state — resumable preparation package
+# Run state — resumable run record
 
 Status: `draft` | Run ID: `[short ID]` | Last updated: `[UTC timestamp]`
 
@@ -6,13 +6,13 @@ This is one human-readable state record. A renderer may keep implementation-spec
 
 ## Current state
 
-- Current phase: `intake | evidence | narrative | route | audio | pilot | preflight | handoff`
+- Current phase: `preparation step [1–10] | production milestone [M0–M7] | blocked at [intake, step, or milestone] | accepted`
 - Next action: `[single concrete action]`
 - Full-production ceiling: `[hours; adjustable]`
 - External elapsed time: `[controller measurement or unknown]`
 - External spend: `[billing/controller measurement or unknown]`
 - Renderer/version: `[route and pinned versions, or not chosen]`
-- Publication/upload: `not authorized by this workbench`
+- Publication/upload: `not authorized by this workshop`
 
 ## Artifact ledger
 
@@ -21,14 +21,14 @@ This is one human-readable state record. A renderer may keep implementation-spec
 | `brief.md` | `missing/draft/checked/invalidated/accepted` | `[inputs]` | `[check]` | `[change]` | `[action]` |
 | `claim-map.md` | `[status]` | `[sources + brief]` | `[source locators]` | `[source/target change]` | `[action]` |
 | `script.md` | `[status]` | `[claim map + target]` | `[word count]` | `[claim/target change]` | `[action]` |
-| `scene-plan.md` | `[status]` | `[script]` | `[coverage check]` | `[script/route/audio change]` | `[action]` |
-| `audio-receipt.md` | `[status]` | `[script or recording]` | `[duration + checksum]` | `[audio edit/script change]` | `[action]` |
-| `timing.md` | `[status]` | `[approved audio]` | `[match report]` | `[audio edit]` | `[action]` |
+| `scene-plan.md` | `[status]` | `[script]` | `[coverage check]` | `[source, claim, target, script, or route change]` | `[action]` |
+| `audio-receipt.md` | `[status]` | `[script or recording]` | `[duration + checksum]` | `[source, claim, target, script, or audio change]` | `[action]` |
+| `timing.md` | `[status]` | `[approved audio]` | `[match report]` | `[source, claim, target, script, or audio change]` | `[action]` |
 | `assets-manifest.md` | `[status]` | `[scene plan]` | `[paths + rights]` | `[asset/route change]` | `[action]` |
-| `pilot-review.md` | `[status]` | `[pilot media + artifacts]` | `[stills + contiguous clip]` | `[audio/code/asset/FPS change]` | `[action]` |
+| `pilot-review.md` | `[status]` | `[pilot media + artifacts]` | `[stills + contiguous clip]` | `[source, claim, target, audio, code, asset, renderer, FPS, or dimension change]` | `[action]` |
 | `pre-render-review.md` | `[status]` | `[claim/script/scene/audio]` | `[scorecard]` | `[any upstream change]` | `[action]` |
+| `final-review.md` | `[status, production only]` | `[exact MP4 + claim map]` | `[MP4 checksum]` | `[new MP4 bytes]` | `[action]` |
 | `production-prompt.md` | `[status]` | `[accepted preparation package]` | `[filled route/limits/checklist]` | `[contract, route, limit, or acceptance change]` | `[action]` |
-| `handoff.md` | `[status]` | `[all accepted artifacts]` | `[file list]` | `[new run or changed outputs]` | `[action]` |
 
 ## Resume protocol
 
@@ -51,4 +51,5 @@ This is one human-readable state record. A renderer may keep implementation-spec
 - Full render actually run: `yes/no`
 - Exact final-byte review: `not applicable | pending | complete`
 - Remaining uncertainty: `[list]`
+- Next validation trial: `[one concrete trial]`
 - Safe claim to make now: `[prepared package only / other evidence-backed claim]`

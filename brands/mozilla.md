@@ -122,7 +122,7 @@ Adapted from the portal's voice guidance (passionate, welcoming, plain-spoken; f
 
 ```css
 /* STYLE TOKENS: the only place that holds colors, fonts, type scale, grid, geometry, easing and durations.
-   Mirrors templates/brands/mozilla.md exactly. A new style replaces this file. */
+   Mirrors brands/mozilla.md exactly. A new style replaces this file. */
 @font-face { font-family: "Mozilla Headline"; src: url("fonts/MozillaHeadline-VF.ttf") format("truetype"); font-weight: 200 700; font-stretch: 75% 125%; }
 @font-face { font-family: "Mozilla Text"; src: url("fonts/MozillaText-VF.ttf") format("truetype"); font-weight: 200 700; }
 :root {

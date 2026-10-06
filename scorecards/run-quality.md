@@ -1,4 +1,4 @@
-# Preparation quality scorecard — v0.1
+# Run quality scorecard — v0.1
 
 Use this scorecard in two modes. In `preparation` mode, score the brief, claim map, script, scene plan, route, timing plan, and pilot plan; a local render, audio file, or pilot is optional. In `production-evidence` mode, score the measured audio, voiced pilot, render checks, and exact artifact review that actually ran. It distinguishes factuality, learning, motion/visual design, and audio/timing. It scores evidence, not confidence or polish. Production criteria and numeric thresholds are workshop design choices, not calibrated predictors of video quality.
 
@@ -28,7 +28,7 @@ Weighted score is `rating / 4 × weight`. A numeric score never overrides a crit
 | Motion/visual | 7 | Hardest shot has a delivery-size inspection plan; in production-evidence mode, text, formulas, contrast, and labels are legible | pilot plan, or contiguous pilot clip/stills/route inspection |
 | Audio/timing | 8 | Timing plan names the intended approved audio source and marks measured receipt pending when audio is absent; in production-evidence mode, the audio receipt records measured duration | timing plan, or audio receipt and timing artifact |
 | Audio/timing | 7 | Each scene has words, target WPM/range, speech seconds, breathing and learner-pause budgets, and a feasible total window; in production-evidence mode, scene/word/caption bounds match approved audio | `scene-plan.md`, timing consistency check, or timing match report |
-| Reproducibility | 10 | Route, versions, dependencies, commands, artifacts, resume state, the filled production prompt, and actual local-run status are explicit | `run-state.md`, `production-prompt.md`, `handoff.md` |
+| Reproducibility | 10 | Route, versions, dependencies, commands, artifacts, resume state, the filled production prompt, and actual local-run status are explicit | `run-state.md`, `production-prompt.md` |
 | Reproducibility | 5 | Pilot, pre-render, and final-review evidence are bound to the artifact they actually inspect | receipts/checksums or explicit “not run” |
 | **Total** | **100** |  |  |
 
@@ -41,7 +41,8 @@ Mark `critical failure = yes` when any of these is true:
 - a source disagreement is hidden or a reconstruction is labeled as an exact creator prompt/run;
 - the script estimate is presented as measured audio, or approved audio changed without timing/caption invalidation;
 - global word/WPM arithmetic passes while any scene window cannot cover its speech plus declared breathing and learner pauses, or scene windows do not sum to the target within declared tolerance;
-- the narration has no cold-listener test from step 3 of `methods/prepare-explainer-run.md`, or a problem that the test found is unrepaired;
+- the narration has no cold-listener test from step 3 of `methods/prepare-explainer-video.md`, or a problem that the test found is unrepaired;
+- the package has no timing plan, or a timing, pilot, pre-render, or final-review receipt is stale against its inputs;
 - the preparation package has no hardest/representative pilot plan, or a production-evidence claim has no voiced pilot when the requested local stack could run it;
 - a claimed pilot has render errors, stale output, clipped/illegible text, misleading motion, or timing that does not follow the audio;
 - an asset has no rights/use note, or a private credential is written into a source artifact;
