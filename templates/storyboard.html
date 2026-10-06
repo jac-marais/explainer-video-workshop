@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>[Run title] storyboard</title>
+<style>
+  /* Replace these neutral defaults with the font and colors from local/brand.md. */
+  :root { --font: system-ui, sans-serif; --bg: #f6f6f4; --ink: #1c1c1c; --muted: #666; --line: #2b4c7e; --card: #fff; }
+  body { margin: 0; padding: 2rem; font-family: var(--font); background: var(--bg); color: var(--ink); }
+  header p { color: var(--muted); max-width: 60ch; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
+  figure { margin: 0; padding: 1rem; background: var(--card); border: 1px solid #ddd; border-radius: 6px; }
+  .id { font: 600 0.8rem monospace; color: var(--muted); }
+  h2 { margin: 0.25rem 0 0.75rem; font-size: 1.1rem; }
+  svg { width: 100%; height: auto; border: 1px solid #ddd; background: var(--bg); }
+  svg :is(rect, circle, ellipse, line, path, polyline, polygon) { fill: none; stroke: var(--line); stroke-width: 6; }
+  svg text { fill: var(--ink); font: 56px var(--font); }
+  figcaption { margin-top: 0.75rem; font-size: 0.95rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>[Run title]</h1>
+  <p>[One-line lede.] These are composition sketches keyed to the shot IDs in scene-plan.md.</p>
+</header>
+<!-- To add a frame, copy one figure, set its shot ID from scene-plan.md, then redraw the sketch and note. -->
+<main class="grid">
+  <figure>
+    <span class="id">S01-01</span>
+    <h2>[Short frame title]</h2>
+    <svg viewBox="0 0 1920 1080" role="img" aria-label="[Describe the sketch]">
+      <rect x="560" y="340" width="360" height="400"/>
+      <circle cx="1280" cy="540" r="200"/>
+      <path d="M920 540 H1080"/>
+      <text x="560" y="300">[Label]</text>
+    </svg>
+    <figcaption>[What the viewer sees in one or two sentences.]</figcaption>
+  </figure>
+</main>
+</body>
+</html>

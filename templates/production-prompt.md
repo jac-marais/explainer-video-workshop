@@ -30,6 +30,7 @@ PRODUCTION CONTRACT
 3. Use the prepared renderer route when its dependencies and license permit it. Do not lock the run to a named model. Choose available providers and tools that satisfy the package, record their versions/roles, and stop if the route cannot meet the acceptance contract.
 4. Treat the approved audio bytes as timing truth once they exist. A re-record, trim, speed change, pause edit, or script change invalidates timing, captions, audio-bound visual cues, the pilot, and the pre-render receipt. Rebuild the affected artifacts before proceeding.
 5. Checkpoints are agent gates, not human approvals; proceed when the gate evidence is present. Ask the user only before a purchase, a publication or upload, contacting a creator or brand owner, another irreversible external write, or a private preference that the prepared package does not resolve.
+6. Use storyboard.html as the composition reference when building the pilot and the scenes. Where it differs from the scene plan or approved audio, follow those and leave the storyboard unchanged.
 
 MILESTONES
 

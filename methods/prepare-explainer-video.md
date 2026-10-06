@@ -9,7 +9,7 @@ This method is an original workshop reconstruction. It is not a creator's prompt
 Use this method when the request supplies, or asks the agent to collect, a subject, audience, sources, and a time or money budget for an explainer. The output is a preparation package that another agent can execute or resume:
 
 ```text
-brief → claim map → learning target → script estimate → scene/shot plan
+brief → claim map → learning target → script estimate → scene/shot plan → storyboard
       → route and dependency check → approved audio/timing plan
       → representative-scene pilot plan → scored handoff
 ```
@@ -84,6 +84,8 @@ Use `templates/scene-plan.md`. A scene is a learner-facing comprehension unit; a
 
 Use the information structure to choose motion. Signaling, segmenting, and removing decorative motion have direct educational rationale (S-FA-006, S-FA-008). A generic fade or zoom is not an explanation. If the visual cannot make the target action or mechanism easier to see, use a static card or omit it.
 
+Then draw the storyboard, `storyboard.html` in the run folder, from `templates/storyboard.html`. It is one page of key frames, so a reader can see how the film fits together before any audio exists. Each frame has a shot ID from `scene-plan.md`, a short title, an SVG line sketch on the brief's canvas, and one or two sentences on what the viewer sees. Draw one frame for each key visual moment, and at least one per scene. Draw the moment that carries the shot's comprehension job, such as the state the viewer must notice, not decoration. When motion carries the idea, draw its start and end states, and check that a reader can follow the argument from the frames and notes alone. Frames name shot IDs and do not copy narration, timing, or counts, so the scene plan stays the one place for those. Sketches are enough. Use the brand fonts and colors from `local/brand.md` when it exists, and show the page to the user. Redraw affected frames while preparation changes the script or scene plan. Once production starts, the storyboard stays as it is, and the scene plan and approved audio win wherever they differ from it. The storyboard step is a workshop design choice from one run, not a source-backed finding.
+
 ### 5. Route the learner job to a renderer
 
 Choose the path after the shot plan, not before it:
@@ -143,6 +145,7 @@ brief.md
 claim-map.md
 script.md
 scene-plan.md
+storyboard.html
 audio-receipt.md
 timing.md
 assets-manifest.md

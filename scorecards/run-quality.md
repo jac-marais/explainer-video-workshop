@@ -24,7 +24,7 @@ Weighted score is `rating / 4 × weight`. A numeric score never overrides a crit
 | Learning | 10 | One observable target is stated for this audience and duration | `brief.md` |
 | Learning | 10 | Scenes and narration build toward the target; a check or self-evaluation opportunity exists | `scene-plan.md`, script, target check |
 | Learning | 5 | Signal/segment/weed choices reduce cognitive load without claiming that engagement proves learning | script and visual rationale |
-| Motion/visual | 8 | Every scene has one comprehension job and motion that communicates a time-varying relationship; in production-evidence mode, the pilot shows it | `scene-plan.md` and pilot evidence when run |
+| Motion/visual | 8 | Every scene has one comprehension job and motion that communicates a time-varying relationship; in production-evidence mode, the pilot shows it | `scene-plan.md`, `storyboard.html`, and pilot evidence when run |
 | Motion/visual | 7 | Hardest shot has a delivery-size inspection plan; in production-evidence mode, text, formulas, contrast, and labels are legible | pilot plan, or contiguous pilot clip/stills/route inspection |
 | Audio/timing | 8 | Timing plan names the intended approved audio source and marks measured receipt pending when audio is absent; in production-evidence mode, the audio receipt records measured duration | timing plan, or audio receipt and timing artifact |
 | Audio/timing | 7 | Each scene has words, target WPM/range, speech seconds, breathing and learner-pause budgets, and a feasible total window; in production-evidence mode, scene/word/caption bounds match approved audio | `scene-plan.md`, timing consistency check, or timing match report |
