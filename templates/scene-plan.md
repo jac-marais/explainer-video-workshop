@@ -20,7 +20,7 @@ Before accepting the plan, apply the per-scene timing rule in step 3 of `methods
 
 | Shot | Scene | Audio segment | Start/end or timing key | Visual elements and motion grammar | On-screen text | Assets and rights | Renderer/dependency | Entry/exit condition |
 |---|---|---|---|---|---|---|---|---|
-| `S01-01` | `S01` | `[line or audio range]` | `[estimate or word IDs]` | `[what moves and why]` | `[exact text]` | `[path, source, license]` | `[HyperFrames/Remotion/Manim/Motion Canvas/HTML-Canvas/Pexo]` | `[condition]` |
+| `S01-01` | `S01` | `[line or audio range]` | `[estimate or word IDs]` | `[what moves and why]` | `[exact text]` | `[path, source, license]` | `[HyperFrames/live-app capture/Remotion/Manim/Motion Canvas/HTML-Canvas/Pexo]` | `[condition]` |
 
 ## Required scene checks
 

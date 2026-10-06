@@ -13,7 +13,7 @@ PREPARED PACKAGE
 Package directory: [path]
 Required records: [the package files from step 8 of methods/prepare-explainer-video.md, copied when this prompt is filled so later changes to that list do not alter this run]
 Output directory: [path]
-Renderer route and pinned versions: [HyperFrames / Remotion / Manim / Motion Canvas / HTML-Canvas, or an explicitly selected hosted route; versions and commands from the package]
+Renderer route and pinned versions: [HyperFrames / live-app capture / Remotion / Manim / Motion Canvas / HTML-Canvas, or an explicitly selected hosted route; versions and commands from the package]
 
 EXTERNAL LIMITS
 Wall-clock limit: [controller-enforced value]
@@ -38,7 +38,7 @@ M0 — Preflight and resume
 
 - Read the brief, claim map, script, scene plan, assets manifest, route, and state. Inspect any existing project and preserve its meaningful files.
 - Verify source readability, asset rights notes, required dependencies, output dimensions, FPS, language, caption requirement, and the current next action.
-- If the route is HyperFrames, apply the “HyperFrames preflight traps” in `library/renderers.md` before accepting `check`: a standalone composition, matching composition/timeline identity, resolved audio IDs, and positive layout/contrast samples are required; a lint-disabled or 0-of-0 audit is not a pass.
+- Apply the chosen route's traps in `library/renderers.md` before accepting its checks. For HyperFrames, a standalone composition, matching composition/timeline identity, resolved audio IDs, and positive layout/contrast samples are required; a lint-disabled or 0-of-0 audit is not a pass.
 - Locate completed artifacts and classify missing/empty/corrupt/stale files. Rebuild only the affected artifact and dependents. Append the decision and invalidation to run-state.md.
 
 Checkpoint: the route, inputs, limits, and current dependency graph are explicit.

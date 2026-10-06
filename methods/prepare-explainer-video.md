@@ -1,6 +1,6 @@
 # Prepare an explainer-video agent run — v0.1
 
-Status: promoted preparation method. This prepares a production run and its handoff. Production has run end to end only on the HyperFrames route, through render and agent final review; `library/renderers.md` gives the status of each route. Sustained or multi-hour production and educational effectiveness remain unvalidated.
+Status: promoted preparation method. This prepares a production run and its handoff. Production has run end to end on two routes, HyperFrames and live-app capture, through render and agent review; `library/renderers.md` gives the status of each route. Sustained or multi-hour production and educational effectiveness remain unvalidated.
 
 This method is an original workshop reconstruction. It is not a creator's prompt and does not copy a published skill. Source IDs resolve to original URLs through `library/manifest.json`.
 
@@ -92,6 +92,7 @@ Choose the path after the shot plan, not before it:
 
 | Learner job | Candidate route | Use another route when |
 |---|---|---|
+| How an existing web app behaves when someone uses it: its real screens, clicks, typing, and dialogs | Live-app capture | The app refuses to load in a frame, the take needs credentials it cannot hold, or scenes must be seekable or re-rendered one at a time |
 | Existing React/UI project, charts, captions, supplied recordings, reusable React scenes | Remotion | The project cannot satisfy its Node/React/Chrome or license constraints |
 | New plain-HTML/browser-native diagrams, captions, supplied recordings, or brand motion | HyperFrames local route | The composition cannot satisfy its standalone HTML, `data-*` timing, paused seekable timeline, Node/FFmpeg, or Apache-2.0 constraints |
 | Formula, geometry, precise mathematical or scientific transformation | Manim + Manim Voiceover | The lesson is mostly UI, arbitrary web assets, or brand layout |
@@ -99,9 +100,9 @@ Choose the path after the shot plan, not before it:
 | Small generic diagrams or canvas scenes, when direct canvas is the simplest sufficient route | HTML/Canvas or Motion Canvas | HyperFrames is a better fit for a new browser-native composition, or a specialized route has a clear acceptance advantage |
 | Photoreal multi-shot generation or hosted asset orchestration | Pexo optional hosted route, only when the user explicitly chooses it | Credentials, account, credits, data-transfer terms, or final assembly evidence are unavailable |
 
-The route capabilities are source-backed; the learner-job mapping is a workshop design choice (S-TC-001–S-TC-004, S-HF-001–S-HF-005, S-PX-003). HyperFrames is the only route run locally so far (`library/renderers.md`), which does not make it better for every learner job. Pexo is a hosted, credentialed optional route; the public client repository does not make its service free and does not prove final assembly quality (S-PX-003). Do not silently change routes when a dependency, license, account, or data-transfer condition fails: record the disqualifier and revise the plan. The route must leave an editable source and an inspectable render command when the local stack supports them. The narration-bound path of approved audio, measured timing, visuals that consume timing, a pilot, and exact-output review survives a renderer swap; only its implementation changes (S-TC-001, S-TC-003, S-TC-006, S-TC-008, S-TC-009).
+The route capabilities are source-backed, except live-app capture, which comes from one local run; the learner-job mapping is a workshop design choice (S-TC-001–S-TC-004, S-HF-001–S-HF-005, S-PX-003). HyperFrames and live-app capture are the only routes run locally so far (`library/renderers.md`), which does not make them better for every learner job. Live-app capture films the product itself instead of rebuilding it, so no screen in the film is a reconstruction that can drift from the real app. Pexo is a hosted, credentialed optional route; the public client repository does not make its service free and does not prove final assembly quality (S-PX-003). Do not silently change routes when a dependency, license, account, or data-transfer condition fails: record the disqualifier and revise the plan. The route must leave an editable source and an inspectable render command when the local stack supports them. The narration-bound path of approved audio, measured timing, visuals that consume timing, a pilot, and exact-output review survives a renderer swap; only its implementation changes (S-TC-001, S-TC-003, S-TC-006, S-TC-008, S-TC-009).
 
-When HyperFrames is selected, apply the route-specific preflight traps in `library/renderers.md`; a lint-disabled audit or `0-of-0` sample report is not acceptance evidence.
+Apply the chosen route's traps in `library/renderers.md` when it lists them. For HyperFrames, a lint-disabled audit or `0-of-0` sample report is not acceptance evidence.
 
 ### 6. Plan audio and timing as invalidatable artifacts
 
