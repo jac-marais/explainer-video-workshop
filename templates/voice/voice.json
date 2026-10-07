@@ -1,0 +1,7 @@
+{
+  "default": "kokoro",
+  "voices": {
+    "kokoro": {"engine": "kokoro", "voice": "af_heart", "speed": 0.92},
+    "clone": {"engine": "qwen3", "model": "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16", "ref_audio": "reference.wav", "ref_text": "reference.txt"}
+  }
+}

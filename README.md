@@ -18,6 +18,10 @@ The [preparation method](methods/prepare-explainer-video.md) produces a usable p
 
 The workshop is brand-neutral. On first use, the agent asks whether you have brand guidelines, then records your answer in `local/brand.md`, which is git-ignored. The answer can be a path to a brand workshop, a document, a URL, or "none". No guidelines? [See the nine workshop styles](https://jac-marais.github.io/explainer-video-workshop/brands/) and tell the agent which one you want. From then on, every run styles and audits its output against that source through [the brand method](methods/brand-explainer-video.md). To change brands, edit or delete `local/brand.md`. The [profile template](templates/brand.md) shows its shape.
 
+## Voice
+
+Narration uses a stock local voice, Kokoro `af_heart`, unless you clone your own. On first use, the agent offers to clone yours with Qwen3-TTS on an Apple Silicon Mac, from a one-minute recording. Your choice, the recording and the narration CLI live in `local/voice/`, which is git-ignored. You can still ask any run for the stock voice, and a run in progress keeps the voice it started with. See [the voice method](methods/voice-explainer-video.md).
+
 ## Use the shelves by job
 
 | Job | Start with |
@@ -35,11 +39,11 @@ The workshop is brand-neutral. On first use, the agent asks whether you have bra
 AGENTS.md                   mission, routing, guarantees
 brands/                     style gallery, published on GitHub Pages
 library/                    source map, prior art, renderer notes
-methods/                    preparation and brand procedures
+methods/                    preparation, brand, and voice procedures
 templates/                  files copied into a run or local/
 scorecards/                 preparation and production-evidence gates
 outputs/                    new user work (git-ignored)
-local/                      operator's brand profile and pronunciation verdicts (git-ignored)
+local/                      operator's brand profile, voice, and pronunciation verdicts (git-ignored)
 .agents/skills/             preparation and brand skills
 .claude/skills/             link to .agents/skills for Claude Code
 ```

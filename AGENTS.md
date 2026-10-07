@@ -2,9 +2,11 @@
 
 Make accurate, understandable narrated explainers from source material. Preserve source-to-claim-to-scene provenance and distinguish estimated timing, measured audio, rendered media, and evaluated learning. Model names and elapsed run time are recorded inputs/outcomes, not quality guarantees.
 
-## First use: brand
+## First use: brand and voice
 
 Read `local/brand.md` before other work. If it is missing, follow "First use" in `methods/brand-explainer-video.md`.
+
+Then read `local/voice/README.md`. If it is missing, follow "First use" in `methods/voice-explainer-video.md`.
 
 ## Route once
 

@@ -13,4 +13,4 @@ Use it to prepare a run, a script and storyboard package, or a production brief 
 
 ## What to read
 
-Read `methods/prepare-explainer-video.md` and `scorecards/run-quality.md`, and stop if either is unreadable. Read only the templates the method needs. Use `library/source-map.md` and `library/manifest.json` for evidence and renderer decisions, without loading the whole research corpus. `AGENTS.md` covers brand first use, the output path, and the routes for production, research, and resume.
+Read `methods/prepare-explainer-video.md` and `scorecards/run-quality.md`, and stop if either is unreadable. Read only the templates the method needs. Use `library/source-map.md` and `library/manifest.json` for evidence and renderer decisions, without loading the whole research corpus. `AGENTS.md` covers brand and voice first use, the output path, and the routes for production, research, and resume.
