@@ -7,7 +7,7 @@
 #   "mlx-audio==0.5.8; sys_platform == 'darwin' and platform_machine == 'arm64'",
 # ]
 # ///
-"""Turn text files into loudness-normalized narration WAVs with a Kokoro voice or a Qwen3-TTS voice clone."""
+"""Turn text files into loudness-normalized narration WAVs with the voices listed in voice.json."""
 from __future__ import annotations
 
 import argparse
@@ -32,11 +32,11 @@ HERE = Path(__file__).resolve().parent
 RATE = 24000
 LOUDNORM = "I=-16:TP=-1.5:LRA=11"
 KOKORO_LANG = "en-us"
-CLONE_LANG = "english"
+QWEN3_LANG = "english"
 # These match the mlx_audio.tts.generate CLI defaults.
-CLONE_SAMPLING = {"temperature": 0.7, "top_p": 0.9, "top_k": 50, "repetition_penalty": 1.1}
+MLX_SAMPLING = {"temperature": 0.7, "top_p": 0.9, "top_k": 50, "repetition_penalty": 1.1}
 # A single pass stops at 4096 tokens (about 330 s) and slows as text grows.
-CLONE_CHUNK_WORDS = 400
+QWEN3_CHUNK_WORDS = 400
 CHUNK_PAUSE = 0.25
 
 
@@ -71,7 +71,7 @@ def split_chunks(text: str, max_words: int) -> list[str]:
     return [" ".join(words) for words in chunks]
 
 
-def load_kokoro(spec: dict) -> tuple[callable, dict]:
+def load_kokoro(spec: dict, seed: int) -> tuple[callable, dict]:
     from kokoro_onnx import EspeakConfig, Kokoro
 
     cache = Path(os.environ.get("KOKORO_TTS_CACHE", Path.home() / ".cache/hyperframes/tts"))
@@ -85,11 +85,9 @@ def load_kokoro(spec: dict) -> tuple[callable, dict]:
         raise SystemExit("Missing local speech assets: " + ", ".join(missing))
     model = Kokoro(str(model_path), str(voices_path), espeak_config=EspeakConfig(str(lib_path), str(data_path)))
 
-    def synthesize(text: str) -> tuple[np.ndarray, dict]:
+    def synthesize(text: str) -> tuple[np.ndarray, int, dict]:
         samples, rate = model.create(text, voice=spec["voice"], speed=spec["speed"], lang=KOKORO_LANG)
-        if rate != RATE:
-            raise SystemExit(f"Kokoro returned sample rate {rate}; expected {RATE}")
-        return samples.astype("float32", copy=False), {}
+        return samples.astype("float32", copy=False), rate, {}
 
     identity = {
         "model": {"id": "kokoro-v1.0", "onnx_sha256": sha256_file(model_path)},
@@ -99,51 +97,91 @@ def load_kokoro(spec: dict) -> tuple[callable, dict]:
     return synthesize, identity
 
 
-def clone_paths(spec: dict) -> tuple[Path, Path]:
-    audio, text = (HERE / spec[key] for key in ("ref_audio", "ref_text"))
-    missing = [str(path) for path in (audio, text) if not path.is_file()]
+def require_mlx() -> None:
+    if not (platform.system() == "Darwin" and platform.machine() == "arm64"):
+        raise SystemExit("MLX voices need an Apple Silicon Mac")
+
+
+def reference_paths(spec: dict) -> dict[str, Path]:
+    paths = {key: HERE / spec[key] for key in ("ref_audio", "ref_text") if key in spec}
+    missing = [str(path) for path in paths.values() if not path.is_file()]
     if missing:
-        raise SystemExit("Missing clone reference files: " + ", ".join(missing))
-    return audio, text
+        raise SystemExit("Missing reference files: " + ", ".join(missing))
+    return paths
 
 
-def load_clone(spec: dict, seed: int) -> tuple[callable, dict]:
-    ref_audio_path, ref_text_path = clone_paths(spec)
-    ref_text = ref_text_path.read_text().strip()
-    import mlx.core as mx
+def load_snapshot(model_id: str) -> Path:
     from huggingface_hub import snapshot_download
     from huggingface_hub.errors import LocalEntryNotFoundError
+    from mlx_audio.utils import get_model_path
+
+    try:
+        return Path(snapshot_download(model_id, local_files_only=True))
+    except LocalEntryNotFoundError:
+        return get_model_path(model_id)
+
+
+def mlx_identity(spec: dict, snapshot: Path, refs: dict[str, Path], settings: dict) -> dict:
+    return {
+        "model": {"id": spec["model"], "snapshot_revision": snapshot.name},
+        "settings": settings,
+        **{f"{key}_sha256": sha256_file(path) for key, path in refs.items()},
+        "packages": {name: version(name) for name in ("mlx-audio", "mlx")},
+    }
+
+
+def load_qwen3(spec: dict, seed: int) -> tuple[callable, dict]:
+    require_mlx()
+    refs = reference_paths(spec)
+    import mlx.core as mx
     from mlx_audio.tts.utils import load
     from mlx_audio.utils import load_audio
 
-    try:
-        snapshot = Path(snapshot_download(spec["model"], local_files_only=True))
-    except LocalEntryNotFoundError:
-        snapshot = Path(snapshot_download(spec["model"]))
+    snapshot = load_snapshot(spec["model"])
     model = load(snapshot)
-    if model.sample_rate != RATE:
-        raise SystemExit(f"Clone model sample rate is {model.sample_rate}; expected {RATE}")
-    ref_audio = load_audio(str(ref_audio_path), sample_rate=model.sample_rate)
+    settings = {"lang": QWEN3_LANG, **MLX_SAMPLING, "seed": seed, "max_words_per_chunk": QWEN3_CHUNK_WORDS, "chunk_pause_s": CHUNK_PAUSE}
+    if refs:
+        voice = {"ref_audio": load_audio(str(refs["ref_audio"]), sample_rate=model.sample_rate), "ref_text": refs["ref_text"].read_text().strip()}
+    else:
+        speaker = spec["speaker"]
+        if speaker.lower() not in (name.lower() for name in model.supported_speakers):
+            raise SystemExit(f"Unknown speaker '{speaker}'; this model has: {', '.join(model.supported_speakers)}")
+        voice = {"voice": speaker}
+        settings["speaker"] = speaker
 
-    def synthesize(text: str) -> tuple[np.ndarray, dict]:
-        pieces, chunks = [], split_chunks(text, CLONE_CHUNK_WORDS)
+    def synthesize(text: str) -> tuple[np.ndarray, int, dict]:
+        pieces, chunks = [], split_chunks(text, QWEN3_CHUNK_WORDS)
         for index, chunk in enumerate(chunks):
             if index:
-                pieces.append(np.zeros(int(CHUNK_PAUSE * RATE), dtype="float32"))
+                pieces.append(np.zeros(int(CHUNK_PAUSE * model.sample_rate), dtype="float32"))
             # Seeding per chunk makes each chunk reproducible on its own.
             mx.random.seed(seed + index)
-            results = model.generate(text=chunk, ref_audio=ref_audio, ref_text=ref_text, lang_code=CLONE_LANG, **CLONE_SAMPLING)
+            results = model.generate(text=chunk, lang_code=QWEN3_LANG, **voice, **MLX_SAMPLING)
             pieces.extend(np.array(result.audio, dtype="float32") for result in results)
-        return np.concatenate(pieces), {"chunks": len(chunks), "chunk_words": [len(c.split()) for c in chunks]}
+        return np.concatenate(pieces), model.sample_rate, {"chunks": len(chunks), "chunk_words": [len(c.split()) for c in chunks]}
 
-    identity = {
-        "model": {"id": spec["model"], "snapshot_revision": snapshot.name},
-        "settings": {"lang": CLONE_LANG, **CLONE_SAMPLING, "seed": seed, "max_words_per_chunk": CLONE_CHUNK_WORDS, "chunk_pause_s": CHUNK_PAUSE},
-        "ref_audio_sha256": sha256_file(ref_audio_path),
-        "ref_text_sha256": sha256(ref_text_path.read_bytes()),
-        "packages": {name: version(name) for name in ("mlx-audio", "mlx")},
-    }
-    return synthesize, identity
+    return synthesize, mlx_identity(spec, snapshot, refs, settings)
+
+
+def load_chatterbox(spec: dict, seed: int) -> tuple[callable, dict]:
+    require_mlx()
+    refs = reference_paths(spec)
+    import mlx.core as mx
+    from mlx_audio.tts.utils import load
+
+    snapshot = load_snapshot(spec["model"])
+    model = load(snapshot)
+
+    def synthesize(text: str) -> tuple[np.ndarray, int, dict]:
+        mx.random.seed(seed)
+        # The model splits long text at sentence boundaries itself.
+        results = list(model.generate(text=text, ref_audio=str(refs["ref_audio"]), **MLX_SAMPLING))
+        return np.concatenate([np.array(result.audio, dtype="float32") for result in results]), model.sample_rate, {"segments": len(results)}
+
+    return synthesize, mlx_identity(spec, snapshot, refs, {**MLX_SAMPLING, "seed": seed})
+
+
+LOADERS = {"kokoro": load_kokoro, "qwen3": load_qwen3, "qwen3-preset": load_qwen3, "chatterbox": load_chatterbox}
 
 
 def ffmpeg_loudnorm(raw: Path, final: Path) -> None:
@@ -177,7 +215,7 @@ def main() -> None:
     parser.add_argument("texts", nargs="*", type=Path, metavar="TEXT_FILE")
     parser.add_argument("--out-dir", type=Path, help="Directory for <stem>.wav and <stem>.json")
     parser.add_argument("--voice", help="Voice name from voice.json (default: the file's default)")
-    parser.add_argument("--seed", type=int, help="Clone sampling seed (default: random, recorded in the receipt)")
+    parser.add_argument("--seed", type=int, help="Sampling seed for MLX voices (default: random, recorded in the receipt)")
     parser.add_argument("--list", action="store_true", help="List voices and exit")
     args = parser.parse_args()
 
@@ -194,19 +232,13 @@ def main() -> None:
         raise SystemExit(f"Unknown voice '{name}'; available: {', '.join(voices)}")
     spec = voices[name]
     engine = spec["engine"]
-    if engine not in ("kokoro", "qwen3"):
+    if engine not in LOADERS:
         raise SystemExit(f"Voice '{name}' has unknown engine '{engine}'")
     texts = read_texts(args.texts)
 
     started = time.perf_counter()
-    if engine == "qwen3":
-        if not (platform.system() == "Darwin" and platform.machine() == "arm64"):
-            raise SystemExit("The clone voice needs an Apple Silicon Mac (MLX)")
-        clone_paths(spec)
-        seed = args.seed if args.seed is not None else secrets.randbelow(2**31)
-        synthesize, identity = load_clone(spec, seed)
-    else:
-        synthesize, identity = load_kokoro(spec)
+    seed = args.seed if args.seed is not None else secrets.randbelow(2**31)
+    synthesize, identity = LOADERS[engine](spec, seed)
     load_s = time.perf_counter() - started
     identity["packages"].update({"soundfile": version("soundfile"), "numpy": version("numpy")})
     identity["packages"]["ffmpeg"] = subprocess.run(["ffmpeg", "-version"], capture_output=True, text=True).stdout.split("\n")[0]
@@ -214,11 +246,11 @@ def main() -> None:
     args.out_dir.mkdir(parents=True, exist_ok=True)
     for path, raw in texts:
         file_started = time.perf_counter()
-        samples, extra = synthesize(" ".join(raw.split()))
+        samples, rate, extra = synthesize(" ".join(raw.split()))
         wav = args.out_dir / f"{path.stem}.wav"
         with tempfile.TemporaryDirectory() as tmp:
             raw_wav = Path(tmp) / "raw.wav"
-            sf.write(raw_wav, samples, RATE)
+            sf.write(raw_wav, samples, rate)
             ffmpeg_loudnorm(raw_wav, wav)
         info = sf.info(wav)
         receipt = {

@@ -36,6 +36,10 @@ uv run local/voice/voice.py --list
 
 Each text file becomes a WAV (mono, 24 kHz, −16 LUFS) and a JSON receipt of the same name. The model loads once per call, so pass every scene in one call. The text is what the voice says, so put the spoken respellings from `local/pronunciation.md` in it. Pauses, timing and the transcript checks in M1 of `templates/production-prompt.md` stay the run's job.
 
+`voice.json` can name more voices than these two. The CLI has four engines: `kokoro` (a Kokoro voice and speed), `qwen3` (a Qwen3 clone from a reference), `qwen3-preset` (one of Qwen3's stock speakers) and `chatterbox` (a Chatterbox Turbo clone from a reference). To add a voice, add an entry to `voice.json`. The template's two entries show the shape for `kokoro` and `qwen3`; a `qwen3-preset` entry needs `model` and `speaker`, and a `chatterbox` entry needs `model` and `ref_audio`.
+
+These engines were the best local, commercially usable options that a bake-off on 2026-10-07 found for an Apple Silicon Mac. Local speech models improve quickly. If today is more than about three months past that date, assume they are no longer state of the art. Research the current local options before you recommend a voice or a cloning model. Check a current speech-quality leaderboard and each model's licence, then test the strongest candidates. A better model can join as a new engine in `voice.py`.
+
 Kokoro needs eSpeak NG from Homebrew (`brew install espeak-ng`) and the model files that HyperFrames caches in `~/.cache/hyperframes/tts/`. Set `KOKORO_TTS_CACHE` to point at another copy.
 
 ## Clone a voice
