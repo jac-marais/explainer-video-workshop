@@ -1,5 +1,9 @@
 # Explainer Video Workshop
 
+[![The closing frame of the 44-second overview, made with this workshop](brands/mit-media-lab-poster.jpg)](https://jac-marais.github.io/explainer-video-workshop/brands/mit-media-lab.mp4)
+
+▶ [Watch the 44-second overview](https://jac-marais.github.io/explainer-video-workshop/brands/mit-media-lab.mp4), in the workshop's MIT Media Lab-inspired style.
+
 Turn a technical subject and trustworthy sources into a narrated video that explains a mechanism clearly. Sustained agent work is a production technique; the job is the explanation. Models and renderers can change without renaming the workshop.
 
 ## Why a workshop
