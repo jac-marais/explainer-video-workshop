@@ -1,6 +1,6 @@
 # Explainer Video Workshop
 
-[![The closing frame of the 44-second overview, made with this workshop](brands/mit-media-lab-poster.jpg)](https://jac-marais.github.io/explainer-video-workshop/brands/mit-media-lab.mp4)
+[![The closing frame of the 44-second overview, made with this workshop](brands/readme/closing.jpg)](https://jac-marais.github.io/explainer-video-workshop/brands/mit-media-lab.mp4)
 
 ▶ [Watch the 44-second overview](https://jac-marais.github.io/explainer-video-workshop/brands/mit-media-lab.mp4), in the workshop's MIT Media Lab-inspired style.
 
@@ -18,9 +18,19 @@ Open this folder in an agent harness and ask:
 
 The [preparation method](methods/prepare-explainer-video.md) produces a usable package without claiming that a video exists. The [production prompt](templates/production-prompt.md) then guides an authorized production run through narration, measured timing, a hard-scene pilot, scene construction, rendering, review, and editable handoff. Eight hours is an adjustable ceiling. Stop when the result passes; waiting is not a quality step.
 
+<p>
+<a href="https://jac-marais.github.io/explainer-video-workshop/brands/mit-media-lab.mp4#t=16"><img src="brands/readme/step-2.jpg" width="49%" alt="Step 2, Prepare. The prepare skill turns a topic and an audience into a sourced script, a scene plan, a renderer choice and a production prompt."></a>
+<a href="https://jac-marais.github.io/explainer-video-workshop/brands/mit-media-lab.mp4#t=27"><img src="brands/readme/step-3.jpg" width="49%" alt="Step 3, Produce. Production records the voice, times scenes to the audio, pilots the hardest scene, then renders and reviews the film."></a>
+</p>
+
 ## Brand guidelines
 
 The workshop is brand-neutral. On first use, the agent asks whether you have brand guidelines, then records your answer in `local/brand.md`, which is git-ignored. The answer can be a path to a brand workshop, a document, a URL, or "none". No guidelines? [See the nine workshop styles](https://jac-marais.github.io/explainer-video-workshop/brands/) and tell the agent which one you want. From then on, every run styles and audits its output against that source through [the brand method](methods/brand-explainer-video.md). To change brands, edit or delete `local/brand.md`. The [profile template](templates/brand.md) shows its shape.
+
+<p>
+<a href="https://jac-marais.github.io/explainer-video-workshop/brands/mit-media-lab.mp4#t=5"><img src="brands/readme/step-1.jpg" width="49%" alt="Step 1, Start with a brand. The agent asks for brand guidelines, or you pick one of nine styles."></a>
+<a href="https://jac-marais.github.io/explainer-video-workshop/brands/mit-media-lab.mp4#t=37"><img src="brands/readme/step-4.jpg" width="49%" alt="Step 4, Check. Each scene is checked against your brand file for layout, contrast and stills."></a>
+</p>
 
 ## Voice
 
