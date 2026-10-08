@@ -8,6 +8,7 @@ Each sentence runs from cut to cut, so the pauses the voice spoke stay whole. On
 
 SENTENCES is an ordered JSON list of the film's sentences, each with at least "id", "scene" and "text".
 A take is named for the scene it covers (S01.wav) or its first and last scene (S01-S06.wav).
+With --throwaway, each take ends with that extra sentence, which is cut off and not written.
 It logs one JSON line per cut and one per take with the seconds trimmed from each end. smooth_db is the smoothed level at the chosen low point, because a single frame can read quiet right next to a word onset."""
 import argparse, difflib, json, re
 from pathlib import Path
@@ -29,6 +30,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("takes", nargs="+", type=Path)
 parser.add_argument("--sentences", required=True, type=Path, metavar="FILE.json")
 parser.add_argument("--out", required=True, type=Path)
+parser.add_argument("--throwaway", metavar="TEXT", help="the sentence voiced after each take's last one")
 args = parser.parse_args()
 segments = json.loads(args.sentences.read_text())
 order = list(dict.fromkeys(s["scene"] for s in segments))
@@ -38,7 +40,7 @@ letters = lambda text: re.sub(r"[^a-z0-9]", "", text.lower())
 for path in args.takes:
     first_scene, last_scene = (path.stem.split("-") * 2)[:2]
     covered = order[order.index(first_scene):order.index(last_scene) + 1]
-    sents = [s for s in segments if s["scene"] in covered]
+    sents = [s for s in segments if s["scene"] in covered] + ([{"id": None, "text": args.throwaway}] if args.throwaway else [])
     y, rate = sf.read(path, dtype="float32")
     # A file path makes Whisper resample to 16 kHz, so its timestamps are in seconds of this file.
     words = [w for seg in mlx_whisper.transcribe(str(path), path_or_hf_repo=WHISPER, language="en", word_timestamps=True,
@@ -79,4 +81,5 @@ for path in args.takes:
                           "smooth_db": round(float(20 * np.log10(smooth[mid] + 1e-9)), 1)}), flush=True)
     edges.append(tail)
     for k, s in enumerate(sents):
-        sf.write(args.out / f"{s['id']}.wav", y[edges[k]:edges[k + 1]], rate, subtype="PCM_16")
+        if s["id"]:
+            sf.write(args.out / f"{s['id']}.wav", y[edges[k]:edges[k + 1]], rate, subtype="PCM_16")
