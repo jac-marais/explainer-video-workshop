@@ -130,7 +130,7 @@ def mlx_identity(spec: dict, snapshot: Path, refs: dict[str, Path], settings: di
     }
 
 
-def load_qwen3(spec: dict, seed: int) -> tuple[callable, dict]:
+def load_qwen3(spec: dict, seed: int, max_words: int = QWEN3_CHUNK_WORDS) -> tuple[callable, dict]:
     require_mlx()
     refs = reference_paths(spec)
     import mlx.core as mx
@@ -139,7 +139,7 @@ def load_qwen3(spec: dict, seed: int) -> tuple[callable, dict]:
 
     snapshot = load_snapshot(spec["model"])
     model = load(snapshot)
-    settings = {"lang": QWEN3_LANG, **MLX_SAMPLING, "seed": seed, "max_words_per_chunk": QWEN3_CHUNK_WORDS, "chunk_pause_s": CHUNK_PAUSE}
+    settings = {"lang": QWEN3_LANG, **MLX_SAMPLING, "seed": seed, "max_words_per_chunk": max_words, "chunk_pause_s": CHUNK_PAUSE}
     if refs:
         voice = {"ref_audio": load_audio(str(refs["ref_audio"]), sample_rate=model.sample_rate), "ref_text": refs["ref_text"].read_text().strip()}
     else:
@@ -150,7 +150,7 @@ def load_qwen3(spec: dict, seed: int) -> tuple[callable, dict]:
         settings["speaker"] = speaker
 
     def synthesize(text: str) -> tuple[np.ndarray, int, dict]:
-        pieces, chunks = [], split_chunks(text, QWEN3_CHUNK_WORDS)
+        pieces, chunks = [], split_chunks(text, max_words)
         for index, chunk in enumerate(chunks):
             if index:
                 pieces.append(np.zeros(int(CHUNK_PAUSE * model.sample_rate), dtype="float32"))
@@ -216,6 +216,8 @@ def main() -> None:
     parser.add_argument("--out-dir", type=Path, help="Directory for <stem>.wav and <stem>.json")
     parser.add_argument("--voice", help="Voice name from voice.json (default: the file's default)")
     parser.add_argument("--seed", type=int, help="Sampling seed for MLX voices (default: random, recorded in the receipt)")
+    parser.add_argument("--max-words", type=int, default=QWEN3_CHUNK_WORDS,
+                        help=f"Qwen3 voices only: split longer text into separate takes (default: {QWEN3_CHUNK_WORDS})")
     parser.add_argument("--list", action="store_true", help="List voices and exit")
     args = parser.parse_args()
 
@@ -238,7 +240,8 @@ def main() -> None:
 
     started = time.perf_counter()
     seed = args.seed if args.seed is not None else secrets.randbelow(2**31)
-    synthesize, identity = LOADERS[engine](spec, seed)
+    options = {"max_words": args.max_words} if LOADERS[engine] is load_qwen3 else {}
+    synthesize, identity = LOADERS[engine](spec, seed, **options)
     load_s = time.perf_counter() - started
     identity["packages"].update({"soundfile": version("soundfile"), "numpy": version("numpy")})
     identity["packages"]["ffmpeg"] = subprocess.run(["ffmpeg", "-version"], capture_output=True, text=True).stdout.split("\n")[0]

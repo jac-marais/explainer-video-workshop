@@ -6,7 +6,7 @@ This note records what each renderer route's public sources expose, what remains
 
 Method step 5 in `methods/prepare-explainer-video.md` chooses the route for each learner job. This table records each route's public evidence, dependencies, and local status.
 
-Local runs in this workshop have taken the HyperFrames route through render and agent final review, with each final review bound to its MP4 checksum. Live-app capture has run once, for a product-UI explainer, through render and agent review of per-sentence stills. The user's own watch-and-listen of those videos is still pending. No other route has been trialed, so trial each one before claiming that it works.
+Local runs in this workshop have taken the HyperFrames route through render and agent final review, with each final review bound to its MP4 checksum. Live-app capture has run once locally, through render and agent review of per-sentence stills. No other route has been trialed, so trial each one before claiming that it works.
 
 | Route | Public method evidence | Dependencies / disqualifiers | Current status |
 |---|---|---|---|
@@ -62,8 +62,8 @@ The cue log keeps the approved audio as the timing authority without aligning se
 
 - The screencast sends a frame only when the screen changes. Hold each frame until the next one arrives to build constant-rate video. Use high-quality JPEG screencast frames, because Playwright's built-in video recording blurs code text.
 - Load lazy components, such as an embedded code editor, in every frame before the take. A first load can freeze the stage for seconds.
-- Freeze the app's source during a take. A hot reload, for example from another agent's edit, glitches the take and can bring back hidden developer overlays.
-- In the per-sentence frame sweep, check the edges of scrolled regions. Rows cut in half at a scroll edge passed still review in the first run.
+- Freeze the app's source during a take. A hot reload, for example from a concurrent edit, glitches the take and can bring back hidden developer overlays.
+- In the per-sentence frame sweep, check the edges of scrolled regions. Rows cut in half at a scroll edge can pass a quick still review.
 
 ## Evidence boundaries and use policy
 

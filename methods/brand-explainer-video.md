@@ -1,6 +1,6 @@
 # Apply brand guidelines to an explainer — v0.1
 
-Status: derived from one production run: a technical explainer video plus its companion HTML deck, both brought into line with an external brand system. Treat it as a tested procedure for one brand, not proof that it generalizes.
+Status: a tested procedure for bringing an explainer video and its companion deck into line with a brand system, not proof that it generalizes.
 
 This workshop knows no brand. Brand guidelines come from the operator's local profile, `local/brand.md`. That file is git-ignored, so it never enters this repository. The profile points at the guidelines and holds the decisions that are particular to that brand.
 
@@ -51,12 +51,12 @@ The user decides anything the guidelines leave open: substitute fonts, weight ex
 
 ### 5. Verify
 
-Run the route's layout and contrast checks, then look at stills of every changed scene. Also look at a companion deck under the same pass. After the render, check the exact final file as the production prompt requires. List each rule you applied, each rule you skipped with its reason, and each question still open for the brand owner. Record font and asset licenses in `assets-manifest.md`. When the license for this medium is unconfirmed, mark the output as internal only.
+Run the route's layout and contrast checks, then look at stills of every changed scene. Also look at a companion deck under the same pass. After the render, check the exact final file as the production prompt requires. List each rule you applied, each rule you skipped with its reason, and each question still open for the brand owner. Record font and asset licenses in `assets-manifest.md`. When the license for this medium is unconfirmed, mark the output as unreleased until it is confirmed.
 
-## Lessons from the first run
+## Lessons
 
 - **Strict black and white hides code.** A monospace font alone doesn't set an inline code span apart from prose. Give code spans and code blocks a light gray tint from the palette, stretched with alpha, and use a slightly darker band for added diff lines.
-- **What works in video can be harsh in a document.** An all-black film read well. The same palette on a text-heavy deck felt heavy. Ask which mode the reader prefers for each surface.
+- **What works in video can be harsh in a document.** A dark palette that reads well on screen in motion can feel heavy on a text-heavy deck. Ask which mode the reader prefers for each surface.
 - **Take out repeated chrome.** Page numbers, running headers and small section labels on every slide add noise, especially in a restrained brand. Keep what helps someone find their way, and cut the rest.
 - **Keep content fixes apart from the brand pass.** When the audit exposes a factual problem, check it against the primary source, such as the code, not secondary docs. Change it only if it is actually true or false.
 - **Say which file you mean.** Link outputs with absolute paths, because a relative link resolves against whatever directory the reader's tool is in.
