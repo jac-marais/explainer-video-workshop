@@ -116,7 +116,7 @@ Choose the path after the shot plan, not before it:
 
 The route capabilities are source-backed, except live-app capture, which comes from one local run; the learner-job mapping is a workshop design choice (S-TC-001–S-TC-004, S-HF-001–S-HF-005, S-PX-003). HyperFrames and live-app capture are the only routes run locally so far (`library/renderers.md`), which does not make them better for every learner job. Live-app capture films the product itself instead of rebuilding it, so no screen in the film is a reconstruction that can drift from the real app. Pexo is a hosted, credentialed optional route; the public client repository does not make its service free and does not prove final assembly quality (S-PX-003). Do not silently change routes when a dependency, license, account, or data-transfer condition fails: record the disqualifier and revise the plan. The route must leave an editable source and an inspectable render command when the local stack supports them. The narration-bound path of approved audio, measured timing, visuals that consume timing, a pilot, and exact-output review survives a renderer swap; only its implementation changes (S-TC-001, S-TC-003, S-TC-006, S-TC-008, S-TC-009).
 
-Apply the chosen route's traps in `library/renderers.md` when it lists them.
+Apply the chosen route's traps in `methods/renderer-traps.md` when it lists them.
 
 ### 6. Plan audio and timing as invalidatable artifacts
 
