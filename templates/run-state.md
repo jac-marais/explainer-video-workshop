@@ -4,6 +4,8 @@ Status: `draft` | Run ID: `[short ID]` | Last updated: `[UTC timestamp]`
 
 This is one human-readable state record. A renderer may keep implementation-specific JSON, but this record remains the recovery index.
 
+The `## Run log` table of spend and active time per phase comes from `scripts/run/runlog.py mark RUN_STATE.md PHASE SESSION...`. Its first call appends the table with a start row to the end of this file. Do not type its rows.
+
 ## Current state
 
 - Current phase: `preparation step [1–10] | production milestone [M0–M7] | blocked at [intake, step, or milestone] | accepted`

@@ -36,7 +36,7 @@ uv run local/voice/voice.py scene-01.txt --out-dir production/audio/raw --voice 
 uv run local/voice/voice.py --list
 ```
 
-Each text file becomes a WAV (mono, 24 kHz, −16 LUFS) and a JSON receipt of the same name. The model loads once per call, so pass every scene in one call. The text is what the voice says, so put the spoken respellings from `local/pronunciation.md` in it. Pauses, timing and the transcript checks in M1 of `templates/production-prompt.md` stay the run's job.
+Each text file becomes a WAV (mono, 24 kHz, −16 LUFS) and a JSON receipt of the same name. The model loads once per call, so pass every scene in one call. The text is what the voice says, so put the spoken respellings from `local/pronunciation.md` in it. Pauses, timing and the transcript checks in M1 of `templates/production-prompt.md` stay the run's job. For a whole film, `scripts/audio/narrate_film.py` is the driver around `voice.py`, `plan_runs.py` and `cut_takes.py`: it voices the scenes, cuts them into sentences, assembles the narration, and aligns the script's words and checks the audio. M1 gives its command line.
 
 `voice.json` can name more voices than these two. The CLI has four engines: `kokoro` (a Kokoro voice and speed), `qwen3` (a Qwen3 clone from a reference), `qwen3-preset` (one of Qwen3's stock speakers) and `chatterbox` (a Chatterbox Turbo clone from a reference). To add a voice, add an entry to `voice.json`. The template's two entries show the shape for `kokoro` and `qwen3`; a `qwen3-preset` entry needs `model` and `speaker`, and a `chatterbox` entry needs `model` and `ref_audio`.
 

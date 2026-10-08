@@ -414,6 +414,18 @@
       "private": false
     },
     {
+      "id": "S-FA-010",
+      "title": "Saying the wrong thing: improving learning with multimedia by including misconceptions",
+      "canonical_url": "https://doi.org/10.1111/j.1365-2729.2007.00248.x",
+      "source_class": "peer_reviewed_journal_article",
+      "publisher": "Derek A. Muller, J. Bewes, Manjula D. Sharma, and Peter Reimann, Journal of Computer Assisted Learning 24(2), 144-155",
+      "fetched": "2026-10-08",
+      "source_date_or_version": "2008 (volume 24, issue 2); Crossref lists 2007, probably the online date, unconfirmed",
+      "commit": null,
+      "access": "Abstract read through the Crossref record only; the Wiley page returned HTTP 403, so the full text and methods were not inspected. Abstract: 364 first-year physics students, four online multimedia treatments on Newton's laws, with the refutation and dialogue treatments giving the largest gains (effect sizes 0.79 and 0.83 against exposition). Scope is one university physics population. Not confirmed: treatment video length, and the reported finding that students rated the exposition clear and the refutation more confusing.",
+      "private": false
+    },
+    {
       "id": "S-TC-001",
       "title": "@remotion/claude-code-plugin — official Remotion Agent Skills",
       "canonical_url": "https://github.com/remotion-dev/claude-code-plugin",

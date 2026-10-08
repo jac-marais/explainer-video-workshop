@@ -20,7 +20,9 @@ Before accepting the plan, apply the per-scene timing rule in step 3 of `methods
 
 | Shot | Scene | Audio segment | Start/end or timing key | Visual elements and motion grammar | On-screen text | Assets and rights | Renderer/dependency | Entry/exit condition |
 |---|---|---|---|---|---|---|---|---|
-| `S01-01` | `S01` | `[line or audio range]` | `[estimate or word IDs]` | `[what moves and why]` | `[exact text]` | `[path, source, license]` | `[HyperFrames/live-app capture/Remotion/Manim/Motion Canvas/HTML-Canvas/Pexo]` | `[condition]` |
+| `S01-01` | `S01` | `[line or audio range]` | `[estimate, or On "quoted spoken words"]` | `[what moves and why]` | `[exact text]` | `[path, source, license]` | `[HyperFrames/live-app capture/Remotion/Manim/Motion Canvas/HTML-Canvas/Pexo]` | `[condition]` |
+
+Cue format: write a visual that lands on speech as `On "exact spoken words"`, or `**"exact spoken words"**` in a list. Quote consecutive words of that scene's narration, enough to be unique in it, never a second. `scripts/audio/cues.py` reads these from the script's `## Scene N: title` sections, in each `**Visual**` part, and times them from `words.json`.
 
 ## Required scene checks
 

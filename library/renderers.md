@@ -40,6 +40,7 @@ Use these checks when the route is HyperFrames. They are route-specific acceptan
 - Run the lint/check path and treat any lint error that disables layout or contrast audits as a failure requiring repair.
 - Require positive layout/contrast samples. A report with zero samples or `0-of-0` checks is not a pass.
 - Set `HYPERFRAMES_NO_UPDATE_CHECK=1` and `HYPERFRAMES_NO_AUTO_INSTALL=1` for `check` and `render`. In a local 0.8.57 run, the CLI's background self-update installed 0.8.99 during a render, deleted files in `dist/`, and failed the render with "Missing manifest".
+- Colour depends on where the render runs. A Docker render image built on ffmpeg 5.1 writes BT.601 pixels under a BT.709 tag, so relabel its output as BT.601. A host render with ffmpeg 9.0.2 writes true BT.709 and must not be relabelled. Tags cannot show which matrix the pixels use, so check a known brand colour. `scripts/film/render.py` sets the two update variables above for its render, and applies `--relabel-601` only when asked.
 - `check` does not test elements marked `data-layout-allow-overlap`, so an overlap they cause can pass. The per-sentence frame sweep in M6 of the production prompt covers them.
 - Persist Studio caption/timing changes into source files and refresh the preview before accepting them (S-HF-005).
 

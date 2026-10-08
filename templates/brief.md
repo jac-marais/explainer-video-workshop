@@ -9,6 +9,10 @@ This is a preparation brief. A complete brief does not claim that a renderer ran
 - Subject: `[concept, mechanism, argument, or procedure]`
 - Audience: `[starting knowledge, role, language]`
 - Learning target: `After watching, [audience] can [observable action/explanation] under [condition], as checked by [question/prediction/example].`
+- Misconception, do they hold it: `[yes or no, with the source that shows where the wrong idea comes from]`
+- Misconception, does it give the wrong answer: `[yes or no, with why someone holding it fails the learning-target check]`
+- Misconception, can one scene break it on screen: `[yes or no, with the scene idea]`
+- Misconception decision: `[use the beat, or skip and name the failed question]`
 - Why video helps: `[what changes over time or through narration]`
 - Out of scope: `[claims, details, examples, or actions intentionally omitted]`
 

@@ -22,7 +22,7 @@ Weighted score is `rating / 4 × weight`. A numeric score never overrides a crit
 | Factuality | 10 | Numbers, formulas, causality, API behavior, uncertainty, and disagreements are qualified accurately | claim checks and independent review notes |
 | Factuality | 5 | Rights, attribution, privacy, and supplied-asset provenance are explicit | `assets-manifest.md`, source/use notes |
 | Learning | 10 | One observable target is stated for this audience and duration | `brief.md` |
-| Learning | 10 | Scenes and narration build toward the target; a check or self-evaluation opportunity exists | `scene-plan.md`, script, target check |
+| Learning | 10 | Scenes and narration build toward the target; a check or self-evaluation opportunity exists; the brief answers the three misconception questions with evidence, and its decision to use or skip the beat follows from the answers | `brief.md`, `scene-plan.md`, script, target check |
 | Learning | 5 | Signal/segment/weed choices reduce cognitive load without claiming that engagement proves learning | script and visual rationale |
 | Motion/visual | 8 | Every scene has one comprehension job and motion that communicates a time-varying relationship; in production-evidence mode, the pilot shows it | `scene-plan.md`, `storyboard.html`, and pilot evidence when run |
 | Motion/visual | 7 | Hardest shot has a delivery-size inspection plan; in production-evidence mode, text, formulas, contrast, and labels are legible | pilot plan, or contiguous pilot clip/stills/route inspection |

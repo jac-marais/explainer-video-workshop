@@ -43,6 +43,14 @@ Write one sentence in the form:
 
 Reject a target that only says “understand,” “be inspired,” or “see how it works.” A target can be a design choice, but its source and scope should be clear. Keep the target narrow enough to fit the requested duration; educational-video guidance supports brief, targeted lessons, signaling, segmenting, weeding, complementary audio/visual channels, and active processing, while warning that engagement is not the same as learning (S-FA-006–S-FA-008).
 
+Before teaching, decide whether the film needs a misconception beat. Answer three yes/no questions in the brief, each with its evidence.
+
+- **Do they hold it?** A source shows where the wrong idea comes from, such as how today's tools behave, the docs, an issue thread, or the user saying so. The agent's own guess does not count.
+- **Does it give the wrong answer?** Someone who holds the wrong idea would fail the learning-target check.
+- **Can the film break it on screen in one scene?**
+
+Three yeses mean use the beat, and the check is a prediction question that the wrong idea answers wrongly. Any no means skip the beat, and the brief records which question failed. Never invent a strawman to fill the slot. An audience that is new to the topic usually has no wrong model to break, so expect a no on the first question. That is a workshop inference and not a finding of S-FA-010. One controlled study of first-year physics students found larger learning gains from a video that stated and refuted common misconceptions than from a clear exposition. It covers one university physics population, so it does not show the same effect for other audiences or topics (S-FA-010).
+
 ### 2. Build the claim map before prose
 
 Give every factual, numerical, causal, historical, API, or safety claim a stable ID. For each claim, record:
@@ -62,6 +70,10 @@ Promote a claim into the script only when its source receipt is readable and the
 
 Draft the narration in scenes. Each scene must have one comprehension job, one central visual idea, one sentence describing why motion helps, and a planned transition. Keep spoken words, screen text, and source citations separate so a crowded frame does not become the teaching method.
 
+When the brief's rubric from step 1 says to use the beat, open with it. The film states the wrong idea in words the audience would use, pauses so the viewer can predict, shows what breaks it, and only then teaches the right model. Budget the prediction pause as learner-processing time in the scene plan.
+
+A second story line, such as a human or historical thread that runs beside the mechanism, is optional. It suits a longer film about an idea, and it adds length and build cost. The misconception evidence does not cover it. A short film, such as a PR walk-through, should not use it.
+
 Write the narration for a listener who hears it once and cannot reread it. Use full sentences, and keep the linking words, such as "because", "so", and "until", that carry the logic from one sentence to the next. Avoid "this, not that" constructions. Never use an em dash or colon in the middle of a sentence. Split the thought into two sentences or rewrite it. Say why a mechanism exists before saying how it works. Explain each term that the audience does not already know in plain words before naming it, and then use that one name every time. Keep code identifiers out of speech unless the learner must say or type them. On screen, lead with the plain name and show the identifier beside it. Speak only the numbers that the learning target needs.
 
 List every acronym, product name, code identifier, and number in the narration with its planned spoken form in the script's pronunciation line. Try each term as written first, and spell letters with hyphens, such as `G-P-U`, because spaced letters and spelled-out words can misread in a synthetic voice. Keep the operator's verdicts in the git-ignored `local/pronunciation.md`, and copy `templates/pronunciation.md` there if it is missing. Add the candidate-list words that the narration uses to the pronunciation line, and apply the known fixes for the planned voice. After each ear check, record the new verdicts there.
@@ -76,13 +88,15 @@ Record the word count and the chosen WPM range (for example, 130–165 WPM) besi
 
 Run the same arithmetic per scene. Record narration words, target WPM or range, speech seconds, breathing-pause budget, learner-processing-pause budget, and the total planned scene window. Speech seconds are `words / WPM × 60` and exclude both kinds of pause. Require each rough scene window to cover speech plus its declared pauses, and require the scene-window sum to match the target duration within declared transition or end-card tolerance. A global word count can fit while one scene demands implausible speech; repair the scene words, window, or narrative before production, never by faster delivery. To fit a duration, remove whole claims or narrow the learning target, and keep the explanation that each remaining claim needs. If the learning target needs a longer duration, tell the user how long it needs and record that duration in the brief. Continue with that duration unless the user directly asks to keep the original one. In that case, offer one to three narrower targets for the user to choose from. Final approved audio remains authoritative when it exists.
 
-Before any audio exists, test the narration on a cold listener. Give a fresh agent or person the audience's starting knowledge from the brief, the spoken text, and a plain description of what each scene shows, written from each scene's planned visual idea without filling its gaps. Withhold the claim map and sources. Ask them to explain the mechanism in their own words, answer the learning-target check, and name each sentence that they had to guess at or that seemed to contradict another. Also ask them to name anything the check relies on that the film had not shown before the check, and what the viewer sees that confirms the answer. Repair each problem, check the changed sentences against the claim map, and repeat the test until the explanation and the answer match the claim map. Record each round in `run-state.md`.
+Before any audio exists, test the narration on a cold listener. Give a fresh agent or person the audience's starting knowledge from the brief, the spoken text, and a plain description of what each scene shows, written from each scene's planned visual idea without filling its gaps. Withhold the claim map and sources. Ask them to explain the mechanism in their own words, answer the learning-target check, and name each sentence that they had to guess at or that seemed to contradict another. Also ask them to name anything the check relies on that the film had not shown before the check, and what the viewer sees that confirms the answer. Also ask what they believed about the topic before hearing the film, and whether the film changed it. If the film uses the beat and the stated misconception is not one they held or recognise, treat that as a sign that the beat is a strawman. Repair each problem, check the changed sentences against the claim map, and repeat the test until the explanation and the answer match the claim map. Record each round in `run-state.md`.
 
 ### 4. Convert the narrative into a scene and shot sequence
 
 Use `templates/scene-plan.md`. A scene is a learner-facing comprehension unit; a shot is a contiguous renderable interval. For each shot, specify the narration segment, claim IDs, visual elements, motion grammar, screen text, asset paths and rights, entry/exit condition, and dependency. The plan must expose any shot that needs an external asset, a browser/editor, a particular renderer, a secret, or a human recording.
 
 Use the information structure to choose motion. Signaling, segmenting, and removing decorative motion have direct educational rationale (S-FA-006, S-FA-008). A generic fade or zoom is not an explanation. If the visual cannot make the target action or mechanism easier to see, use a static card or omit it.
+
+Pin every visual that must land on a spoken moment to the quoted words it lands on, in the form in `templates/scene-plan.md`, never to a second. Seconds exist only after audio does.
 
 Then draw the storyboard, `storyboard.html` in the run folder, from `templates/storyboard.html`. It is one page of key frames, so a reader can see how the film fits together before any audio exists. Each frame has a shot ID from `scene-plan.md`, a short title, an SVG line sketch on the brief's canvas, and one or two sentences on what the viewer sees. Draw one frame for each key visual moment, and at least one per scene. Draw the moment that carries the shot's comprehension job, such as the state the viewer must notice, not decoration. When motion carries the idea, draw its start and end states, and check that a reader can follow the argument from the frames and notes alone. Frames name shot IDs and do not copy narration, timing, or counts, so the scene plan stays the one place for those. Sketches are enough. Use the brand fonts and colors from `local/brand.md` when it exists, and show the page to the user. Redraw affected frames while preparation changes the script or scene plan. Once production starts, the storyboard stays as it is, and the scene plan and approved audio win wherever they differ from it. The storyboard step is a workshop design choice from one run, not a source-backed finding.
 
@@ -108,6 +122,8 @@ Apply the chosen route's traps in `library/renderers.md` when it lists them. For
 
 When audio exists, the approved voice track is the timing authority. Before audio exists, `audio-receipt.md` and `timing.md` record the intended source and timing plan, say why measured audio is not available, and mark measured timing pending. The exact implementation can use measured scene durations, which suit scene-based UI or vector explainers and captions (for example, Remotion or Claude Video Kit metadata), or in-scene duration/bookmark tracking, which suits word-triggered formula or diagram motion (for example, Manim Voiceover); both still consume approved audio when production runs (S-TC-001, S-TC-003, S-TC-008).
 
+Time the pinned cues from the measured words. `scripts/audio/cues.py SCRIPT.md WORDS.json TIMING.json --out cues.json --strict` matches each quoted span to consecutive words in its scene's window and writes its start and end. Scenes read their cue times from `cues.json` and never hard-code one, so a new voice or edit re-times the film by rerunning `cues.py` and rebuilding, not by redrawing each scene. `scripts/audio/captions.py TIMING.json WORDS.json --output captions.vtt` builds the captions from the same measured audio.
+
 Record an audio receipt with path, provider or recorder, language, sample rate if known, duration, checksum if available, and approval status. Record timing with scene and word/sentence bounds, match confidence, and the audio receipt it was derived from. Do not edit audio after timing without rebuilding the timing artifact.
 
 Use this invalidation table:
@@ -117,7 +133,7 @@ Use this invalidation table:
 | source, claim status, or learning target | claim map; affected script, scene plan, review, audio, timing, pilot |
 | script words or scene order | cold-listener test and claim check of the changed sentences; audio; timing; captions; affected scenes; script-bound pre-render review |
 | a scene's planned visual idea | cold-listener test; affected scenes; pre-render review |
-| approved audio bytes or trim | timing; captions; all audio-bound visual cues; pilot and pre-render review |
+| approved audio bytes or trim | timing; captions; `cues.json` and every scene that reads it; pilot and pre-render review |
 | scene code, assets, renderer, FPS, or dimensions | affected scene preview; machine checks; pilot; pre-render review |
 | final MP4 bytes | final review receipt only; retain the old receipt as historical evidence |
 
@@ -162,7 +178,7 @@ Each artifact has a status (`missing`, `draft`, `checked`, `invalidated`, `accep
 
 The run state records the current phase, completed artifacts, invalidations, retries, external time and spend measurements, renderer/version, and next action. Resume by reconciling state with the filesystem: a missing, empty, corrupt, or mismatched artifact is not complete merely because a flag says so. Regenerate only the affected artifact and its dependents, using the step 6 invalidation table. Dependency waves are useful for generated assets: gate roots before dependent continuations (S-TC-005, S-TC-007).
 
-Checkpoints are agent gates, not human approvals. `AGENTS.md` says when to ask the user.
+Checkpoints are agent gates by default, not human approvals. The filled `production-prompt.md` can name taste gates (script, voice, stills) that the user answers asynchronously; contract item 5 of `templates/production-prompt.md` defines them. `AGENTS.md` says when to ask the user.
 
 ### 9. Score the preparation package
 
@@ -187,6 +203,10 @@ Call the package “prepared” only when it passes the scorecard's preparation 
 The final response reports the preparation status, learning target, source and readability stops, claim coverage, estimated words and WPM against any measured audio, scene count, renderer route with disqualifiers, pilot evidence, scorecard result, measured time and spend, and unanswered choices. It states whether a local pilot or full render actually ran, and it says "prepared package" unless an actual render and exact-byte review are evidenced.
 
 A blocked intake never reaches this step. See "Intake contract".
+
+## Lite route
+
+Use it when the user asks for less than the full package, such as a film from a script that they supply. Run these in order: the script with its claim check and the cold listener test from step 3, `scripts/audio/narrate_film.py`, `scripts/audio/captions.py`, `scripts/audio/cues.py`, the build, `scripts/film/render.py`, `scripts/film/check_film.py`, and one independent review of the exact MP4. It skips `storyboard.html`, the pilot, and the pre-render review. It keeps the structure of a script the user supplies, so it adds the misconception beat from step 1 only when the user asks and the rubric gives three yeses. Never call its result a "prepared package" or a "piloted" scene. The tool steps are in M1, M5, and M6 of `templates/production-prompt.md`.
 
 ## Adjustable eight-hour ceiling
 

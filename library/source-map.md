@@ -14,6 +14,7 @@ The [manifest](manifest.json) maps stable IDs to canonical URLs. It contains pri
 | How do alternative renderers handle narration/timing/review? | S-TC-001–008 | [Renderers](renderers.md), [prior art](prior-art.md#published-skills) |
 | What does the model/time-budget evidence prove? | S-FA-001–004/009 | Vendor-stated interfaces and limits only; original URLs in the manifest |
 | What makes an explainer useful for learning? | S-FA-006–008 | Brame review, Guo metadata, and Niekrenz/Spreckelsen review; original URLs in the manifest. Engagement is not a transfer/retention measure. |
+| Does stating and refuting a misconception improve learning from video? | S-FA-010 | One randomized study of first-year physics students on Newton's laws, read at abstract level only. It supports the misconception beat for that population and does not cover other audiences, topics, or a second story line. |
 | Which voice options are local? | S-VO-001/002, S-TC-003 | Original URLs in the manifest |
 
 ## Authority and retention
