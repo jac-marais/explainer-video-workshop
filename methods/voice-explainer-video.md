@@ -9,14 +9,16 @@ The workshop ships no one's voice. The operator's voice setup lives in `local/vo
 | `README.md` | the profile: what the operator chose, when, and any standing decisions |
 | `voice.json` | the voices and which one is the default |
 | `voice.py` | the narration CLI |
+| `plan_runs.py` | groups scenes into runs of 1 to 2 minutes from their test takes |
+| `cut_takes.py` | cuts a run's take into sentences |
 | `reference.wav`, `reference.txt` | a clone's reference recording and its transcript (clone only) |
 
-`templates/voice/` holds the blank copy of the profile, config and CLI.
+`templates/voice/` holds the blank copy of the profile, config and scripts.
 
 ## First use
 
 1. Read `local/voice/README.md`.
-2. If it is missing, copy `templates/voice/` to `local/voice/`. Its default is Kokoro `af_heart`, the voice that runs used before this method existed.
+2. If it is missing, copy `templates/voice/` to `local/voice/`. Its default is Kokoro `af_heart`, the voice that runs used before this method existed. If it exists, copy across any script from `templates/voice/` that it lacks.
 3. Ask the user once: **"Narration uses a stock voice (Kokoro, `af_heart`). Would you like to clone your own voice instead? It needs an Apple Silicon Mac and a one-minute recording."**
 4. If they say yes, follow "Clone a voice". Record the answer in `local/voice/README.md` either way, so nobody asks again.
 
@@ -101,6 +103,7 @@ About 150 words, or a minute at a natural pace. The cues in brackets are for the
 - **Every take is different.** The same paragraph came out between 26 and 29 seconds long across takes. The CLI records the seed in the receipt, and `--seed` with the same text and reference gives a byte-identical take on the same machine. So a take the user likes can be made again.
 - **Fix a wrong word; don't re-roll the seed.** Speech-to-text mishears too, so a word it flags is only a lead. Read its guess aloud. If it sounds like the right word, such as "save state" for "saved state", nothing needs fixing. Otherwise listen to the take. A word the voice really gets wrong, it usually gets wrong in every take, so a new seed rarely helps. Respell or reorder it in `local/pronunciation.md`, then re-make the take once to check the fix.
 - **Long texts are split.** A single pass stops at 4096 tokens, about 330 s of audio, and slows as the text grows. The CLI splits text over 400 words at sentence ends and joins the parts with 0.25 s of silence; `--max-words` raises that limit for a longer single take. Each part is a fresh take, so the delivery can shift slightly at a join; one file per run (next point) avoids them.
-- **Voice the script in runs of 1 to 2 minutes.** Each generation starts lively and settles. In trials, the pitch range inside sentences fell most in a take's first minute, held to about 3 minutes, then sagged, and a 4-minute take sounded monotone. Each new generation also restarts higher, so many short takes jump at every join. Group whole scenes into runs of 60–120 s, and when several groupings fit, take the most even. Cut each run back into its sentences in the pauses between them.
+- **Voice the script in runs of 1 to 2 minutes.** Each generation starts lively and settles. In trials, the pitch range inside sentences fell most in a take's first minute, held to about 3 minutes, then sagged, and a 4-minute take sounded monotone. Each new generation also restarts higher, so many short takes jump at every join. Group whole scenes into runs of 60–120 s, and when several groupings fit, take the most even.
+- **Plan, voice, cut.** Make a test take of every scene, then run `uv run local/voice/plan_runs.py <receipt dir>` on their receipts to pick the runs. Voice each run as one file named for its scenes (`S03-S05.wav`). Cut the runs into sentences with `uv run local/voice/cut_takes.py --sentences sentences.json --out <sentence dir> <run WAVs>`, where `sentences.json` lists every sentence with its `id`, `scene` and `text`. Each sentence runs from cut to cut, so the pauses the voice spoke stay whole. Only the start and end of each take are trimmed, leaving 0.2 s of silence. Don't trim the sentences again. The cuts already sit at the quietest point of each pause, so a trim can only shorten a real pause. The cutter logs one line per cut. Listen at any cut whose `floor_db` or `smooth_db` sits well above the rest, because a cut that loud may have landed inside a word. The cutter runs Whisper through mlx-whisper, so it needs an Apple Silicon Mac, like the clone.
 - **Pronunciation verdicts don't carry over.** The clone has no eSpeak phonemizer, so Kokoro's verdicts say nothing about it. M1's pronunciation pass applies to every voice.
 - **Licences and consent.** Qwen3-TTS and Kokoro are Apache-2.0 (model cards), and mlx-audio is MIT. Clone only your own voice, or one whose owner has agreed in writing. The reference recording is personal data, so it stays in `local/` and never goes into a commit, an upload or a prompt to a hosted model.
