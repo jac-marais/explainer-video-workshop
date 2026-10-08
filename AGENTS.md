@@ -10,11 +10,11 @@ Then read `local/voice/README.md`. If it is missing, follow "First use" in `meth
 
 ## Route once
 
-- **Prepare a run, script/storyboard package, or production brief:** use the `prepare-explainer-video` skill at `.agents/skills/prepare-explainer-video/SKILL.md`. Follow `methods/prepare-explainer-video.md` and `scorecards/run-quality.md`. This is the trialed method.
+- **Prepare a run, script/storyboard package, or production brief:** use the `prepare-explainer-video` skill at `.agents/skills/prepare-explainer-video/SKILL.md`. This is the trialed method.
 - **Produce a video from a viable package:** use the filled `production-prompt.md`, with `templates/production-prompt.md` as the reference contract. This is a documented production route; establish local renderer/audio/pilot evidence before scaling. Do not restart preparation unless its dependencies changed.
 - **Lite route, when the user asks for less than the full package:** follow "Lite route" in `methods/prepare-explainer-video.md`.
 - **Investigate a creator, prompt, skill, or research claim:** use `library/source-map.md`, `library/prior-art.md`, and `library/manifest.json`. Do not run the production workflow merely to answer a research question.
-- **Align output with a brand, or audit it against one:** use the `brand-explainer-video` skill at `.agents/skills/brand-explainer-video/SKILL.md`, and follow `methods/brand-explainer-video.md`. The brand's rules come from the source that `local/brand.md` points to.
+- **Align output with a brand, or audit it against one:** use the `brand-explainer-video` skill at `.agents/skills/brand-explainer-video/SKILL.md`.
 - **Review or resume an existing production:** inspect its actual artifacts/state and score them with `scorecards/run-quality.md`. Repair affected dependencies with the invalidation table in step 6 of `methods/prepare-explainer-video.md`. Do not regenerate a brief or unrelated scenes automatically.
 
 These triggers are mutually exclusive initial routes. A task can move to the next route after completing the earlier requested stage. Generic filmmaking, marketing strategy, and standalone presentations belong elsewhere.
@@ -29,4 +29,4 @@ Run only checks that substantiate the requested result. A zero-sample audit, suc
 
 Checkpoints are agent gates by default, not human approvals; proceed when the gate evidence is present. A filled production prompt can name taste gates (script, voice, stills) that the user answers instead; contract item 5 of `templates/production-prompt.md` defines them. Ask the user only before a purchase, a publication or upload, contacting a creator or brand owner, another irreversible external write, or a private preference that the brief cannot resolve. A budget in a prompt is not an enforced spending or wall-clock limit. Record model/version, tools, source/assets, revisions, elapsed/cost evidence when available, and remaining uncertainty.
 
-The workshop's skills live in `.agents/skills/`; `.claude/skills` links there. Keep the maintained method, scorecard, templates, and source map consistent when changing behavior. Commit only the workshop itself; agent work stays in the git-ignored `outputs/` and `local/`.
+The workshop's skills live in `.agents/skills/`; `.claude/skills` links there. Keep the maintained method, scorecard, templates, and source map consistent when changing behavior. Say each rule once, in the file that owns it, and link to it from elsewhere. Commit only the workshop itself; agent work stays in the git-ignored `outputs/` and `local/`.

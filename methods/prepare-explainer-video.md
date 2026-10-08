@@ -76,7 +76,7 @@ A second story line, such as a human or historical thread that runs beside the m
 
 Write the narration for a listener who hears it once and cannot reread it. Use full sentences, and keep the linking words, such as "because", "so", and "until", that carry the logic from one sentence to the next. Avoid "this, not that" constructions. Never use an em dash or colon in the middle of a sentence. Split the thought into two sentences or rewrite it. Say why a mechanism exists before saying how it works. Explain each term that the audience does not already know in plain words before naming it, and then use that one name every time. Keep code identifiers out of speech unless the learner must say or type them. On screen, lead with the plain name and show the identifier beside it. Speak only the numbers that the learning target needs.
 
-List every acronym, product name, code identifier, and number in the narration with its planned spoken form in the script's pronunciation line. Try each term as written first, and spell letters with hyphens, such as `G-P-U`, because spaced letters and spelled-out words can misread in a synthetic voice. Keep the operator's verdicts in the git-ignored `local/pronunciation.md`, and copy `templates/pronunciation.md` there if it is missing. Add the candidate-list words that the narration uses to the pronunciation line, and apply the known fixes for the planned voice. After each ear check, record the new verdicts there.
+List every acronym, product name, code identifier, and number in the narration with its planned spoken form in the script's pronunciation line. Try each term as written first, and spell letters with hyphens, such as `G-P-U`, because spaced letters and spelled-out words can misread in a synthetic voice. Keep the operator's verdicts in the git-ignored `local/pronunciation.md`, which `templates/pronunciation.md` shows how to start. Add the candidate-list words that the narration uses to the pronunciation line, and apply the known fixes for the planned voice. After each ear check, record the new verdicts there.
 
 Estimate the script duration explicitly:
 
@@ -116,13 +116,13 @@ Choose the path after the shot plan, not before it:
 
 The route capabilities are source-backed, except live-app capture, which comes from one local run; the learner-job mapping is a workshop design choice (S-TC-001–S-TC-004, S-HF-001–S-HF-005, S-PX-003). HyperFrames and live-app capture are the only routes run locally so far (`library/renderers.md`), which does not make them better for every learner job. Live-app capture films the product itself instead of rebuilding it, so no screen in the film is a reconstruction that can drift from the real app. Pexo is a hosted, credentialed optional route; the public client repository does not make its service free and does not prove final assembly quality (S-PX-003). Do not silently change routes when a dependency, license, account, or data-transfer condition fails: record the disqualifier and revise the plan. The route must leave an editable source and an inspectable render command when the local stack supports them. The narration-bound path of approved audio, measured timing, visuals that consume timing, a pilot, and exact-output review survives a renderer swap; only its implementation changes (S-TC-001, S-TC-003, S-TC-006, S-TC-008, S-TC-009).
 
-Apply the chosen route's traps in `library/renderers.md` when it lists them. For HyperFrames, a lint-disabled audit or `0-of-0` sample report is not acceptance evidence.
+Apply the chosen route's traps in `library/renderers.md` when it lists them.
 
 ### 6. Plan audio and timing as invalidatable artifacts
 
 When audio exists, the approved voice track is the timing authority. Before audio exists, `audio-receipt.md` and `timing.md` record the intended source and timing plan, say why measured audio is not available, and mark measured timing pending. The exact implementation can use measured scene durations, which suit scene-based UI or vector explainers and captions (for example, Remotion or Claude Video Kit metadata), or in-scene duration/bookmark tracking, which suits word-triggered formula or diagram motion (for example, Manim Voiceover); both still consume approved audio when production runs (S-TC-001, S-TC-003, S-TC-008).
 
-Time the pinned cues from the measured words. `scripts/audio/cues.py SCRIPT.md WORDS.json TIMING.json --out cues.json --strict` matches each quoted span to consecutive words in its scene's window and writes its start and end. Scenes read their cue times from `cues.json` and never hard-code one, so a new voice or edit re-times the film by rerunning `cues.py` and rebuilding, not by redrawing each scene. `scripts/audio/captions.py TIMING.json WORDS.json --output captions.vtt` builds the captions from the same measured audio.
+Time the pinned cues from the measured words with `scripts/audio/cues.py`, and build the captions from the same measured audio with `scripts/audio/captions.py`. `scripts/README.md` says what each tool does, and M1 of `templates/production-prompt.md` gives their command lines. Scenes read their cue times from `cues.json` and never hard-code one, so a new voice or edit re-times the film by rerunning `cues.py` and rebuilding, not by redrawing each scene.
 
 Record an audio receipt with path, provider or recorder, language, sample rate if known, duration, checksum if available, and approval status. Record timing with scene and word/sentence bounds, match confidence, and the audio receipt it was derived from. Do not edit audio after timing without rebuilding the timing artifact.
 
@@ -174,11 +174,9 @@ production-prompt.md
 
 Start each file from its template in `templates/` when one exists.
 
-Each artifact has a status (`missing`, `draft`, `checked`, `invalidated`, `accepted`) and an explicit dependency. A renderer may also require JSON or TypeScript inputs; keep those as implementation files, not as the workshop's only record.
+The run state lives in `templates/run-state.md`. Its ledger gives each artifact a status and an explicit dependency, and its resume protocol says how to resume a run. A renderer may also require JSON or TypeScript inputs; keep those as implementation files, not as the workshop's only record. Dependency waves are useful for generated assets: gate roots before dependent continuations (S-TC-005, S-TC-007).
 
-The run state records the current phase, completed artifacts, invalidations, retries, external time and spend measurements, renderer/version, and next action. Resume by reconciling state with the filesystem: a missing, empty, corrupt, or mismatched artifact is not complete merely because a flag says so. Regenerate only the affected artifact and its dependents, using the step 6 invalidation table. Dependency waves are useful for generated assets: gate roots before dependent continuations (S-TC-005, S-TC-007).
-
-Checkpoints are agent gates by default, not human approvals. The filled `production-prompt.md` can name taste gates (script, voice, stills) that the user answers asynchronously; contract item 5 of `templates/production-prompt.md` defines them. `AGENTS.md` says when to ask the user.
+`AGENTS.md` owns the default that checkpoints are agent gates, and when to ask the user. The filled `production-prompt.md` can name taste gates (script, voice, stills) that the user answers asynchronously; contract item 5 of `templates/production-prompt.md` defines them.
 
 ### 9. Score the preparation package
 
@@ -206,7 +204,7 @@ A blocked intake never reaches this step. See "Intake contract".
 
 ## Lite route
 
-Use it when the user asks for less than the full package, such as a film from a script that they supply. Run these in order: the script with its claim check and the cold listener test from step 3, `scripts/audio/narrate_film.py`, `scripts/audio/captions.py`, `scripts/audio/cues.py`, the build, `scripts/film/render.py`, `scripts/film/check_film.py`, and one independent review of the exact MP4. It skips `storyboard.html`, the pilot, and the pre-render review. It keeps the structure of a script the user supplies, so it adds the misconception beat from step 1 only when the user asks and the rubric gives three yeses. Never call its result a "prepared package" or a "piloted" scene. The tool steps are in M1, M5, and M6 of `templates/production-prompt.md`.
+Use it when the user asks for less than the full package, such as a film from a script that they supply. Run these in order: the script with its claim check and the cold listener test from step 3, `scripts/audio/narrate_film.py`, `scripts/audio/captions.py`, `scripts/audio/cues.py`, the build, `scripts/film/render.py`, `scripts/film/check_film.py`, and one independent review of the exact MP4. It skips `storyboard.html`, the pilot, and the pre-render review. It keeps the structure of a script the user supplies, so it adds the misconception beat from step 1 only when the user asks and the rubric gives three yeses. Never call its result a "prepared package" or a "piloted" scene. The tool steps are in M1, M5, and M6 of `templates/production-prompt.md`, and `scripts/README.md` says what each tool does.
 
 ## Adjustable eight-hour ceiling
 

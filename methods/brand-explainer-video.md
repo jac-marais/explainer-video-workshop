@@ -8,13 +8,29 @@ This workshop knows no brand. Brand guidelines come from the operator's local pr
 
 1. Read `local/brand.md`.
 2. If the file is missing, your first question to the user is: **"Do you have brand guidelines that you can point me toward?"** Ask it before you do any other work.
-3. If they have none, offer the workshop's nine styles. Link the gallery at https://jac-marais.github.io/explainer-video-workshop/brands/, where each style plays the same explainer; offline, link `brands/index.html` by its absolute path. List the nine style names and ask the user to reply with one. Each style's preset is `brands/<slug>.md`. The neutral readable default from `methods/prepare-explainer-video.md` remains an option.
+3. If they have none, offer the workshop's nine styles. Link the gallery at https://jac-marais.github.io/explainer-video-workshop/brands/, where each style plays the same explainer; offline, link `brands/index.html` by its absolute path. List the nine style names and ask the user to reply with one. Each style's preset is `brands/<slug>.md`, linked under "The nine styles". The neutral readable default from `methods/prepare-explainer-video.md` remains an option.
 4. Write the answer to `local/brand.md` with `templates/brand.md` as the shape. A chosen style's preset is its Guidelines path. Record "none" when the user picks no style, so nobody asks again.
 5. When the user changes brands or corrects a decision, update the profile. Don't keep a second copy somewhere else.
 
 Any of these can be a source: a brand workshop with its own `AGENTS.md` or skill, a PDF or folder of guidelines, a website, or a few sentences from the user. A workshop is best, because it lets you cite rules and look up assets. Use what the source offers, and write down any rule the user gives you in conversation.
 
 If the source has its own skill or `AGENTS.md`, record its path in the profile and read it from there. Don't copy or mount it into this workshop.
+
+## The nine styles
+
+Each preset is a self-contained style file that a video agent can build from.
+
+| Style | Preset |
+|---|---|
+| Airbnb-inspired | [`brands/airbnb.md`](../brands/airbnb.md) |
+| Channel 4-inspired | [`brands/channel-4.md`](../brands/channel-4.md) |
+| IBM-inspired | [`brands/ibm.md`](../brands/ibm.md) |
+| MIT Media Lab-inspired | [`brands/mit-media-lab.md`](../brands/mit-media-lab.md) |
+| Mozilla-inspired | [`brands/mozilla.md`](../brands/mozilla.md) |
+| NASA-inspired | [`brands/nasa.md`](../brands/nasa.md) |
+| NPS Unigrid-inspired | [`brands/nps-unigrid.md`](../brands/nps-unigrid.md) |
+| Spotify-inspired | [`brands/spotify.md`](../brands/spotify.md) |
+| Uber-inspired | [`brands/uber.md`](../brands/uber.md) |
 
 ## Procedure
 

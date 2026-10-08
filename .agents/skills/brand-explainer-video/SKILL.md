@@ -9,4 +9,4 @@ This skill belongs to the Explainer Video Workshop, the repository that contains
 
 ## Profile first
 
-The brand lives in the workshop's git-ignored `local/brand.md`, never in the workshop or in this skill. If the profile is missing, follow "First use" in `methods/brand-explainer-video.md` before any other work. When the guidelines have their own agent route (a skill or `AGENTS.md`), learn the brand through that route and cite its rules.
+Before any other work, follow "First use" in the method, which finds or creates the profile, `local/brand.md`. Step 1 of the procedure says how to learn the brand through the guidelines' own route.

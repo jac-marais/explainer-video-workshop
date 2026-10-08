@@ -18,6 +18,8 @@ The `## Run log` table of spend and active time per phase comes from `scripts/ru
 
 ## Artifact ledger
 
+The rows follow the run-folder file list in step 8 of `methods/prepare-explainer-video.md`.
+
 | Artifact | Status | Derived from | Receipt/check | Invalidated by | Next action |
 |---|---|---|---|---|---|
 | `brief.md` | `missing/draft/checked/invalidated/accepted` | `[inputs]` | `[check]` | `[change]` | `[action]` |
@@ -38,10 +40,12 @@ The `## Run log` table of spend and active time per phase comes from `scripts/ru
 1. Read this ledger, then inspect the filesystem for each `accepted` artifact.
 2. Treat a missing, empty, corrupt, or mismatched artifact as invalid even if the ledger says accepted.
 3. Verify receipts against the current source, script, audio, renderer, and output where a receipt declares a dependency.
-4. Rebuild only the invalid artifact and its dependents. Keep old artifacts in a dated archive or mark them historical; never present an old MP4 as the new result.
+4. Rebuild only the invalid artifact and its dependents, using the invalidation table in step 6 of `methods/prepare-explainer-video.md`. Keep old artifacts in a dated archive or mark them historical; never present an old MP4 as the new result.
 5. Append the reason, action, result, and next action below.
 
 ## Decisions and failures
+
+Log each decision, failure, invalidation, and retry as a row.
 
 | Time | Phase | Decision or failure | Evidence | Consequence/invalidations | Next action |
 |---|---|---|---|---|---|

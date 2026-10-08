@@ -26,7 +26,7 @@ This is a preparation brief. A complete brief does not claim that a renderer ran
 - Tone and visual constraints: `[values]`
 - Required delivery files: `[editable project, MP4, captions, sources, receipts, etc.]`
 
-The word/WPM figure is planning arithmetic. Replace it with measured audio timing after an approved voice track exists.
+The word/WPM figure is planning arithmetic, which step 3 of `methods/prepare-explainer-video.md` explains. Replace it with measured audio timing after an approved voice track exists.
 
 ## Sources and use boundaries
 
@@ -34,7 +34,7 @@ The word/WPM figure is planning arithmetic. Replace it with measured audio timin
 |---|---|---|---|---|---|
 | `S-…` | `[value]` | `[value]` | `yes/no/partial` | `[what it establishes]` | `[value]` |
 
-If an essential source is unreadable, stop or narrow the brief. Record the dependent claims below instead of guessing.
+If an essential source is unreadable, follow "Intake contract" in `methods/prepare-explainer-video.md`.
 
 ## Constraints and budget ceiling
 
@@ -45,7 +45,7 @@ If an essential source is unreadable, stop or narrow the brief. Record the depen
 - Assets/audio supplied by the user: `[paths and rights]`
 - Publication/upload authorized? `no by default`
 
-The ceiling is a planning value. The agent prompt cannot enforce actual time or spend; the external controller must do that.
+The ceiling is a planning value. "Adjustable eight-hour ceiling" in `methods/prepare-explainer-video.md` says who enforces time and spend.
 
 ## Open choices
 
