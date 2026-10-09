@@ -904,6 +904,126 @@
       "commit": "f724267e45a065b6be445ea6f07312e62d3207cd",
       "access": "fetched_http_200",
       "private": false
+    },
+    {
+      "id": "S-AS-001",
+      "title": "Poly Haven public API (assets, files, search)",
+      "canonical_url": "https://api.polyhaven.com/assets?t=models",
+      "source_class": "official_api",
+      "publisher": "Poly Haven",
+      "fetched": "2026-10-09",
+      "source_date_or_version": "Live API at retrieval: 521 models, 997 HDRIs, 867 textures",
+      "commit": null,
+      "access": "fetched_http_200; anonymous; one glTF downloaded and its md5 matched the API",
+      "private": false
+    },
+    {
+      "id": "S-AS-002",
+      "title": "Poly Haven Public API README and Terms of Service",
+      "canonical_url": "https://github.com/Poly-Haven/Public-API/blob/2fd1796dc3506dfa8269439aac8e6f5c65876bd1/ToS.md",
+      "source_class": "official_terms",
+      "publisher": "Poly Haven",
+      "fetched": "2026-10-09",
+      "source_date_or_version": "Pinned to commit 2fd1796",
+      "commit": "2fd1796dc3506dfa8269439aac8e6f5c65876bd1",
+      "access": "fetched_http_200; read only",
+      "private": false
+    },
+    {
+      "id": "S-AS-003",
+      "title": "Smithsonian 3D API file search",
+      "canonical_url": "https://3d-api.si.edu/api/v1.0/content/file/search",
+      "source_class": "official_api",
+      "publisher": "Smithsonian Institution",
+      "fetched": "2026-10-09",
+      "source_date_or_version": "Live API at retrieval",
+      "commit": null,
+      "access": "fetched_http_200; anonymous; GLB downloaded (Draco). 3d.si.edu pages returned a bot challenge (HTTP 403); api.si.edu needs a key",
+      "private": false
+    },
+    {
+      "id": "S-AS-004",
+      "title": "NASA 3D Resources repository",
+      "canonical_url": "https://github.com/nasa/NASA-3D-Resources/tree/11ebb4ee043715aefbba6aeec8a61746fad67fa7",
+      "source_class": "official_asset_repository",
+      "publisher": "NASA",
+      "fetched": "2026-10-09",
+      "source_date_or_version": "Pinned to commit 11ebb4e; 257 GLB files",
+      "commit": "11ebb4ee043715aefbba6aeec8a61746fad67fa7",
+      "access": "fetched_http_200; README licence statement read; one GLB downloaded",
+      "private": false
+    },
+    {
+      "id": "S-AS-005",
+      "title": "Khronos glTF-Sample-Assets repository",
+      "canonical_url": "https://github.com/KhronosGroup/glTF-Sample-Assets/tree/edc7c9e67c639d230715049ee31f9a96a6babbbe",
+      "source_class": "official_asset_repository",
+      "publisher": "Khronos Group and contributors",
+      "fetched": "2026-10-09",
+      "source_date_or_version": "Pinned to commit edc7c9e; 150 models with per-model metadata.json",
+      "commit": "edc7c9e67c639d230715049ee31f9a96a6babbbe",
+      "access": "fetched_http_200; per-model licence metadata read; one GLB downloaded",
+      "private": false
+    },
+    {
+      "id": "S-AS-006",
+      "title": "ambientCG API v2",
+      "canonical_url": "https://ambientcg.com/api/v2/full_json",
+      "source_class": "official_api",
+      "publisher": "ambientCG",
+      "fetched": "2026-10-09",
+      "source_date_or_version": "Live API at retrieval",
+      "commit": null,
+      "access": "fetched_http_200; anonymous; one zip downloaded and listed, not extracted",
+      "private": false
+    },
+    {
+      "id": "S-AS-007",
+      "title": "Kenney asset pages (Car Kit)",
+      "canonical_url": "https://kenney.nl/assets/car-kit",
+      "source_class": "official_asset_site",
+      "publisher": "Kenney",
+      "fetched": "2026-10-09",
+      "source_date_or_version": "Car Kit at retrieval; CC0 License.txt in the zip",
+      "commit": null,
+      "access": "fetched_http_200; zip downloaded and listed, not extracted",
+      "private": false
+    },
+    {
+      "id": "S-AS-008",
+      "title": "Objaverse on Hugging Face (allenai/objaverse)",
+      "canonical_url": "https://huggingface.co/datasets/allenai/objaverse",
+      "source_class": "dataset_documentation",
+      "publisher": "Allen Institute for AI",
+      "fetched": "2026-10-09",
+      "source_date_or_version": "main at retrieval; metadata shard 000-000",
+      "commit": null,
+      "access": "fetched_http_200; one metadata shard downloaded; one GLB checked by HEAD only",
+      "private": false
+    },
+    {
+      "id": "S-AS-009",
+      "title": "three.js examples/models",
+      "canonical_url": "https://github.com/mrdoob/three.js/tree/dev/examples/models",
+      "source_class": "project_primary_documentation",
+      "publisher": "three.js authors",
+      "fetched": "2026-10-09",
+      "source_date_or_version": "dev at retrieval; r186 release",
+      "commit": null,
+      "access": "fetched_http_200; per-model READMEs read; several models NC or unlabelled",
+      "private": false
+    },
+    {
+      "id": "S-AS-010",
+      "title": "GitHub code and repository search for glTF/GLB assets",
+      "canonical_url": "https://docs.github.com/en/rest/search/search",
+      "source_class": "search-result discovery lead",
+      "publisher": "GitHub",
+      "fetched": "2026-10-09",
+      "source_date_or_version": "REST search API at retrieval",
+      "commit": null,
+      "access": "gh api queries; 30 sampled .glb hits held no real GLB (LFS pointers or non-glTF); license: filter is repo-level only",
+      "private": false
     }
   ]
 }

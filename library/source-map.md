@@ -16,6 +16,7 @@ The [manifest](manifest.json) maps stable IDs to canonical URLs. It contains pri
 | What makes an explainer useful for learning? | S-FA-006–008 | Brame review, Guo metadata, and Niekrenz/Spreckelsen review; original URLs in the manifest. Engagement is not a transfer/retention measure. |
 | Does stating and refuting a misconception improve learning from video? | S-FA-010 | One randomized study of first-year physics students on Newton's laws, read at abstract level only. It supports the misconception beat for that population and does not cover other audiences, topics, or a second story line. |
 | Which voice options are local? | S-VO-001/002, S-TC-003 | Original URLs in the manifest |
+| Where can a scene get 3D models, HDRIs and textures, and how is a file taken in? | S-AS-001–010 | [3D assets](3d-assets.md) |
 
 ## Authority and retention
 

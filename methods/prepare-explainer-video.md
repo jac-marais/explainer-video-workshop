@@ -92,7 +92,7 @@ Before any audio exists, test the narration on a cold listener. Give a fresh age
 
 ### 4. Convert the narrative into a scene and shot sequence
 
-Use `templates/scene-plan.md`. A scene is a learner-facing comprehension unit; a shot is a contiguous renderable interval. For each shot, specify the narration segment, claim IDs, visual elements, motion grammar, screen text, asset paths and rights, entry/exit condition, and dependency. The plan must expose any shot that needs an external asset, a browser/editor, a particular renderer, a secret, or a human recording.
+Use `templates/scene-plan.md`. A scene is a learner-facing comprehension unit; a shot is a contiguous renderable interval. For each shot, specify the narration segment, claim IDs, visual elements, motion grammar, screen text, asset paths and rights, entry/exit condition, and dependency. The plan must expose any shot that needs an external asset, a browser/editor, a particular renderer, a secret, or a human recording. Take third-party 3D models, HDRIs and textures from the sources in `library/3d-assets.md`, through its intake steps.
 
 Use the information structure to choose motion. Signaling, segmenting, and removing decorative motion have direct educational rationale (S-FA-006, S-FA-008). A generic fade or zoom is not an explanation. If the visual cannot make the target action or mechanism easier to see, use a static card or omit it.
 

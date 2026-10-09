@@ -42,6 +42,7 @@ Narration uses a stock local voice, Kokoro `af_heart`, unless you clone your own
 |---|---|
 | Investigate public examples, prompts, and skills | [Prior art](library/prior-art.md) |
 | Choose HTML, live app capture, React, math animation, or hosted generation | [Renderers](library/renderers.md) |
+| Get 3D models, HDRIs and textures for a scene | [3D assets](library/3d-assets.md) and `scripts/assets/check_asset.py` |
 | Prepare a run | [Method](methods/prepare-explainer-video.md), [brief](templates/brief.md), [scene plan](templates/scene-plan.md), [storyboard](templates/storyboard.html) |
 | Align output with your brand | [Brand method](methods/brand-explainer-video.md) and [profile template](templates/brand.md) |
 | Execute a prepared run | [Production prompt](templates/production-prompt.md) and [scorecard](scorecards/run-quality.md) |
@@ -52,9 +53,10 @@ Narration uses a stock local voice, Kokoro `af_heart`, unless you clone your own
 ```text
 AGENTS.md                   mission, routing, guarantees
 brands/                     style gallery, published on GitHub Pages
-library/                    source map, prior art, renderer notes
+library/                    source map, prior art, renderer and 3D asset notes
 methods/                    preparation, brand, and voice procedures
 templates/                  files copied into a run or local/
+scripts/                    shared production and asset-check tools
 scorecards/                 preparation and production-evidence gates
 outputs/                    new user work (git-ignored)
 local/                      operator's brand profile, voice, and pronunciation verdicts (git-ignored)

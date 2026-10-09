@@ -4,6 +4,10 @@ This is the one list of the shared tools for a production and what each does. Ea
 
 The voice tools that these build on (`voice.py`, `cut_takes.py`, `plan_runs.py`) live in `templates/voice/`.
 
+## assets/
+
+- `check_asset.py` checks third-party 3D models, textures, HDRIs and archives before a scene loads them, and prints each file's SHA-256 for the asset manifest. It never decodes or runs the file. The sources and the intake steps are in `library/3d-assets.md`.
+
 ## audio/
 
 - `narrate_film.py` drives the voice tools for a whole film. It voices the scenes, cuts them into sentences, assembles the narration, aligns the script's words, writes the timing, and checks the audio. It's a uv script, so run it as `uv run scripts/audio/narrate_film.py`.
