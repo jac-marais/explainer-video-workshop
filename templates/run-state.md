@@ -26,7 +26,7 @@ The rows follow the run-folder file list in step 8 of `methods/prepare-explainer
 | `claim-map.md` | `[status]` | `[sources + brief]` | `[source locators]` | `[source/target change]` | `[action]` |
 | `script.md` | `[status]` | `[claim map + target]` | `[word count]` | `[claim/target change]` | `[action]` |
 | `scene-plan.md` | `[status]` | `[script]` | `[coverage check]` | `[source, claim, target, script, or route change]` | `[action]` |
-| `storyboard.html` | `[status]` | `[scene plan]` | `[frame IDs match shots]` | `[scene-plan change before production]` | `[action]` |
+| `storyboard.html` | `[status]` | `[scene plan]` | `[storyboard.py exits 0]` | `[scene-plan change before production]` | `[action]` |
 | `audio-receipt.md` | `[status]` | `[script or recording]` | `[duration + checksum]` | `[source, claim, target, script, or audio change]` | `[action]` |
 | `timing.md` | `[status]` | `[approved audio]` | `[match report]` | `[source, claim, target, script, or audio change]` | `[action]` |
 | `assets-manifest.md` | `[status]` | `[scene plan]` | `[paths + rights]` | `[asset/route change]` | `[action]` |

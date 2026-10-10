@@ -16,6 +16,9 @@ import argparse, json, re, sys
 from pathlib import Path
 
 PAD = 0.6  # seconds; a cue may start a little outside its scene window because Whisper times are rough
+SCENE = re.compile(r"## Scene (\d+):.*?(?=\n## |\n---\n|\Z)", re.S)
+CUE = re.compile(r'(?:On (?:the )?|\*\*)"([^"]+)"')
+VISUAL = re.compile(r"\*\*Visual\.?\*\*")
 
 
 def norm(text):
@@ -42,13 +45,13 @@ def main():
 
     rows = []
     text = args.script.read_text()
-    for m in re.finditer(r"## Scene (\d+):.*?(?=\n## |\n---\n|\Z)", text, re.S):
+    for m in SCENE.finditer(text):
         sid = f"s{int(m.group(1)):02d}"
         if sid not in scenes:
             raise SystemExit(f"{sid} is in the script but not in {args.timing}")
         lo, hi = scenes[sid]["start"] - PAD, scenes[sid]["end"] + PAD
-        visual = m.group(0).split("**Visual**", 1)[-1]
-        for quote in re.findall(r'(?:On (?:the )?|\*\*)"([^"]+)"', visual):
+        visual = VISUAL.split(m.group(0), 1)[-1]
+        for quote in CUE.findall(visual):
             toks = [p for t in quote.split() if norm(t) for p in expand(norm(t))]
             hit = None
             for i in range(len(seq) - len(toks) + 1):

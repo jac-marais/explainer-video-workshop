@@ -43,7 +43,7 @@ Narration uses a stock local voice, Kokoro `af_heart`, unless you clone your own
 | Investigate public examples, prompts, and skills | [Prior art](library/prior-art.md) |
 | Choose HTML, live app capture, React, math animation, or hosted generation | [Renderers](library/renderers.md) |
 | Get 3D models, HDRIs and textures for a scene | [3D assets](library/3d-assets.md) and `scripts/assets/check_asset.py` |
-| Prepare a run | [Method](methods/prepare-explainer-video.md), [brief](templates/brief.md), [scene plan](templates/scene-plan.md), [storyboard](templates/storyboard.html) |
+| Prepare a run | [Method](methods/prepare-explainer-video.md), [brief](templates/brief.md), [scene plan](templates/scene-plan.md), [storyboard builder](scripts/storyboard/storyboard.py) |
 | Align output with your brand | [Brand method](methods/brand-explainer-video.md) and [profile template](templates/brand.md) |
 | Execute a prepared run | [Production prompt](templates/production-prompt.md) and [scorecard](scorecards/run-quality.md) |
 | Check evidence | [Source map](library/source-map.md) and [manifest](library/manifest.json) |

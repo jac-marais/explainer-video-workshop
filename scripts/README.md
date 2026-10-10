@@ -14,6 +14,10 @@ The voice tools that these build on (`voice.py`, `cut_takes.py`, `plan_runs.py`)
 - `cues.py` times each quoted visual cue in a script against the measured words. It matches each quoted span to consecutive words in its scene's window, and writes the span's start and end to `cues.json`.
 - `captions.py` builds sentence captions from the timing and the words.
 
+## storyboard/
+
+- `storyboard.py` builds `storyboard.html` from a script. The narration is on the left, and hovering a phrase shows the shots and key frames that start on it. It fails on a cue that isn't in its scene's narration. `test_storyboard.py` checks it on a small sample script.
+
 ## film/
 
 - `render.py` renders a HyperFrames composition to a new MP4 with the known fixes, and never overwrites.

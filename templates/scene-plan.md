@@ -22,7 +22,7 @@ Before accepting the plan, apply the per-scene timing rule in step 3 of `methods
 |---|---|---|---|---|---|---|---|---|
 | `S01-01` | `S01` | `[line or audio range]` | `[estimate, or On "quoted spoken words"]` | `[what moves and why]` | `[exact text]` | `[path, source, license]` | `[HyperFrames/live-app capture/Remotion/Manim/Motion Canvas/HTML-Canvas/Pexo]` | `[condition]` |
 
-Cue format: write a visual that lands on speech as `On "exact spoken words"`, or `**"exact spoken words"**` in a list. Quote consecutive words of that scene's narration, enough to be unique in it, never a second. `scripts/audio/cues.py` reads these from the script's `## Scene N: title` sections, in each `**Visual**` part, and times them from `words.json`.
+Cue format: write a visual that lands on speech as `On "exact spoken words"`, or `**"exact spoken words"**` in a list. Quote consecutive words of that scene's narration, enough to be unique in it, never a second. The script holds them in `## Scene N: title` sections, each with a `**Narration**` part and then a `**Visual**` part. Each list item in a Visual part is one shot, placed at its first cue, and a shot without a cue follows the shot above it. Link a shot's key frames inside its item as `![what it shows](path)`, with paths relative to the script. `scripts/audio/cues.py` times the cues from `words.json`, and `scripts/storyboard/storyboard.py` builds the storyboard from the same sections.
 
 ## Required scene checks
 
