@@ -14,8 +14,8 @@ instead (use (?i) for case-insensitive); it applies in order and never changes t
 Kokoro voices are synthesized one sentence at a time, because the model does not drift over a long text. Every other voice
 is voiced in runs of about 60 to 120 s (local/voice/plan_runs.py), one take per run ending in a throwaway sentence, and cut
 into sentences by local/voice/cut_takes.py.
-Each sentence WAV is cached under a hash of the voice config and the spoken text, so --reuse (or a rerun into the same
-AUDIO_DIR) voices only the sentences that changed.
+Sentence WAVs are keyed by voice config and spoken text, and takes.json records each sentence's original take id.
+--reuse and reruns follow the canonical take-level reuse rule in methods/voice-explainer-video.md#take-level-reuse.
 words.json holds one row per word of the script, timed by aligning Whisper's transcript of narration.wav to it.
 A word Whisper did not time is interpolated and listed in audio-checks.json; --strict exits non-zero if there is one.
 audio-checks.json lists only failures. --check-only runs the same checks on finished audio (timing.json and narration.wav)
@@ -23,6 +23,7 @@ and exits non-zero on any flag; it writes audio-checks.json only if --out is giv
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass, field
 import difflib
 import hashlib
 import json
@@ -32,8 +33,8 @@ import shutil
 import statistics
 import subprocess
 import sys
-import tempfile
 import time
+import uuid
 from pathlib import Path
 
 # Whisper must come from the local cache; nothing here downloads.
@@ -139,6 +140,103 @@ def cache_key(identity: str, spoken: str) -> str:
     return sha256(f"{identity}\n{spoken}".encode())
 
 
+@dataclass
+class ReuseSource:
+    directory: Path
+    hashes: dict[str, str]
+    takes: dict[str, str] | None
+    scenes: dict[str, str]
+    audio: dict[str, Path]
+    unclean: list[dict] = field(default_factory=list)
+    manifests: dict[str, dict] = field(default_factory=dict)
+
+
+@dataclass
+class ReuseDecision:
+    audio: dict[str, Path] = field(default_factory=dict)
+    takes: dict[str, str] = field(default_factory=dict)
+    unclean: list[dict] = field(default_factory=list)
+    manifests: dict[str, dict] = field(default_factory=dict)
+
+
+def load_reuse_sources(directories: list[Path | None], engine: str) -> list[ReuseSource]:
+    sources, seen = [], set()
+    for directory in directories:
+        if directory is None or directory.resolve() in seen or not (directory / "sentence-hashes.json").is_file():
+            continue
+        seen.add(directory.resolve())
+        takes_path = directory / "takes.json"
+        if engine != "kokoro" and not takes_path.is_file():
+            log(f"reuse skipped: {directory} has no takes.json")
+            continue
+        hashes = json.loads((directory / "sentence-hashes.json").read_text())
+        takes = json.loads(takes_path.read_text()) if takes_path.is_file() else None
+        timing_path, checks_path, manifest_path = (directory / name for name in ("timing.json", "audio-checks.json", "take-manifest.json"))
+        timing = json.loads(timing_path.read_text()) if timing_path.is_file() else {}
+        checks = json.loads(checks_path.read_text()) if checks_path.is_file() else {}
+        manifests = json.loads(manifest_path.read_text()) if manifest_path.is_file() else {}
+        sources.append(ReuseSource(directory, hashes, takes,
+                                   {s["id"]: s["scene_id"] for s in timing.get("sentences", [])},
+                                   {sid: directory / "sentences" / f"{sid}.wav" for sid in hashes
+                                    if (directory / "sentences" / f"{sid}.wav").is_file()},
+                                   [flag for flag in checks.get("flags", []) if flag.get("check") == "unclean_cut"], manifests))
+    return sources
+
+
+def decide_reuse(rows: list[dict], engine: str, sources: list[ReuseSource]) -> ReuseDecision:
+    """Select complete takes atomically, with later sources winning; Kokoro selects individual matching sentences."""
+    result = ReuseDecision()
+    if engine == "kokoro":
+        known = {}
+        for source in sources:
+            for sid, key in source.hashes.items():
+                if sid in source.audio:
+                    take = source.takes.get(sid) if source.takes else None
+                    known[key] = (source, sid, take or f"legacy-{sha256(str(source.directory.resolve()).encode())[:16]}-{sid}")
+        for row in rows:
+            if row["key"] in known:
+                source, sid, take = known[row["key"]]
+                result.audio[row["id"]] = source.audio[sid]
+                result.takes[row["id"]] = take
+                if take in source.manifests:
+                    result.manifests[take] = source.manifests[take]
+        return result
+
+    current = {row["id"]: row for row in rows}
+    by_scene: dict[str, set[str]] = {}
+    for row in rows:
+        by_scene.setdefault(row["scene_id"], set()).add(row["id"])
+    selected_scenes = set()
+    for source in reversed(sources):
+        by_take: dict[str, set[str]] = {}
+        for sid, take in (source.takes or {}).items():
+            by_take.setdefault(take, set()).add(sid)
+        for take, members in by_take.items():
+            if any(sid not in source.scenes for sid in members):
+                continue
+            covered = {source.scenes[sid] for sid in members}
+            if not covered <= by_scene.keys() or covered & selected_scenes:
+                continue
+            needed = set().union(*(by_scene[scene] for scene in covered))
+            source_order = [sid for sid in source.scenes if sid in members]
+            current_order = [row["id"] for row in rows if row["scene_id"] in covered]
+            manifest = source.manifests.get(take)
+            if source_order != current_order or (manifest is not None and
+                    (manifest.get("sentences") != source_order or set(manifest.get("scenes", [])) != covered)):
+                continue
+            if members != needed or any(sid not in source.audio or source.hashes.get(sid) != current[sid]["key"]
+                                        or source.scenes[sid] != current[sid]["scene_id"] for sid in needed):
+                continue
+            for sid in needed:
+                result.audio[sid] = source.audio[sid]
+                result.takes[sid] = take
+            selected_scenes.update(covered)
+            result.unclean.extend(flag for flag in source.unclean if flag.get("take") == take)
+            if take in source.manifests:
+                result.manifests[take] = source.manifests[take]
+    return result
+
+
 def run_uv(script: str, args: list[str], capture: bool = False) -> str:
     result = subprocess.run(["uv", "run", "--offline", str(VOICE_DIR / script), *map(str, args)], text=True,
                             stdout=subprocess.PIPE if capture else None, stderr=None if not capture else subprocess.PIPE)
@@ -172,35 +270,73 @@ def plan_runs(seconds: dict[str, float], work: Path) -> list[list[str]]:
     return runs
 
 
-def voice_takes(name: str, spec: dict, pending: list[dict], work: Path) -> tuple[dict[str, np.ndarray], list[dict]]:
-    """Voice the pending sentences; return their samples by id and the cuts that were not clean."""
+def voice_takes(name: str, spec: dict, pending: list[dict], work: Path) -> tuple[dict[str, np.ndarray], dict[str, str], list[dict], dict[str, dict]]:
+    """Voice pending rows and return samples, original take ids, unclean cuts and raw take receipts."""
     work.mkdir(parents=True, exist_ok=True)
+    generation = uuid.uuid4().hex
+    origins, manifests = {}, {}
+
+    def record_take(stem: str, members: list[dict]) -> str:
+        take = f"{generation}:{stem}"
+        for row in members:
+            origins[row["id"]] = take
+        wav, receipt = work / f"{stem}.wav", work / f"{stem}.json"
+        manifests[take] = {"scenes": list(dict.fromkeys(row["scene_id"] for row in members)),
+                           "sentences": [row["id"] for row in members], "wav": str(wav.resolve()),
+                           "sha256": sha256(wav.read_bytes()), "receipt": str(receipt.resolve()),
+                           "receipt_sha256": sha256(receipt.read_bytes())}
+        return take
+
     if spec["engine"] == "kokoro":
         for row in pending:
             (work / f"{row['id']}.txt").write_text(row["spoken"])
         run_uv("voice.py", [*(work / f"{row['id']}.txt" for row in pending), "--out-dir", work, "--voice", name])
-        return {row["id"]: read_audio(work / f"{row['id']}.wav") for row in pending}, []
+        for row in pending:
+            record_take(row["id"], [row])
+        return {row["id"]: read_audio(work / f"{row['id']}.wav") for row in pending}, origins, [], manifests
     units: dict[str, list[dict]] = {}
     for row in pending:
         units.setdefault(row["alias"], []).append(row)
     seconds = {alias: sum(len(r["spoken"].split()) for r in rows) / WPM * 60 for alias, rows in units.items()}
-    takes = []
+    takes, take_members = [], {}
     for run in plan_runs(seconds, work):
         stem = run[0] if len(run) == 1 else f"{run[0]}-{run[-1]}"
         (work / f"{stem}.txt").write_text(" ".join(r["spoken"] for alias in run for r in units[alias]) + " " + THROWAWAY)
         takes.append(work / f"{stem}.txt")
+        take_members[stem] = [r for alias in run for r in units[alias]]
     run_uv("voice.py", [*takes, "--out-dir", work, "--voice", name])
+    take_ids = {stem: record_take(stem, members) for stem, members in take_members.items()}
     (work / "sentences.json").write_text(json.dumps([{"id": r["id"], "scene": r["alias"], "text": r["spoken"]} for r in pending]))
     cut = work / "cut"
     out = run_uv("cut_takes.py", [*(t.with_suffix(".wav") for t in takes), "--sentences", work / "sentences.json", "--out", cut,
                                   "--throwaway", THROWAWAY], capture=True)
     lines = [json.loads(line) for line in out.splitlines() if line.startswith("{")]
-    unclean = [{"check": "unclean_cut", "take": r["take"], "after": r["after"], "gap_s": r["gap_s"]}
+    unclean = [{"check": "unclean_cut", "take": take_ids[r["take"]], "after": r["after"], "gap_s": r["gap_s"]}
                for r in lines if r.get("clean") is False]
-    return {row["id"]: read_audio(cut / f"{row['id']}.wav") for row in pending}, unclean
+    return {row["id"]: read_audio(cut / f"{row['id']}.wav") for row in pending}, origins, unclean, manifests
 
 
-def assemble(scenes: list[dict], rows: dict[str, dict], audio: dict[str, np.ndarray]) -> tuple[np.ndarray, list[dict], list[dict], float]:
+def frame_power(samples: np.ndarray, rate: int) -> np.ndarray:
+    n = int(rate * FRAME_S)
+    return np.mean(samples[: len(samples) // n * n].reshape(-1, n) ** 2, axis=1)
+
+
+def sentence_level_db(power: np.ndarray) -> float:
+    active = power[power > power.max() * 1e-3] if len(power) else power
+    return float(10 * np.log10(max(float(active.mean()) if len(active) else 0, 1e-18)))
+
+
+def calculate_take_gains(audio: dict[str, np.ndarray], takes: dict[str, str]) -> tuple[float, dict[str, float]]:
+    """Match each take's median sentence level to the median of all raw sentence levels."""
+    levels: dict[str, list[float]] = {}
+    for sid, samples in audio.items():
+        levels.setdefault(takes[sid], []).append(sentence_level_db(frame_power(samples, RATE)))
+    target = statistics.median(level for take in levels.values() for level in take)
+    return target, {take: target - statistics.median(values) for take, values in levels.items()}
+
+
+def assemble(scenes: list[dict], rows: dict[str, dict], audio: dict[str, np.ndarray],
+             takes: dict[str, str] | None = None, take_gain_db: dict[str, float] | None = None) -> tuple[np.ndarray, list[dict], list[dict], float]:
     """Join the sentences with narrate.py's gaps; return the audio, the scene rows, the sentence rows and the duration."""
     parts, scene_rows, sentence_rows = [np.zeros(int(LEAD_IN * RATE), dtype="float32")], [], []
     cursor, previous = LEAD_IN, None
@@ -214,6 +350,8 @@ def assemble(scenes: list[dict], rows: dict[str, dict], audio: dict[str, np.ndar
                 cursor += gap
             row = rows[f"{scene['id']}-{index:02d}"]
             samples = audio[row["id"]]
+            if take_gain_db:
+                samples = samples * 10 ** (take_gain_db[takes[row["id"]]] / 20)
             start, end = cursor, cursor + len(samples) / RATE
             sentence_rows.append({"id": row["id"], "scene_id": scene["id"], "text": row["text"], "spoken_text": row["spoken"],
                                   "pause_before": explicit, "start": round(start, 3), "end": round(end, 3),
@@ -235,9 +373,15 @@ def measure_loudness(path: Path) -> dict:
     return json.JSONDecoder().raw_decode(log_text[log_text.rfind("{"):])[0]
 
 
-def normalize(raw: Path, final: Path) -> None:
-    """Two-pass linear loudnorm as voice.py does, written as narrate.py does: 48 kHz, 24-bit mono."""
+def normalize(raw: Path, final: Path, preserve_take_levels: bool = False) -> float | None:
+    """Write 48 kHz, 24-bit mono with a common peak-capped gain, or Kokoro's two-pass loudnorm."""
     m = measure_loudness(raw)
+    if preserve_take_levels:
+        gain = min(-16 - float(m["input_i"]), -1.5 - float(m["input_tp"]))
+        log(f"global normalization gain: {gain:+.2f} dB")
+        ffmpeg(["-y", "-i", str(raw), "-af", f"volume={gain:.8f}dB:precision=double", "-ar", "48000", "-ac", "1",
+                "-c:a", "pcm_s24le", str(final)])
+        return gain
     apply = (f"loudnorm={LOUDNORM}:measured_I={m['input_i']}:measured_TP={m['input_tp']}:measured_LRA={m['input_lra']}"
              f":measured_thresh={m['input_thresh']}:offset={m['target_offset']}:linear=true")
     ffmpeg(["-y", "-i", str(raw), "-af", apply, "-ar", "48000", "-ac", "1", "-c:a", "pcm_s24le", str(final)])
@@ -356,15 +500,14 @@ def asr_differences(sents: list[dict], asr: list[dict]) -> list[dict]:
 
 
 def level_flags(sents: list[dict], scenes: list[str], samples: np.ndarray, rate: int) -> tuple[list[dict], dict]:
-    n = int(rate * FRAME_S)
-    power = np.mean(samples[: len(samples) // n * n].reshape(-1, n) ** 2, axis=1)
+    power = frame_power(samples, rate)
     smooth = 10 * np.log10(np.convolve(power, np.ones(SMOOTH) / SMOOTH, mode="same") + 1e-18)
     floor = float(np.percentile(smooth[power > 0], FLOOR_PCT))
     levels, tails = [], []
     for s in sents:
         a, b = round(s["start"] / FRAME_S), round(s["end"] / FRAME_S)
         frames = power[a:b]
-        levels.append(float(10 * np.log10(frames[frames > frames.max() * 1e-3].mean())))
+        levels.append(sentence_level_db(frames))
         tails.append(float(10 * np.log10(power[max(a, b - round(TAIL_S / FRAME_S)):b].mean() + 1e-18)))
     median = statistics.median(levels)
     flags = []
@@ -395,6 +538,8 @@ def audio_checks(timing: dict, wav: Path, asr: list[dict], unclean: list[dict]) 
     if abs(wav_s - timing["duration"]) > 0.01:
         flags.append({"check": "duration_mismatch", "wav_s": round(wav_s, 3), "timing_s": timing["duration"]})
     stats["duration_s"] = round(wav_s, 3)
+    stats.update({key: timing[key] for key in ("take_gain_db", "take_target_sentence_db", "normalization_gain_db",
+                                             "final_take_target_sentence_db") if key in timing})
     return flags, stats
 
 
@@ -431,39 +576,52 @@ def narrate(args: argparse.Namespace) -> None:
             for pattern, replacement in respellings:
                 spoken = pattern.sub(replacement, spoken)
             sid = f"{scene['id']}-{index:02d}"
-            rows[sid] = {"id": sid, "alias": f"S{number:02d}", "text": sentence["text"], "spoken": spoken, "key": cache_key(identity, spoken)}
+            rows[sid] = {"id": sid, "scene_id": scene["id"], "alias": f"S{number:02d}", "text": sentence["text"],
+                         "spoken": spoken, "key": cache_key(identity, spoken)}
 
     out = args.out
-    audio: dict[str, np.ndarray] = {}
-    sources = [d for d in (args.reuse, out) if d and (d / "sentence-hashes.json").is_file()]
-    known: dict[str, Path] = {}
-    for directory in sources:
-        for sid, key in json.loads((directory / "sentence-hashes.json").read_text()).items():
-            if (directory / "sentences" / f"{sid}.wav").is_file():
-                known[key] = directory / "sentences" / f"{sid}.wav"
-    for row in rows.values():
-        if row["key"] in known:
-            audio[row["id"]] = read_audio(known[row["key"]])
+    reuse = decide_reuse(list(rows.values()), spec["engine"], load_reuse_sources([args.reuse, out], spec["engine"]))
+    audio = {sid: read_audio(path) for sid, path in reuse.audio.items()}
+    take_origins, manifests = dict(reuse.takes), dict(reuse.manifests)
     reused = len(audio)
     pending = [row for row in rows.values() if row["id"] not in audio]
     log(f"{reused} sentences reused, {len(pending)} to voice with {args.voice}")
-    unclean: list[dict] = []
+    log("takes reused: " + (", ".join(sorted(set(reuse.takes.values()))) or "none"))
+    log("scenes to voice: " + (", ".join(dict.fromkeys(row["scene_id"] for row in pending)) or "none"))
+    unclean = list(reuse.unclean)
+    voiced_takes = 0
     out.mkdir(parents=True, exist_ok=True)
     if pending:
-        voiced, unclean = voice_takes(args.voice, spec, pending, out / "takes")
+        voiced, origins, cut_flags, generated = voice_takes(args.voice, spec, pending, out / "takes" / uuid.uuid4().hex)
         audio.update(voiced)
+        take_origins.update(origins)
+        manifests.update(generated)
+        unclean.extend(cut_flags)
+        voiced_takes = len(set(origins.values()))
 
-    samples, scene_rows, sentence_rows, duration = assemble(scenes, rows, audio)
+    take_target, take_gain_db = None, {}
+    if spec["engine"] != "kokoro":
+        take_target, take_gain_db = calculate_take_gains(audio, take_origins)
+        log(f"take level target: {take_target:.2f} dB; take_gain_db: {json.dumps(take_gain_db)}")
+        for take, gain in take_gain_db.items():
+            if abs(gain) > 3:
+                log(f"take gain exceeds 3 dB: {take} {gain:+.2f} dB")
+    samples, scene_rows, sentence_rows, duration = assemble(scenes, rows, audio, take_origins, take_gain_db)
     shutil.rmtree(out / "sentences", ignore_errors=True)
     (out / "sentences").mkdir()
     for sid, data in audio.items():
         sf.write(out / "sentences" / f"{sid}.wav", data, RATE, subtype="PCM_16")
     (out / "sentence-hashes.json").write_text(json.dumps({sid: rows[sid]["key"] for sid in audio}, indent=1) + "\n")
+    (out / "takes.json").write_text(json.dumps(take_origins, indent=2) + "\n")
+    (out / "take-manifest.json").write_text(json.dumps(manifests, indent=2) + "\n")
     sf.write(out / "narration-raw.wav", samples, RATE, subtype="PCM_16")
-    normalize(out / "narration-raw.wav", out / "narration.wav")
+    normalization_gain = normalize(out / "narration-raw.wav", out / "narration.wav", preserve_take_levels=spec["engine"] != "kokoro")
+    final_take_target = take_target + normalization_gain if take_target is not None and normalization_gain is not None else None
     timing = {"source_sha256": sha256(args.scenes.read_bytes()), "voice": args.voice, "speed": spec.get("speed"),
               "sample_rate": RATE, "duration": round(duration, 3), "frames_30fps": round(duration * 30),
               "scenes": scene_rows, "sentences": sentence_rows,
+              "take_gain_db": take_gain_db, "take_target_sentence_db": take_target,
+              "normalization_gain_db": normalization_gain, "final_take_target_sentence_db": final_take_target,
               "pauses": {"lead_in": LEAD_IN, "between_sentences": SENTENCE_PAUSE, "between_scenes": SCENE_PAUSE,
                          "explicit": EXPLICIT_PAUSE, "tail": TAIL}}
     (out / "timing.json").write_text(json.dumps(timing, indent=2) + "\n")
@@ -478,7 +636,10 @@ def narrate(args: argparse.Namespace) -> None:
         "words": words}, indent=2) + "\n")
 
     flags, stats = audio_checks(timing, out / "narration.wav", asr, unclean)
-    stats.update({"sentences": len(rows), "reused": reused, "voiced": len(pending), "wall_s": round(time.perf_counter() - started, 1)})
+    stats.update({"sentences": len(rows), "reused": reused, "voiced": len(pending), "reused_takes": len(set(reuse.takes.values())),
+                  "voiced_takes": voiced_takes, "take_gain_db": take_gain_db, "take_target_sentence_db": take_target,
+                  "normalization_gain_db": normalization_gain, "final_take_target_sentence_db": final_take_target,
+                  "wall_s": round(time.perf_counter() - started, 1)})
     report(flags, stats, fallbacks, out)
     if args.strict and fallbacks:
         raise SystemExit(f"--strict: {len(fallbacks)} script word(s) have no Whisper time; see fallback_words in audio-checks.json")
