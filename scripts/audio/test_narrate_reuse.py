@@ -114,6 +114,30 @@ class TakeGainTests(unittest.TestCase):
             self.assertEqual(stats["final_take_target_sentence_db"], timing["final_take_target_sentence_db"])
 
 
+class RunOnTests(unittest.TestCase):
+    def assembled_starts(self, run_on=None, pause_third=False):
+        current = rows(scene_ids=("only",), count=3)
+        scenes = [{"id": "only", "title": "Scene", "visual": "Visual", "claim_ids": [],
+                   "_sentences": [{"text": r["text"], "pause_before": pause_third and index == 2} for index, r in enumerate(current)]}]
+        audio = {r["id"]: tone(-20) for r in current}
+        _, _, sentences, _ = film.assemble(scenes, {r["id"]: r for r in current}, audio, run_on=run_on)
+        return [(row["start"], row["end"]) for row in sentences]
+
+    def test_clean_cuts_get_the_sentence_gap(self):
+        (_, end1), (start2, end2), (start3, _) = self.assembled_starts()
+        self.assertAlmostEqual(start2 - end1, film.SENTENCE_PAUSE, places=3)
+        self.assertAlmostEqual(start3 - end2, film.SENTENCE_PAUSE, places=3)
+
+    def test_unclean_cut_joins_without_a_gap(self):
+        (_, end1), (start2, end2), (start3, _) = self.assembled_starts(run_on={"only-01"})
+        self.assertAlmostEqual(start2, end1, places=3)
+        self.assertAlmostEqual(start3 - end2, film.SENTENCE_PAUSE, places=3)
+
+    def test_explicit_pause_survives_an_unclean_cut(self):
+        _, (_, end2), (start3, _) = self.assembled_starts(run_on={"only-02"}, pause_third=True)
+        self.assertAlmostEqual(start3 - end2, film.EXPLICIT_PAUSE, places=3)
+
+
 class NormalizationTests(unittest.TestCase):
     def test_common_gain_is_loudness_limited_or_peak_limited(self):
         for measured, expected in (({"input_i": "-20", "input_tp": "-10"}, 4),
@@ -387,7 +411,9 @@ class GenerationTests(unittest.TestCase):
                             self.assertAlmostEqual(first_timing["final_take_target_sentence_db"], first_timing["take_target_sentence_db"] - 0.65)
                             self.assertTrue(any("take gain exceeds 3 dB" in call.args[0] for call in logged.call_args_list))
                         raw_audio = {sid: film.read_audio(output / "sentences" / f"{sid}.wav") for sid in origins}
-                        raw_reference = film.assemble(film.load_scenes(scene_file), {r["id"]: r for r in current}, raw_audio)
+                        run_on = {f["after"] for f in first_checks["flags"] if f.get("check") == "unclean_cut"}
+                        self.assertEqual(first_timing["pauses"]["none_after"], sorted(run_on))
+                        raw_reference = film.assemble(film.load_scenes(scene_file), {r["id"]: r for r in current}, raw_audio, run_on=run_on)
                         actual_audio = film.read_audio(output / "narration-raw.wav")
                         self.assertEqual(len(actual_audio), len(raw_reference[0]))
                         self.assertEqual(first_timing["sentences"], raw_reference[2])

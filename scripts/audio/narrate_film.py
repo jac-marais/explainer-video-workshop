@@ -336,15 +336,20 @@ def calculate_take_gains(audio: dict[str, np.ndarray], takes: dict[str, str]) ->
 
 
 def assemble(scenes: list[dict], rows: dict[str, dict], audio: dict[str, np.ndarray],
-             takes: dict[str, str] | None = None, take_gain_db: dict[str, float] | None = None) -> tuple[np.ndarray, list[dict], list[dict], float]:
-    """Join the sentences with narrate.py's gaps; return the audio, the scene rows, the sentence rows and the duration."""
+             takes: dict[str, str] | None = None, take_gain_db: dict[str, float] | None = None,
+             run_on: set[str] | None = None) -> tuple[np.ndarray, list[dict], list[dict], float]:
+    """Join the sentences with narrate.py's gaps; return the audio, the scene rows, the sentence rows and the duration.
+
+    run_on holds the sentences whose cut after them is unclean. The next sentence follows with no added gap, because the
+    voice ran on there and a gap would split the next word. A [pause] still gets its gap."""
     parts, scene_rows, sentence_rows = [np.zeros(int(LEAD_IN * RATE), dtype="float32")], [], []
-    cursor, previous = LEAD_IN, None
+    cursor, previous, previous_id = LEAD_IN, None, None
     for scene in scenes:
         scene_start = cursor
         for index, sentence in enumerate(scene["_sentences"], 1):
             explicit = sentence["pause_before"]
-            gap = EXPLICIT_PAUSE if explicit else (0 if previous is None else SCENE_PAUSE if previous != scene["id"] else SENTENCE_PAUSE)
+            gap = EXPLICIT_PAUSE if explicit else (0 if previous is None or previous_id in (run_on or ()) else
+                                                   SCENE_PAUSE if previous != scene["id"] else SENTENCE_PAUSE)
             if gap:
                 parts.append(np.zeros(int(gap * RATE), dtype="float32"))
                 cursor += gap
@@ -357,7 +362,7 @@ def assemble(scenes: list[dict], rows: dict[str, dict], audio: dict[str, np.ndar
                                   "pause_before": explicit, "start": round(start, 3), "end": round(end, 3),
                                   "audio": f"sentences/{row['id']}.wav"})
             parts.append(samples)
-            cursor, previous = end, scene["id"]
+            cursor, previous, previous_id = end, scene["id"], row["id"]
         scene_rows.append({"id": scene["id"], "title": scene["title"], "visual": scene["visual"],
                            "claim_ids": scene["claim_ids"], "start": round(scene_start, 3), "end": round(cursor, 3)})
     parts.append(np.zeros(int(TAIL * RATE), dtype="float32"))
@@ -606,7 +611,8 @@ def narrate(args: argparse.Namespace) -> None:
         for take, gain in take_gain_db.items():
             if abs(gain) > 3:
                 log(f"take gain exceeds 3 dB: {take} {gain:+.2f} dB")
-    samples, scene_rows, sentence_rows, duration = assemble(scenes, rows, audio, take_origins, take_gain_db)
+    run_on = {flag["after"] for flag in unclean}
+    samples, scene_rows, sentence_rows, duration = assemble(scenes, rows, audio, take_origins, take_gain_db, run_on)
     shutil.rmtree(out / "sentences", ignore_errors=True)
     (out / "sentences").mkdir()
     for sid, data in audio.items():
@@ -623,7 +629,7 @@ def narrate(args: argparse.Namespace) -> None:
               "take_gain_db": take_gain_db, "take_target_sentence_db": take_target,
               "normalization_gain_db": normalization_gain, "final_take_target_sentence_db": final_take_target,
               "pauses": {"lead_in": LEAD_IN, "between_sentences": SENTENCE_PAUSE, "between_scenes": SCENE_PAUSE,
-                         "explicit": EXPLICIT_PAUSE, "tail": TAIL}}
+                         "explicit": EXPLICIT_PAUSE, "tail": TAIL, "none_after": sorted(run_on)}}
     (out / "timing.json").write_text(json.dumps(timing, indent=2) + "\n")
 
     asr, model_path = transcribe(out / "narration.wav")
