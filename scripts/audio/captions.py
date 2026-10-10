@@ -4,6 +4,7 @@
   captions.py TIMING.json WORDS.json --output captions.vtt [--json-output captions.json] [--line-chars 42]
 
 TIMING.json is narrate_film.py's timing.json and WORDS.json its words.json. Without --json-output, captions.json lands beside TIMING.json.
+A long sentence splits into parts; each part stays up until the next part starts, and the last part ends with the sentence.
 """
 from __future__ import annotations
 
@@ -108,6 +109,9 @@ def main() -> None:
             begin = previous_stop
             start = max(sentence["start"], measured[begin]["start"])
             end = min(sentence["end"], measured[stop - 1]["end"])
+            if stop < len(measured):
+                # A part holds until the sentence's next part starts, so the caption never blinks mid-sentence.
+                end = max(end, min(sentence["end"], measured[stop]["start"]))
             if end <= start:
                 raise SystemExit(f"Invalid measured caption interval in {sentence['id']}")
             caption_text = wrap(chunk, args.line_chars)
