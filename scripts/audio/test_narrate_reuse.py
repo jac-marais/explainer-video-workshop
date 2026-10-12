@@ -54,7 +54,7 @@ class TakeGainTests(unittest.TestCase):
         target, gains = film.calculate_take_gains(audio, takes)
         self.assertAlmostEqual(target, -22, places=5)
         self.assertEqual(set(gains), set(takes.values()))
-        reference = film.assemble(scenes, current, audio)
+        reference = film.assemble(scenes, current, audio, takes)
         assembled = film.assemble(scenes, current, audio, takes, gains)
         self.assertEqual(assembled[1:], reference[1:])
         self.assertEqual(len(assembled[0]), len(reference[0]))
@@ -115,18 +115,30 @@ class TakeGainTests(unittest.TestCase):
 
 
 class RunOnTests(unittest.TestCase):
-    def assembled_starts(self, run_on=None, pause_third=False):
-        current = rows(scene_ids=("only",), count=3)
-        scenes = [{"id": "only", "title": "Scene", "visual": "Visual", "claim_ids": [],
-                   "_sentences": [{"text": r["text"], "pause_before": pause_third and index == 2} for index, r in enumerate(current)]}]
+    def assembled_starts(self, run_on=None, pause_third=False, takes=None, scene_ids=("only",), count=3):
+        current = rows(scene_ids=scene_ids, count=count)
+        scenes = [{"id": scene, "title": "Scene", "visual": "Visual", "claim_ids": [],
+                   "_sentences": [{"text": r["text"], "pause_before": pause_third and r["id"].endswith("-03")}
+                                  for r in current if r["scene_id"] == scene]} for scene in scene_ids]
         audio = {r["id"]: tone(-20) for r in current}
-        _, _, sentences, _ = film.assemble(scenes, {r["id"]: r for r in current}, audio, run_on=run_on)
+        _, _, sentences, _ = film.assemble(scenes, {r["id"]: r for r in current}, audio, takes=takes, run_on=run_on)
         return [(row["start"], row["end"]) for row in sentences]
 
-    def test_clean_cuts_get_the_sentence_gap(self):
-        (_, end1), (start2, end2), (start3, _) = self.assembled_starts()
+    def test_separate_generations_get_the_sentence_gap(self):
+        (_, end1), (start2, end2), (start3, _) = self.assembled_starts(takes={"only-01": "a", "only-02": "b", "only-03": "c"})
         self.assertAlmostEqual(start2 - end1, film.SENTENCE_PAUSE, places=3)
         self.assertAlmostEqual(start3 - end2, film.SENTENCE_PAUSE, places=3)
+
+    def test_sentences_of_one_take_join_as_spoken(self):
+        (_, end1), (start2, end2), (start3, _) = self.assembled_starts(takes={"only-01": "a", "only-02": "a", "only-03": "b"})
+        self.assertAlmostEqual(start2, end1, places=3)
+        self.assertAlmostEqual(start3 - end2, film.SENTENCE_PAUSE, places=3)
+
+    def test_a_scene_join_and_a_pause_inside_one_take_keep_their_gaps(self):
+        same = {f"{scene}-{i:02d}": "a" for scene in ("one", "two") for i in range(1, 4)}
+        starts = self.assembled_starts(takes=same, scene_ids=("one", "two"), pause_third=True)
+        gaps = [round(start - end, 3) for (_, end), (start, _) in zip(starts, starts[1:])]
+        self.assertEqual(gaps, [0, film.EXPLICIT_PAUSE, film.SCENE_PAUSE, 0, film.EXPLICIT_PAUSE])
 
     def test_unclean_cut_joins_without_a_gap(self):
         (_, end1), (start2, end2), (start3, _) = self.assembled_starts(run_on={"only-01"})
@@ -424,7 +436,8 @@ class GenerationTests(unittest.TestCase):
                         raw_audio = {sid: film.read_audio(output / "sentences" / f"{sid}.wav") for sid in origins}
                         run_on = {f["after"] for f in first_checks["flags"] if f.get("check") == "unclean_cut"}
                         self.assertEqual(first_timing["pauses"]["none_after"], sorted(run_on))
-                        raw_reference = film.assemble(film.load_scenes(scene_file), {r["id"]: r for r in current}, raw_audio, run_on=run_on)
+                        raw_reference = film.assemble(film.load_scenes(scene_file), {r["id"]: r for r in current}, raw_audio,
+                                                     takes=origins, run_on=run_on)
                         actual_audio = film.read_audio(output / "narration-raw.wav")
                         self.assertEqual(len(actual_audio), len(raw_reference[0]))
                         self.assertEqual(first_timing["sentences"], raw_reference[2])

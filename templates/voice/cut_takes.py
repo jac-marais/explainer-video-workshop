@@ -10,7 +10,7 @@ pass for a pause.
 A cut with no quiet stretch of at least MIN_GAP falls back to the quietest averaged point and is logged as unclean.
 
 Nothing is trimmed and nothing is faded: each sentence runs from cut to cut, the first from the take's start, so the
-written sentences rejoin into the take exactly. Add a pause only at a clean cut.
+written sentences rejoin into the take exactly. Rejoin a scene's sentences as spoken, and add a gap only at a clean cut between scenes.
 
 SENTENCES is an ordered JSON list of the film's sentences, each with at least "id", "scene" and "text".
 A take is named for the scene it covers (S01.wav) or its first and last scene (S01-S06.wav).

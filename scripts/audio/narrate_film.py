@@ -7,8 +7,9 @@
   narrate_film.py SCENES.json --voice NAME --out AUDIO_DIR [--spoken RESPELLINGS.json] [--reuse OLD_AUDIO_DIR] [--strict]
   narrate_film.py --check-only AUDIO_DIR [--out DIR]
 
-SCENES.json is a list of scenes with id, title, visual, claim_ids and narration. The sentence split, the [pause] marker,
-the gaps and the timing.json schema are those of narrate.py, except that a sentence may also end after a closing quote. RESPELLINGS.json maps a regex to the text the voice reads
+SCENES.json is a list of scenes with id, title, visual, claim_ids and narration. A sentence ends at . ! or ?, or after one
+followed by a closing quote. Sentences of one scene from the same take join as the voice spoke them; the other gaps are in
+assemble(). RESPELLINGS.json maps a regex to the text the voice reads
 instead (use (?i) for case-insensitive); it applies in order and never changes the captioned text.
 
 Kokoro voices are synthesized one sentence at a time, because the model does not drift over a long text. Every other voice
@@ -338,8 +339,10 @@ def calculate_take_gains(audio: dict[str, np.ndarray], takes: dict[str, str]) ->
 def assemble(scenes: list[dict], rows: dict[str, dict], audio: dict[str, np.ndarray],
              takes: dict[str, str] | None = None, take_gain_db: dict[str, float] | None = None,
              run_on: set[str] | None = None) -> tuple[np.ndarray, list[dict], list[dict], float]:
-    """Join the sentences with narrate.py's gaps; return the audio, the scene rows, the sentence rows and the duration.
+    """Join the sentences; return the audio, the scene rows, the sentence rows and the duration.
 
+    Two sentences of one scene from the same take join with no gap, so the take plays as the voice spoke it, breaths and
+    all; SENTENCE_PAUSE separates only sentences from separate generations, such as Kokoro's. Scenes get SCENE_PAUSE.
     run_on holds the sentences whose cut after them is unclean. The next sentence follows with no added gap, because the
     voice ran on there and a gap would split the next word. A [pause] still gets its gap."""
     parts, scene_rows, sentence_rows = [np.zeros(int(LEAD_IN * RATE), dtype="float32")], [], []
@@ -348,12 +351,14 @@ def assemble(scenes: list[dict], rows: dict[str, dict], audio: dict[str, np.ndar
         scene_start = cursor
         for index, sentence in enumerate(scene["_sentences"], 1):
             explicit = sentence["pause_before"]
+            row = rows[f"{scene['id']}-{index:02d}"]
+            same_take = takes is not None and previous_id is not None and takes.get(row["id"]) == takes.get(previous_id)
             gap = EXPLICIT_PAUSE if explicit else (0 if previous is None or previous_id in (run_on or ()) else
-                                                   SCENE_PAUSE if previous != scene["id"] else SENTENCE_PAUSE)
+                                                   SCENE_PAUSE if previous != scene["id"] else
+                                                   0 if same_take else SENTENCE_PAUSE)
             if gap:
                 parts.append(np.zeros(int(gap * RATE), dtype="float32"))
                 cursor += gap
-            row = rows[f"{scene['id']}-{index:02d}"]
             samples = audio[row["id"]]
             if take_gain_db:
                 samples = samples * 10 ** (take_gain_db[takes[row["id"]]] / 20)
