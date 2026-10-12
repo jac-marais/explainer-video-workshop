@@ -10,7 +10,8 @@ that scene's narration. Words compare as in cues.py. A shot without a cue follow
 in a shot, `![what it shows](path)`, become its key frames; give the path relative to SCRIPT.md.
 
 The page shows the narration on the left. Hovering a phrase shows the shots that start on it, clicking pins it, and
-the arrow keys step through. --css adds a stylesheet after the defaults, so a brand can override the variables in
+the arrow keys step through. A header switch, off by default and remembered by the browser, makes a click also read its
+sentence aloud in a browser speech voice, which on macOS is a `say` voice (Samantha by default), at 1x to 3x. --css adds a stylesheet after the defaults, so a brand can override the variables in
 :root. The run exits 1 when a scene has no Narration part or a cue isn't in its scene's narration.
 """
 import argparse, html, os, re, sys
@@ -64,6 +65,8 @@ def words_of(text):
 
 def find(words, quote, start):
     toks = [norm(t) for t in quote.split() if norm(t)]
+    if not toks:
+        return None
     for lo in (start, 0):
         for i in range(lo, len(words) - len(toks) + 1):
             if all(words[i + k][0] == toks[k] for k in range(len(toks))):
@@ -162,6 +165,8 @@ p{margin:0 0 14px}
 .g{cursor:pointer;border-radius:3px;outline:none}
 .g:hover,.g.on{background:var(--hover);box-shadow:0 2px 0 var(--accent)}
 .g.pin{background:var(--pin)}
+#tts{margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+#tts select{font:inherit;font-size:14px}
 #board{overflow-y:auto;height:100vh;padding:28px 36px 40px;background:var(--panel)}
 .sc{font-family:var(--mono);font-size:13px;color:var(--muted);margin-bottom:12px}
 article{background:var(--paper);border:1px solid var(--rule);padding:14px;margin-bottom:16px}
@@ -179,7 +184,8 @@ code{font-family:var(--mono);font-size:.88em}
 </head>
 <body>
 <main id="script">
-<header><h1>{{TITLE}}</h1>Built from {{SCRIPT}}. Hover a phrase to see its shots, click to pin it, and use the arrow keys to step.</header>
+<header><h1>{{TITLE}}</h1>Built from {{SCRIPT}}. Hover a phrase to see its shots, click to pin it, and use the arrow keys to step. With read aloud on, a click also reads its sentence; Esc stops it.
+<div id="tts"><label><input type="checkbox" id="speak"> Read aloud</label><select id="voice" aria-label="Voice"></select><select id="rate" aria-label="Speed"><option>1</option><option>1.25</option><option>1.5</option><option>2</option><option>2.5</option><option>3</option></select>×</div></header>
 {{LEFT}}
 </main>
 <aside id="board">
@@ -199,8 +205,46 @@ function pin(g){spans.forEach(x=>x.classList.toggle('pin',pinned&&+x.dataset.g==
 spans.forEach(s=>{
   s.addEventListener('mouseenter',()=>{if(!pinned)show(+s.dataset.g)});
   s.addEventListener('focus',()=>show(+s.dataset.g));
-  s.addEventListener('click',()=>{const g=+s.dataset.g; pinned=!(pinned&&cur===g); show(g); pin(g);});
+  s.addEventListener('click',e=>{const g=+s.dataset.g; pinned=!(pinned&&cur===g); show(g); pin(g); read(sentenceAt(e));});
 });
+// Read aloud: the clicked sentence, in a system voice. Groups split at cues, so the sentence is found in the paragraph.
+const tts=window.speechSynthesis, vSel=document.getElementById('voice'), rSel=document.getElementById('rate');
+let voices=[], last='';
+const onBox=document.getElementById('speak');
+function setOn(on){onBox.checked=on; vSel.disabled=rSel.disabled=!on; if(!on&&tts){tts.cancel(); last='';}}
+onBox.onchange=()=>{localStorage.setItem('sbSpeak',onBox.checked?'1':'0'); setOn(onBox.checked);};
+setOn(localStorage.getItem('sbSpeak')==='1');
+rSel.value=localStorage.getItem('sbRate')||'1';
+rSel.onchange=()=>localStorage.setItem('sbRate',rSel.value);
+vSel.onchange=()=>localStorage.setItem('sbVoice',vSel.value);
+function loadVoices(){
+  voices=tts.getVoices().filter(v=>v.lang.startsWith('en')).sort((a,b)=>a.name.localeCompare(b.name));
+  if(!voices.length)return;
+  vSel.innerHTML=voices.map(v=>`<option>${v.name}</option>`).join('');
+  const want=localStorage.getItem('sbVoice'), pick=voices.find(v=>v.name===want)||voices.find(v=>v.name==='Samantha')||voices.find(v=>v.lang==='en-US')||voices[0];
+  vSel.value=pick.name;
+}
+if(tts){loadVoices(); tts.onvoiceschanged=loadVoices;} else document.getElementById('tts').hidden=true;
+function sentenceAt(e){
+  const p=e.target.closest('p'); if(!p)return '';
+  let node=null, off=0;
+  if(document.caretPositionFromPoint){const c=document.caretPositionFromPoint(e.clientX,e.clientY); if(c){node=c.offsetNode; off=c.offset;}}
+  else if(document.caretRangeFromPoint){const r=document.caretRangeFromPoint(e.clientX,e.clientY); if(r){node=r.startContainer; off=r.startOffset;}}
+  const pre=document.createRange(); pre.selectNodeContents(p);
+  if(node&&p.contains(node))pre.setEnd(node,off); else pre.setEndBefore(e.target.closest('.g')||p.firstChild);
+  const at=pre.toString().length, re=/[^.!?]+(?:[.!?]+["”’)]*|$)\\s*/g;
+  for(let m;(m=re.exec(p.textContent));)if(at<m.index+m[0].length)return m[0].trim();
+  return '';
+}
+function read(text){
+  if(!tts||!text||!onBox.checked)return;
+  const again=tts.speaking&&text===last; tts.cancel(); last=text;
+  if(again){last='';return;}
+  const u=new SpeechSynthesisUtterance(text);
+  u.voice=voices.find(v=>v.name===vSel.value)||null; u.rate=+rSel.value; u.onend=()=>{if(last===text)last='';};
+  tts.speak(u);
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&tts){tts.cancel(); last='';}});
 document.addEventListener('keydown',e=>{
   if(e.key!=='ArrowDown'&&e.key!=='ArrowUp')return; e.preventDefault();
   const n=Math.max(0,Math.min(panels.length-1,cur+(e.key==='ArrowDown'?1:-1)));

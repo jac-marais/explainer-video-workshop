@@ -56,6 +56,9 @@ class StoryboardTest(unittest.TestCase):
         self.assertIn("a stream forms. The stream widens as it goes.", page)
         self.assertIn("No cue · follows the shot above", page)
         self.assertIn("Not drawn yet", page)
+        self.assertIn('<input type="checkbox" id="speak">', page)
+        self.assertIn('<select id="rate"', page)
+        self.assertIn("speechSynthesis", page)
 
     def test_unmatched_cue_fails(self):
         r, _ = run(SCRIPT.replace('On "runs downhill"', 'On "flows uphill"'))
