@@ -82,6 +82,7 @@ M3 — Build all scenes
 
 - Implement each prepared shot and scene with the approved audio/timing contract. Read every audio-bound cue time from `cues.json`, never a hard-coded second. After a re-voice, rerun M1's captions and cues commands and rebuild.
 - Keep one comprehension job per scene. Preserve source-backed labels, formulas, units, captions, and uncertainty from the claim map. Remove decorative motion that competes with the learning target.
+- Give the picture above the captions a beat at least every 5 s outside declared holds, because `scripts/film/check_film.py` fails a still of 6 s. A beat counts only when it moves the picture's mean luma by about 0.26 levels, so lighting one small gray label is too faint. Light a whole row, outline a box, or bring in an element.
 - Render cheap stills or selected frames for changed layout, text, or asset questions. For motion changes, render the changed scene and its boundary overlap; do not spend a full render on a known local defect.
 - Skip picture review for a scene whose source and timing are byte-identical to the last reviewed version (M4).
 - Record missing assets, failed renders, retries, and actual external spend.
