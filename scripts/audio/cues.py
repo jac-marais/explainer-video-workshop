@@ -54,7 +54,7 @@ def main():
         for quote in CUE.findall(visual):
             toks = [p for t in quote.split() if norm(t) for p in expand(norm(t))]
             hit = None
-            for i in range(len(seq) - len(toks) + 1):
+            for i in range(len(seq) - len(toks) + 1 if toks else 0):
                 if lo <= seq[i][1] <= hi and all(seq[i + k][0] == toks[k] for k in range(len(toks))):
                     hit = (seq[i][1], seq[i + len(toks) - 1][2])
                     break
