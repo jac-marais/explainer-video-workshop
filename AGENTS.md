@@ -2,6 +2,10 @@
 
 Make accurate, understandable narrated explainers from source material. Preserve source-to-claim-to-scene provenance and distinguish estimated timing, measured audio, rendered media, and evaluated learning. Model names and elapsed run time are recorded inputs/outcomes, not quality guarantees.
 
+## Check for updates
+
+Once per session, before other work, run `git fetch origin main` in this folder. If `origin/main` has commits that `HEAD` lacks, tell the user how many and ask whether to update. Update on a yes, with `git pull --ff-only origin main`. If the working tree has changes or the pull cannot fast-forward, tell the user instead of merging, stashing or resetting. If the fetch fails, say so and carry on.
+
 ## First use: brand and voice
 
 Read `local/brand.md` before other work. If it is missing, follow "First use" in `methods/brand-explainer-video.md`.
@@ -27,6 +31,6 @@ Write new work under `outputs/<topic>/` unless the user gives another path.
 
 Run only checks that substantiate the requested result. A zero-sample audit, successful render exit, still image, or self-score cannot stand in for unperformed checks. Review the exact final MP4 when making motion/audio claims. Report production limitations explicitly.
 
-Checkpoints are agent gates by default, not human approvals; proceed when the gate evidence is present. A filled production prompt can name taste gates (script, voice, stills) that the user answers instead; contract item 5 of `templates/production-prompt.md` defines them. Ask the user only before a purchase, a publication or upload, contacting a creator or brand owner, another irreversible external write, or a private preference that the brief cannot resolve. A budget in a prompt is not an enforced spending or wall-clock limit. Record model/version, tools, source/assets, revisions, elapsed/cost evidence when available, and remaining uncertainty.
+Checkpoints are agent gates by default, not human approvals; proceed when the gate evidence is present. A filled production prompt can name taste gates (script, voice, stills) that the user answers instead; contract item 5 of `templates/production-prompt.md` defines them. Ask the user only before a workshop update ("Check for updates" above), a purchase, a publication or upload, contacting a creator or brand owner, another irreversible external write, or a private preference that the brief cannot resolve. A budget in a prompt is not an enforced spending or wall-clock limit. Record model/version, tools, source/assets, revisions, elapsed/cost evidence when available, and remaining uncertainty.
 
-The workshop's skills live in `.agents/skills/`; `.claude/skills` links there. Keep the maintained method, scorecard, templates, and source map consistent when changing behavior. Say each rule once, in the file that owns it, and link to it from elsewhere. Commit only the workshop itself; agent work stays in the git-ignored `outputs/` and `local/`.
+The workshop's skills live in `.agents/skills/`; `.claude/skills` links there. Keep the maintained method, scorecard, templates, and source map consistent when changing behavior. Say each rule once, in the file that owns it, and link to it from elsewhere. Commit only the workshop itself; agent work stays in the git-ignored `outputs/` and `local/`. This repository is public, so every example, test fixture and anecdote in a committed file must be invented and generic. Never put a topic, quote, name, number or incident from a real run or from the user's own work into one.
