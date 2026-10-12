@@ -138,6 +138,17 @@ class RunOnTests(unittest.TestCase):
         self.assertAlmostEqual(start3 - end2, film.EXPLICIT_PAUSE, places=3)
 
 
+class SentenceSplitTests(unittest.TestCase):
+    def test_a_sentence_ending_inside_a_quotation_splits_after_the_closing_mark(self):
+        split = film.sentences('The cup fills. "It spills," she says, "every time." The table is wet. [pause] Then “it dries.” Done.')
+        self.assertEqual([s["text"] for s in split], ["The cup fills.", '"It spills," she says, "every time."',
+                                                      "The table is wet.", "Then “it dries.”", "Done."])
+        self.assertEqual([s["pause_before"] for s in split], [False, False, False, True, False])
+
+    def test_a_comma_inside_a_quotation_does_not_split(self):
+        self.assertEqual(len(film.sentences('"It spills," she says, "every time."')), 1)
+
+
 class NormalizationTests(unittest.TestCase):
     def test_common_gain_is_loudness_limited_or_peak_limited(self):
         for measured, expected in (({"input_i": "-20", "input_tp": "-10"}, 4),

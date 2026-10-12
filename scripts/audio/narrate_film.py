@@ -8,7 +8,7 @@
   narrate_film.py --check-only AUDIO_DIR [--out DIR]
 
 SCENES.json is a list of scenes with id, title, visual, claim_ids and narration. The sentence split, the [pause] marker,
-the gaps and the timing.json schema are those of narrate.py. RESPELLINGS.json maps a regex to the text the voice reads
+the gaps and the timing.json schema are those of narrate.py, except that a sentence may also end after a closing quote. RESPELLINGS.json maps a regex to the text the voice reads
 instead (use (?i) for case-insensitive); it applies in order and never changes the captioned text.
 
 Kokoro voices are synthesized one sentence at a time, because the model does not drift over a long text. Every other voice
@@ -77,14 +77,14 @@ def letters(text: str) -> str:
 
 
 def sentences(text: str) -> list[dict]:
-    """Same split as production/scripts/narrate.py."""
+    """Split at . ! or ?, or after one followed by a closing quote, as in: she says, "every time." Then…"""
     normalized = " ".join(text.split())
     if not normalized:
         raise ValueError("scene narration must not be empty")
     marker = "␞PAUSE␞"
     normalized = re.sub(r"\s*\[pause\]\s*", f" {marker} ", normalized, flags=re.IGNORECASE)
     result = []
-    for part in re.split(r"(?<=[.!?])\s+", normalized):
+    for part in re.split(r"(?<=[.!?])\s+|(?<=[.!?][\"”’])\s+", normalized):
         pause_before = marker in part
         clean = " ".join(part.replace(marker, " ").split())
         if clean:
