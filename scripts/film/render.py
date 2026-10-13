@@ -6,7 +6,8 @@
   render.py --skip-render INPUT.mp4 -o OUT.mp4 [same options]
 
 COMPOSITION is passed to `hyperframes render DIR -c COMPOSITION`; use `.` for DIR/index.html.
-The render runs on host Chrome with the GPU, with telemetry, update checks and auto-install off and
+The render runs on host Chrome with the GPU and one worker unless the extra args set --workers (see the
+bottom-band trap in methods/renderer-traps.md), with telemetry, update checks and auto-install off and
 the Gemini/Google keys unset. OUT is never overwritten: if it exists, the run stops before rendering
 and names the next free OUT.vN.mp4. Work happens in a temporary folder beside OUT.
 
@@ -92,6 +93,9 @@ def main():
             if Path(CHROME).exists():
                 env.setdefault("HYPERFRAMES_BROWSER_PATH", CHROME)
             hf = [a.hf.resolve()] if a.hf.suffix != ".sh" else ["sh", a.hf.resolve()]
+            # With more than one worker, host Chrome can drop the bottom 87 px of frames.
+            if not any(x in ("-w", "--workers") or x.startswith(("-w=", "--workers=")) for x in extra):
+                extra = ["--workers", "1"] + extra
             sh(hf + ["render", a.project.resolve(), "-c", a.composition, "-o", raw, "--browser-gpu"] + extra, env=env, cwd=a.project)
 
         final = work / "final.mp4"
