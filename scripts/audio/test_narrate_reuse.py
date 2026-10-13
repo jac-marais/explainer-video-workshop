@@ -399,7 +399,7 @@ class GenerationTests(unittest.TestCase):
                             return json.dumps({"take": "S01", "after": "opening-01", "clean": False, "gap_s": 0.02}) + "\n"
                         self.fail(f"unexpected voice tool {script}")
 
-                    def aligned(sentences, asr):
+                    def aligned(sentences, asr, language="en"):
                         return [[{"text": s["text"], "start": s["start"], "end": s["end"]}] for s in sentences], []
 
                     def normalized(raw, final, **kwargs):
@@ -412,7 +412,7 @@ class GenerationTests(unittest.TestCase):
                             patch.object(film, "normalize", side_effect=normalized) as normalizer, \
                             patch.object(film, "transcribe", return_value=([], "local-model")), \
                             patch.object(film, "align_words", side_effect=aligned), \
-                            patch.object(film, "audio_checks", side_effect=lambda timing, wav, asr, unclean: (unclean, {})), \
+                            patch.object(film, "audio_checks", side_effect=lambda timing, wav, asr, unclean, language="en": (unclean, {})), \
                             patch.object(film, "log") as logged, patch("sys.stdout", new=io.StringIO()):
                         film.narrate(args)
                         self.assertEqual(normalizer.call_args.kwargs, {"preserve_take_levels": engine != "kokoro"})
@@ -475,7 +475,7 @@ class GenerationTests(unittest.TestCase):
             stale.write_bytes(b"left by an older script")
             args = argparse.Namespace(scenes=scene_file, out=output, spoken=None, voice="clone", reuse=None, strict=False, language="en")
 
-            def aligned(sentences, asr):
+            def aligned(sentences, asr, language="en"):
                 return [[{"text": s["text"], "start": s["start"], "end": s["end"]}] for s in sentences], []
 
             with patch.object(film, "voice_identity", return_value=({"engine": "qwen3"}, "voice-identity")), \
@@ -484,7 +484,7 @@ class GenerationTests(unittest.TestCase):
                     patch.object(film, "normalize", side_effect=lambda raw, final, **kwargs: final.write_bytes(raw.read_bytes())), \
                     patch.object(film, "transcribe", return_value=([{"word": "words", "start": 0, "end": 1}], "local-model")), \
                     patch.object(film, "align_words", side_effect=aligned), \
-                    patch.object(film, "audio_checks", side_effect=lambda timing, wav, asr, unclean: (unclean, {})), \
+                    patch.object(film, "audio_checks", side_effect=lambda timing, wav, asr, unclean, language="en": (unclean, {})), \
                     patch.object(film, "log"), patch("sys.stdout", new=io.StringIO()):
                 film.narrate(args)
                 origins = json.loads((output / "takes.json").read_text())

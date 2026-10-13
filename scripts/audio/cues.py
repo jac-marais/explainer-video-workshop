@@ -8,21 +8,19 @@ SCRIPT.md has a `## Scene N` section per scene with a `**Visual**` part. Each qu
 sN's window in TIMING.json (padded 0.6 s), and cues.json gets the first word's start and the last word's end, in seconds.
 A cue that matches nothing gets null times, is listed on stderr, and fails the run under --strict.
 
-Words compare after lowercasing and dropping everything but letters and digits, so `A-C-P` and `ACP` are the same word.
+Tokens compare after NFKC/casefold, keeping Unicode letters, marks and numbers, so `A-C-P` and `ACP` are the same word.
 ALIASES.json maps such a normalized word to the words that stand for it on the other side: {"2036": ["twenty", "thirtysix"]}.
+Han/Kana split by character; other scripts split on whitespace.
 It applies to both script and Whisper, so use it for spoken forms and for words that Whisper spells differently.
 """
 import argparse, json, re, sys
 from pathlib import Path
+from text_tokens import norm, normalized_tokens, timed_tokens
 
 PAD = 0.6  # seconds; a cue may start a little outside its scene window because Whisper times are rough
 SCENE = re.compile(r"## Scene (\d+):.*?(?=\n## |\n---\n|\Z)", re.S)
 CUE = re.compile(r'(?:On (?:the )?|\*\*)"([^"]+)"')
 VISUAL = re.compile(r"\*\*Visual\.?\*\*")
-
-
-def norm(text):
-    return re.sub(r"[^a-z0-9]", "", text.lower())
 
 
 def main():
@@ -37,11 +35,11 @@ def main():
 
     aliases = {}
     if args.aliases:
-        aliases = {norm(k): [norm(p) for p in v] for k, v in json.loads(args.aliases.read_text()).items()}
+        aliases = {norm(k): [t for p in v for t in normalized_tokens(p)] for k, v in json.loads(args.aliases.read_text()).items()}
     expand = lambda token: aliases.get(token, [token])
     timing = json.loads(args.timing.read_text())
     scenes = {sc["id"]: sc for sc in timing["scenes"]}
-    seq = [(part, w["start"], w["end"]) for w in json.loads(args.words.read_text())["words"] for part in expand(norm(w["text"]))]
+    seq = [(part, w["start"], w["end"]) for w in timed_tokens(json.loads(args.words.read_text())["words"]) for part in expand(norm(w["text"]))]
 
     rows = []
     text = args.script.read_text()
@@ -52,7 +50,7 @@ def main():
         lo, hi = scenes[sid]["start"] - PAD, scenes[sid]["end"] + PAD
         visual = VISUAL.split(m.group(0), 1)[-1]
         for quote in CUE.findall(visual):
-            toks = [p for t in quote.split() if norm(t) for p in expand(norm(t))]
+            toks = [p for t in normalized_tokens(quote) for p in expand(t)]
             hit = None
             for i in range(len(seq) - len(toks) + 1 if toks else 0):
                 if lo <= seq[i][1] <= hi and all(seq[i + k][0] == toks[k] for k in range(len(toks))):

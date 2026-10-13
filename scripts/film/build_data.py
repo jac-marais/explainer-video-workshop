@@ -7,7 +7,7 @@
   options: [--strings STRINGS.json] [--key-script KEY_SCRIPT.md] [--embed NAME=FILE.json ...]
 
 --audio reads AUDIO_DIR/cues.json (from cues.py), captions.json (from captions.py) and timing.json (from narrate_film.py).
---estimate times the script's words evenly at --wpm, with short pauses after sentences and scenes, for a silent
+--estimate times whitespace words or Han/Kana characters evenly at --wpm, with short pauses after sentences and scenes, for a silent
 preview before any voice exists; --scenes N stops after scene N. Both modes write the same shape to DIR/data.js:
 
   window.FILM = {source, duration, cues: {"sNN|quoted words": start seconds}, captions, strings, ...embeds}
@@ -22,10 +22,11 @@ import argparse, json, re, sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "audio"))
-from cues import CUE, SCENE, VISUAL, norm  # noqa: E402
+from text_tokens import norm, tokenize, normalized_tokens, join_tokens  # noqa: E402
+from cues import CUE, SCENE, VISUAL  # noqa: E402
 
 NARRATION = re.compile(r"\*\*Narration\.?\*\*")
-END = re.compile(r"[.?!]$")
+END = re.compile(r"[.?!。？！।]$")
 
 
 def scenes(script):
@@ -36,12 +37,12 @@ def scenes(script):
 
 
 def estimate(script, wpm, last_scene):
-    """Even word timing with short pauses after sentences and scenes; planning only."""
+    """Even token timing (whitespace words or Han/Kana characters) with short pauses after sentences and scenes; planning only."""
     cues, captions, t, per_word = [], [], 0.4, 60 / wpm
     for num, text, quotes in scenes(script):
         if last_scene and num > last_scene:
             break
-        sid, words, starts = f"s{num:02d}", text.split(), []
+        sid, words, starts = f"s{num:02d}", tokenize(text), []
         for w in words:
             starts.append(t)
             t += per_word + (0.35 if END.search(w) else 0)
@@ -55,15 +56,15 @@ def estimate(script, wpm, last_scene):
             if last or END.search(w) or (w.endswith(",") and len(part) >= 5) or len(part) >= 9:
                 end = starts[i] + per_word if last or END.search(w) else starts[i + 1]
                 captions.append({"id": f"{sid}-{len(captions):03d}", "scene_id": sid, "start": round(s0, 3),
-                                 "end": round(end, 3), "text": " ".join(part)})
+                                 "end": round(end, 3), "text": join_tokens(part)})
                 part, s0 = [], None
-        # Words that normalize to nothing, such as a lone accented letter, are skipped on both sides, as in cues.py.
+        # Punctuation-only tokens are skipped on both sides, as in cues.py.
         kept = [(norm(w), i) for i, w in enumerate(words) if norm(w)]
         normed = [n for n, _ in kept]
         for q in quotes:
-            toks = [norm(x) for x in q.split() if norm(x)]
+            toks = normalized_tokens(q)
             at = next((k for k in range(len(normed)) if normed[k:k + len(toks)] == toks), None)
-            if at is None:
+            if not toks or at is None:
                 sys.exit(f'{sid}: cue not in narration: "{q}"')
             first, last = kept[at][1], kept[at + len(toks) - 1][1]
             cues.append({"scene": sid, "cue": q, "start": round(starts[first], 3), "end": round(ends[last], 3)})

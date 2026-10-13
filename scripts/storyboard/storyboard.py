@@ -18,7 +18,8 @@ import argparse, html, os, re, sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "audio"))
-from cues import CUE, SCENE, VISUAL, norm  # noqa: E402
+from text_tokens import norm, tokenize, normalized_tokens  # noqa: E402
+from cues import CUE, SCENE, VISUAL  # noqa: E402
 
 NARRATION = re.compile(r"\*\*Narration\.?\*\*")
 ITEM = re.compile(r"^(\s*)(?:\d+\.|[-*])\s+(.*)")
@@ -59,12 +60,12 @@ def shots_of(visual):
 
 
 def words_of(text):
-    """Each word with its normalized form and its character span in text."""
-    return [(norm(m.group()), m.start(), m.end()) for m in re.finditer(r"\S+", text) if norm(m.group())]
+    """Each Unicode token with its normalized form and original character span."""
+    return [(norm(t), t.start, t.end) for t in tokenize(text) if norm(t)]
 
 
 def find(words, quote, start):
-    toks = [norm(t) for t in quote.split() if norm(t)]
+    toks = normalized_tokens(quote)
     if not toks:
         return None
     for lo in (start, 0):

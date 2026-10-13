@@ -35,7 +35,7 @@ KOKORO_LANG = "en-us"  # Default for voice entries without lang.
 # A spoken form written [word](/phonemes/) makes Kokoro say those phonemes; other engines say the word.
 PHONEMES = re.compile(r"\[([^\]]+)\]\(/([^/]+)/\)")
 STAND_IN = "zzq"
-QWEN3_LANG = "english"
+QWEN3_LANG = "english"  # Default for Qwen3 voice entries without lang.
 # These match the mlx_audio.tts.generate CLI defaults.
 MLX_SAMPLING = {"temperature": 0.7, "top_p": 0.9, "top_k": 50, "repetition_penalty": 1.1}
 # A single pass stops at 4096 tokens (about 330 s) and slows as text grows.
@@ -153,7 +153,8 @@ def load_qwen3(spec: dict, seed: int, max_words: int = QWEN3_CHUNK_WORDS) -> tup
 
     snapshot = load_snapshot(spec["model"])
     model = load(snapshot)
-    settings = {"lang": QWEN3_LANG, **MLX_SAMPLING, "seed": seed, "max_words_per_chunk": max_words, "chunk_pause_s": CHUNK_PAUSE}
+    lang = spec.get("lang", QWEN3_LANG)
+    settings = {"lang": lang, **MLX_SAMPLING, "seed": seed, "max_words_per_chunk": max_words, "chunk_pause_s": CHUNK_PAUSE}
     if refs:
         voice = {"ref_audio": load_audio(str(refs["ref_audio"]), sample_rate=model.sample_rate), "ref_text": refs["ref_text"].read_text().strip()}
     else:
@@ -170,7 +171,7 @@ def load_qwen3(spec: dict, seed: int, max_words: int = QWEN3_CHUNK_WORDS) -> tup
                 pieces.append(np.zeros(int(CHUNK_PAUSE * model.sample_rate), dtype="float32"))
             # Seeding per chunk makes each chunk reproducible on its own.
             mx.random.seed(seed + index)
-            results = model.generate(text=chunk, lang_code=QWEN3_LANG, **voice, **MLX_SAMPLING)
+            results = model.generate(text=chunk, lang_code=lang, **voice, **MLX_SAMPLING)
             pieces.extend(np.array(result.audio, dtype="float32") for result in results)
         return np.concatenate(pieces), model.sample_rate, {"chunks": len(chunks), "chunk_words": [len(c.split()) for c in chunks]}
 

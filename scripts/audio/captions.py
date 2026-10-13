@@ -4,6 +4,7 @@
   captions.py TIMING.json WORDS.json --output captions.vtt [--json-output captions.json] [--line-chars 42]
 
 TIMING.json is narrate_film.py's timing.json and WORDS.json its words.json. Without --json-output, captions.json lands beside TIMING.json.
+Lines break at whitespace words or Han/Kana characters, keeping Latin words and numbers intact, and prefer clause punctuation in any script.
 A long sentence splits into parts; each part stays up until the next part starts, and the last part ends with the sentence.
 """
 from __future__ import annotations
@@ -11,7 +12,9 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import unicodedata
 from pathlib import Path
+from text_tokens import tokenize, join_tokens, timed_tokens
 
 
 # A line or cue that ends on one of these splits a phrase.
@@ -24,15 +27,17 @@ OPENERS = set("and but so which while because when to as or whether rather than 
 
 def break_cost(left: str, right: str = "") -> int:
     last = left.split()[-1]
-    if last[-1] in ",;.?":
+    kind = unicodedata.category(last[-1])
+    if last[-1] in ",;.?" or (not last[-1].isascii() and kind in ("Po", "Pe", "Pf")):
         return 0
-    if last.lower() in WEAK:
+    # Unspaced scripts attach an opening quote or bracket to the token before it.
+    if last.lower() in WEAK or kind in ("Ps", "Pi"):
         return 4
     return 1 if right.split()[:1] and right.split()[0].lower() in OPENERS else 2
 
 
 def groups(text: str, line_limit: int) -> list[list[str]]:
-    words = text.split()
+    words = tokenize(text)
 
     def fits(chunk: list[str]) -> bool:
         return all(len(line) <= line_limit for line in wrap(chunk, line_limit).split("\n")) and wrap(chunk, line_limit).count("\n") < 2
@@ -46,19 +51,21 @@ def groups(text: str, line_limit: int) -> list[list[str]]:
             if not fits(chunk):
                 break
             count, cost, rest = best[j]
-            size = len(" ".join(chunk))
-            phrase = 0 if j == len(words) else 200 * break_cost(" ".join(chunk), words[j])
+            size = len(join_tokens(chunk))
+            phrase = 0 if j == len(words) else 200 * break_cost(join_tokens(chunk), words[j])
             options.append((count + 1, cost + (2 * line_limit - size) ** 2 + phrase, [chunk] + rest))
-        best[i] = min(options, key=lambda o: o[:2]) if options else (1, 0, [words[i:]] + best[i + 1][2])
+        best[i] = min(options, key=lambda o: o[:2]) if options else (1 + best[i + 1][0], best[i + 1][1], [words[i:i + 1]] + best[i + 1][2])
     return best[0][2]
 
 
 def wrap(words: list[str], line_limit: int) -> str:
-    text = " ".join(words)
+    text = join_tokens(words)
     if len(text) <= line_limit:
         return text
-    splits = [(" ".join(words[:k]), " ".join(words[k:])) for k in range(1, len(words))]
+    splits = [(join_tokens(words[:k]), join_tokens(words[k:])) for k in range(1, len(words))]
     two = [pair for pair in splits if max(map(len, pair)) <= line_limit]
+    if not splits:
+        return text  # An indivisible word may exceed the requested width.
     if not two:
         return "\n".join(splits[0]) + "\nX" * 2
     return "\n".join(min(two, key=lambda pair: max(map(len, pair)) + 3 * break_cost(*pair)))
@@ -82,7 +89,7 @@ def main() -> None:
     args = parser.parse_args()
     timing = json.loads(args.timing.read_text())
     word_data = json.loads(args.words.read_text())
-    word_rows = word_data.get("words", [])
+    word_rows = timed_tokens(word_data.get("words", []))
     if not word_rows:
         raise SystemExit("words.json contains no measured word timestamps")
     cues = []
@@ -95,7 +102,7 @@ def main() -> None:
         measured = [word for word in word_rows if word["start"] < sentence["end"] + 0.05 and word["end"] > sentence["start"] - 0.05]
         if len(measured) < len(chunks):
             raise SystemExit(f"Whisper has too few word samples for caption chunks in {sentence['id']}")
-        authored_count = max(1, len(text.split()))
+        authored_count = max(1, len(tokenize(text)))
         offset = 0
         previous_stop = 0
         for chunk_index, chunk in enumerate(chunks):

@@ -8,11 +8,11 @@
                   [--language CODE]
   narrate_film.py --check-only AUDIO_DIR [--out DIR] [--language CODE]
 
---language is the narration's language for Whisper (default en); the voice's own language is set in voice.json.
+--language selects Whisper and number matching (default en); the voice's own language is set in voice.json.
 
-SCENES.json is a list of scenes with id, title, visual, claim_ids and narration. A sentence ends at . ! or ?, or after one
-followed by a closing quote. Sentences of one scene from the same take join as the voice spoke them; the other gaps are in
-assemble(). RESPELLINGS.json maps a regex to the text the voice reads
+SCENES.json is a list of scenes with id, title, visual, claim_ids and narration. A sentence ends at . ! ? 。 ！ ？ or ।, or after one
+followed by a closing quote. Sentences of one scene from the same take join without an added gap after the edge silence cap
+described in methods/voice-explainer-video.md; the other gaps are in assemble(). RESPELLINGS.json maps a regex to the text the voice reads
 instead (use (?i) for case-insensitive); it applies in order and never changes the captioned text.
 
 Kokoro voices are synthesized one sentence at a time, because the model does not drift over a long text. Every other voice
@@ -20,8 +20,12 @@ is voiced in runs of about 60 to 120 s (local/voice/plan_runs.py), one take per 
 into sentences by local/voice/cut_takes.py.
 Sentence WAVs are keyed by voice config and spoken text, and takes.json records each sentence's original take id.
 --reuse and reruns follow the canonical take-level reuse rule in methods/voice-explainer-video.md#take-level-reuse.
-words.json holds one row per word of the script, timed by aligning Whisper's transcript of narration.wav to it.
-A word Whisper did not time is interpolated and listed in audio-checks.json; --strict exits non-zero if there is one.
+words.json holds one row per whitespace word or Han/Kana character of the script, timed by aligning Whisper's transcript of narration.wav to it.
+Number matching supports fr/hi/zh/ko integers below a million, decimals and percents, also inside a heard word (12층); English cardinals/years stay unchanged.
+Sentences with fallback words are re-transcribed once from narration.wav, merging adjacent sentences and padding
+0.15 s at each end (clamped to the file). A span's words replace the long-form ones only when fewer words fall back,
+and the result feeds both alignment and difference checks, including --check-only; audio-checks stats record retranscribed_spans when nonzero. Fully aligned runs are unchanged.
+A word Whisper still did not time is interpolated and listed in audio-checks.json; --strict exits non-zero if there is one.
 audio-checks.json lists only failures. --check-only runs the same checks on finished audio (timing.json and narration.wav)
 and exits non-zero on any flag; it writes audio-checks.json only if --out is given."""
 from __future__ import annotations
@@ -44,6 +48,9 @@ from pathlib import Path
 # Whisper must come from the local cache; nothing here downloads.
 os.environ["HF_HUB_OFFLINE"] = "1"
 
+from text_tokens import norm as letters, tokenize, normalized_tokens
+from number_readings import LANGUAGES, spoken_numbers
+
 import numpy as np
 import soundfile as sf
 
@@ -62,6 +69,7 @@ TAIL_ABOVE_FLOOR_DB = 20.0  # the last 60 ms above the film's noise floor (14.0)
 LUFS_TOLERANCE, TRUE_PEAK_MAX = 1.0, -1.0  # v4 measures -16.3 LUFS and -1.47 dBTP
 TAIL_S = 0.06
 FRAME_S = 0.01
+EDGE_SILENCE_S = 0.3  # Some voices leave long silent edges between sentences.
 SMOOTH = 5
 FLOOR_PCT = 5
 ALIGN_SLACK_S = 0.6  # a match this far outside its sentence is a false match
@@ -76,19 +84,16 @@ def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def letters(text: str) -> str:
-    return re.sub(r"[^a-z0-9]", "", text.lower())
-
-
 def sentences(text: str) -> list[dict]:
-    """Split at . ! or ?, or after one followed by a closing quote, as in: she says, "every time." Then…"""
+    """Split at . ! ? or the Devanagari danda ।, or after one followed by a closing quote, as in: she says, "every time." Then…
+    Chinese 。！？ split even with no space after them."""
     normalized = " ".join(text.split())
     if not normalized:
         raise ValueError("scene narration must not be empty")
     marker = "␞PAUSE␞"
     normalized = re.sub(r"\s*\[pause\]\s*", f" {marker} ", normalized, flags=re.IGNORECASE)
     result = []
-    for part in re.split(r"(?<=[.!?])\s+|(?<=[.!?][\"”’])\s+", normalized):
+    for part in re.split(r"(?<=[.!?।])\s+|(?<=[.!?।][\"”’])\s+|(?<=[。！？])(?![\"”’」』])\s*|(?<=[。！？][\"”’」』])\s*", normalized):
         pause_before = marker in part
         clean = " ".join(part.replace(marker, " ").split())
         if clean:
@@ -274,7 +279,7 @@ def plan_runs(seconds: dict[str, float], work: Path) -> list[list[str]]:
     return runs
 
 
-def voice_takes(name: str, spec: dict, pending: list[dict], work: Path) -> tuple[dict[str, np.ndarray], dict[str, str], list[dict], dict[str, dict]]:
+def voice_takes(name: str, spec: dict, pending: list[dict], work: Path, language: str = "en") -> tuple[dict[str, np.ndarray], dict[str, str], list[dict], dict[str, dict]]:
     """Voice pending rows and return samples, original take ids, unclean cuts and raw take receipts."""
     work.mkdir(parents=True, exist_ok=True)
     generation = uuid.uuid4().hex
@@ -301,7 +306,7 @@ def voice_takes(name: str, spec: dict, pending: list[dict], work: Path) -> tuple
     units: dict[str, list[dict]] = {}
     for row in pending:
         units.setdefault(row["alias"], []).append(row)
-    seconds = {alias: sum(len(r["spoken"].split()) for r in rows) / WPM * 60 for alias, rows in units.items()}
+    seconds = {alias: sum(len(tokenize(r["spoken"])) for r in rows) / WPM * 60 for alias, rows in units.items()}
     takes, take_members = [], {}
     for run in plan_runs(seconds, work):
         stem = run[0] if len(run) == 1 else f"{run[0]}-{run[-1]}"
@@ -313,7 +318,7 @@ def voice_takes(name: str, spec: dict, pending: list[dict], work: Path) -> tuple
     (work / "sentences.json").write_text(json.dumps([{"id": r["id"], "scene": r["alias"], "text": r["spoken"]} for r in pending]))
     cut = work / "cut"
     out = run_uv("cut_takes.py", [*(t.with_suffix(".wav") for t in takes), "--sentences", work / "sentences.json", "--out", cut,
-                                  "--throwaway", THROWAWAY], capture=True)
+                                  "--throwaway", THROWAWAY, "--language", language], capture=True)
     lines = [json.loads(line) for line in out.splitlines() if line.startswith("{")]
     unclean = [{"check": "unclean_cut", "take": take_ids[r["take"]], "after": r["after"], "gap_s": r["gap_s"]}
                for r in lines if r.get("clean") is False]
@@ -323,6 +328,22 @@ def voice_takes(name: str, spec: dict, pending: list[dict], work: Path) -> tuple
 def frame_power(samples: np.ndarray, rate: int) -> np.ndarray:
     n = int(rate * FRAME_S)
     return np.mean(samples[: len(samples) // n * n].reshape(-1, n) ** 2, axis=1)
+
+
+def cap_edge_silence(samples: np.ndarray) -> np.ndarray:
+    power = frame_power(samples, RATE)
+    if not len(power):
+        return samples
+    sound = np.flatnonzero(power > power.max() * 1e-4)
+    if not len(sound):
+        return samples
+    frame = int(RATE * FRAME_S)
+    keep = int(EDGE_SILENCE_S / FRAME_S)
+    start = max(0, int(sound[0]) - keep) * frame
+    end = min(len(samples), (int(sound[-1]) + 1 + keep) * frame)
+    if start == 0 and end == len(samples):
+        return samples
+    return samples[start:end]
 
 
 def sentence_level_db(power: np.ndarray) -> float:
@@ -344,8 +365,9 @@ def assemble(scenes: list[dict], rows: dict[str, dict], audio: dict[str, np.ndar
              run_on: set[str] | None = None) -> tuple[np.ndarray, list[dict], list[dict], float]:
     """Join the sentences; return the audio, the scene rows, the sentence rows and the duration.
 
-    Two sentences of one scene from the same take join with no gap, so the take plays as the voice spoke it, breaths and
-    all; SENTENCE_PAUSE separates only sentences from separate generations, such as Kokoro's. Scenes get SCENE_PAUSE.
+    Two sentences of one scene from the same take join with no added gap, preserving breaths after the edge silence
+    cap described in methods/voice-explainer-video.md. SENTENCE_PAUSE separates only sentences from separate
+    generations, such as Kokoro's. Scenes get SCENE_PAUSE.
     run_on holds the sentences whose cut after them is unclean. The next sentence follows with no added gap, because the
     voice ran on there and a gap would split the next word. A [pause] still gets its gap."""
     parts, scene_rows, sentence_rows = [np.zeros(int(LEAD_IN * RATE), dtype="float32")], [], []
@@ -400,22 +422,27 @@ def normalize(raw: Path, final: Path, preserve_take_levels: bool = False) -> flo
     ffmpeg(["-y", "-i", str(raw), "-af", apply, "-ar", "48000", "-ac", "1", "-c:a", "pcm_s24le", str(final)])
 
 
-def transcribe(path: Path, language: str = "en") -> tuple[list[dict], str]:
+def transcribe_words(audio: str | np.ndarray, language: str) -> list[dict]:
     import mlx_whisper
+
+    result = mlx_whisper.transcribe(audio, path_or_hf_repo=WHISPER, language=language, word_timestamps=True,
+                                    condition_on_previous_text=False)
+    return [{"word": w["word"], "start": float(w["start"]), "end": float(w["end"])} for seg in result["segments"] for w in seg["words"]]
+
+
+def transcribe(path: Path, language: str = "en") -> tuple[list[dict], str]:
     from huggingface_hub import snapshot_download
 
     log("transcribing narration.wav")
-    result = mlx_whisper.transcribe(str(path), path_or_hf_repo=WHISPER, language=language, word_timestamps=True,
-                                    condition_on_previous_text=False)
-    words = [{"word": w["word"], "start": float(w["start"]), "end": float(w["end"])} for seg in result["segments"] for w in seg["words"]]
+    words = transcribe_words(str(path), language)
     if not words:
         raise SystemExit("Whisper returned zero words")
     return words, snapshot_download(WHISPER, local_files_only=True)
 
 
-def align_words(sents: list[dict], asr: list[dict]) -> tuple[list[list[dict]], list[dict]]:
-    """Time each word of the script from Whisper's words, matched by letters so a respelled or merged word still lines up."""
-    script = [(k, token) for k, s in enumerate(sents) for token in s["text"].split()]
+def align_words(sents: list[dict], asr: list[dict], language: str = "en") -> tuple[list[list[dict]], list[dict]]:
+    """Time each script token from Whisper's pieces, matched by Unicode letters/marks/numbers so a respelled or merged word still lines up."""
+    script = [(k, token) for k, s in enumerate(sents) for token in tokenize(s["text"])]
     ref, ref_word = "", []
     for i, (_, token) in enumerate(script):
         ref += letters(token)
@@ -423,7 +450,9 @@ def align_words(sents: list[dict], asr: list[dict]) -> tuple[list[list[dict]], l
     hyp, hyp_time = "", []
     for w in asr:
         chars = letters(w["word"])
-        if chars.isdigit() and readings(chars):
+        if language in LANGUAGES:
+            chars = letters(spoken_word(w["word"], language, ref))
+        elif chars.isdecimal() and readings(chars):
             chars = next((r for r in sorted(readings(chars)) if r in ref), chars)
         step = (w["end"] - w["start"]) / max(1, len(chars))
         hyp += chars
@@ -469,6 +498,51 @@ def align_words(sents: list[dict], asr: list[dict]) -> tuple[list[list[dict]], l
     return rows, fallbacks
 
 
+def align_with_repairs(path: Path, sents: list[dict], asr: list[dict], language: str = "en"
+                       ) -> tuple[list[dict], list[list[dict]], list[dict], int]:
+    """Retry fallback sentence spans once; keep the original transcript untouched on a clean alignment."""
+    rows, fallbacks = align_words(sents, asr, language)
+    if not fallbacks:
+        return asr, rows, fallbacks, 0
+
+    from mlx_whisper.audio import SAMPLE_RATE, load_audio
+
+    # Decode/resample once for all repair spans, using Whisper's own audio loader.
+    samples = load_audio(str(path))
+    failed = {word["sentence"] for word in fallbacks}
+    spans = []
+    previous_failed = False
+    for sentence in sents:
+        if sentence["id"] not in failed:
+            previous_failed = False
+            continue
+        start = max(0, min(len(samples), round((sentence["start"] - 0.15) * SAMPLE_RATE)))
+        end = max(0, min(len(samples), round((sentence["end"] + 0.15) * SAMPLE_RATE)))
+        if end <= start:
+            previous_failed = False
+            continue
+        # Also merge overlapping padding so no audio is replaced twice.
+        if spans and (previous_failed or start <= spans[-1][1]):
+            spans[-1][1] = max(spans[-1][1], end)
+        else:
+            spans.append([start, end])
+        previous_failed = True
+
+    repaired = asr
+    for start, end in spans:
+        offset, stop = start / SAMPLE_RATE, end / SAMPLE_RATE
+        replacement = transcribe_words(samples[start:end], language)
+        candidate = [word for word in repaired if not offset <= (word["start"] + word["end"]) / 2 < stop]
+        candidate.extend({**word, "start": word["start"] + offset, "end": word["end"] + offset}
+                         for word in replacement)
+        candidate.sort(key=lambda word: (word["start"] + word["end"]) / 2)
+        # A short clip can swap homophones or hallucinate, so a span is kept only when it times more words.
+        trial = align_words(sents, candidate, language)
+        if len(trial[1]) < len(fallbacks):
+            repaired, (rows, fallbacks) = candidate, trial
+    return repaired, rows, fallbacks, len(spans)
+
+
 ONES = "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen".split()
 TENS = "_ _ twenty thirty forty fifty sixty seventy eighty ninety".split()
 
@@ -482,8 +556,10 @@ def say(n: int) -> str:
     return say(n // unit) + big + (say(n % unit) if n % unit else "")
 
 
-def readings(digits: str) -> set[str]:
-    """How an integer is read aloud: as a cardinal, and as a year when it looks like one."""
+def readings(digits: str, language: str = "en") -> set[str]:
+    """Normalized readings: legacy English cardinals/years; fr/hi/zh/ko decimals and percents too."""
+    if language in LANGUAGES:
+        return {letters(form) for form in spoken_numbers(digits, language)}
     n = int(digits)
     found = {say(n)} if n < 10**6 else set()
     if 1100 <= n < 10000 and n % 100:
@@ -491,10 +567,23 @@ def readings(digits: str) -> set[str]:
     return found
 
 
-def asr_differences(sents: list[dict], asr: list[dict]) -> list[dict]:
+NUMBER = re.compile(r"\d+(?:\.\d+)?%?")
+
+
+def spoken_word(word: str, language: str, reference: str) -> str:
+    """Swap each number in an ASR word, such as 12층, for the reading the script uses; unsupported languages pass through."""
+    def swap(match: re.Match) -> str:
+        return next((form for form in sorted(spoken_numbers(match[0], language)) if letters(form) in reference), match[0])
+    return NUMBER.sub(swap, word)
+
+
+def asr_differences(sents: list[dict], asr: list[dict], language: str = "en") -> list[dict]:
     """Words Whisper heard that the script does not say, ignoring spelling, spacing and the spoken respelling."""
-    script = [(k, t) for k, s in enumerate(sents) for t in s["text"].split() if letters(t)]
-    heard = [letters(w["word"]) for w in asr if letters(w["word"])]
+    script = [(k, t) for k, s in enumerate(sents) for t in tokenize(s["text"]) if letters(t)]
+    reference = "".join(letters(t) for _, t in script)
+    heard = []
+    for w in asr:
+        heard.extend(normalized_tokens(spoken_word(w["word"], language, reference)))
     spoken = [letters(s["spoken_text"]) for s in sents]
     found = []
     ops = difflib.SequenceMatcher(None, [letters(t) for _, t in script], heard, autojunk=False).get_opcodes()
@@ -503,7 +592,7 @@ def asr_differences(sents: list[dict], asr: list[dict]) -> list[dict]:
             continue
         want, got = "".join(letters(t) for _, t in script[a1:a2]), "".join(heard[b1:b2])
         k = script[min(a1, len(script) - 1)][0]
-        if b2 - b1 == 1 and heard[b1].isdigit() and want in readings(heard[b1]):
+        if b2 - b1 == 1 and heard[b1].isdecimal() and want in readings(heard[b1], language):
             continue
         if want == got or (got and got in spoken[k]) or difflib.SequenceMatcher(None, want, got).ratio() >= SIMILAR:
             continue
@@ -536,13 +625,13 @@ def level_flags(sents: list[dict], scenes: list[str], samples: np.ndarray, rate:
                    "noise_floor_db": round(floor, 1), "max_tail_above_floor_db": round(max(tails) - floor, 1)}
 
 
-def audio_checks(timing: dict, wav: Path, asr: list[dict], unclean: list[dict]) -> tuple[list[dict], dict]:
+def audio_checks(timing: dict, wav: Path, asr: list[dict], unclean: list[dict], language: str = "en") -> tuple[list[dict], dict]:
     samples, rate = sf.read(wav, dtype="float32")
     sents = timing["sentences"]
     flags = list(unclean)
     level, stats = level_flags(sents, [s["scene_id"] for s in sents], samples, rate)
     flags += level
-    flags += asr_differences(sents, asr)
+    flags += asr_differences(sents, asr, language)
     loud = measure_loudness(wav)
     stats.update({"integrated_lufs": float(loud["input_i"]), "true_peak_dbtp": float(loud["input_tp"])})
     if abs(stats["integrated_lufs"] + 16) > LUFS_TOLERANCE or stats["true_peak_dbtp"] > TRUE_PEAK_MAX:
@@ -569,8 +658,10 @@ def report(flags: list[dict], stats: dict, fallbacks: list[dict], out: Path | No
 def check_only(audio_dir: Path, out: Path | None, language: str = "en") -> None:
     timing = json.loads((audio_dir / "timing.json").read_text())
     asr, _ = transcribe(audio_dir / "narration.wav", language)
-    flags, stats = audio_checks(timing, audio_dir / "narration.wav", asr, [])
-    _, fallbacks = align_words(timing["sentences"], asr)
+    asr, _, fallbacks, repaired_spans = align_with_repairs(audio_dir / "narration.wav", timing["sentences"], asr, language)
+    flags, stats = audio_checks(timing, audio_dir / "narration.wav", asr, [], language)
+    if repaired_spans:
+        stats["retranscribed_spans"] = repaired_spans
     if out:
         out.mkdir(parents=True, exist_ok=True)
     result = report(flags, stats, fallbacks, out)
@@ -605,13 +696,14 @@ def narrate(args: argparse.Namespace) -> None:
     voiced_takes = 0
     out.mkdir(parents=True, exist_ok=True)
     if pending:
-        voiced, origins, cut_flags, generated = voice_takes(args.voice, spec, pending, out / "takes" / uuid.uuid4().hex)
+        voiced, origins, cut_flags, generated = voice_takes(args.voice, spec, pending, out / "takes" / uuid.uuid4().hex, args.language)
         audio.update(voiced)
         take_origins.update(origins)
         manifests.update(generated)
         unclean.extend(cut_flags)
         voiced_takes = len(set(origins.values()))
 
+    audio = {sid: cap_edge_silence(samples) for sid, samples in audio.items()}
     take_target, take_gain_db = None, {}
     if spec["engine"] != "kokoro":
         take_target, take_gain_db = calculate_take_gains(audio, take_origins)
@@ -641,7 +733,7 @@ def narrate(args: argparse.Namespace) -> None:
     (out / "timing.json").write_text(json.dumps(timing, indent=2) + "\n")
 
     asr, model_path = transcribe(out / "narration.wav", args.language)
-    word_rows, fallbacks = align_words(sentence_rows, asr)
+    asr, word_rows, fallbacks, repaired_spans = align_with_repairs(out / "narration.wav", sentence_rows, asr, args.language)
     words = [w for sentence in word_rows for w in sentence]
     (out / "words.json").write_text(json.dumps({
         "model": "mlx-whisper large-v3-turbo", "model_path": model_path, "language": args.language, "language_probability": 1,
@@ -649,7 +741,9 @@ def narrate(args: argparse.Namespace) -> None:
         "segments": [{"text": s["text"], "start": w[0]["start"], "end": w[-1]["end"]} for s, w in zip(sentence_rows, word_rows)],
         "words": words}, indent=2) + "\n")
 
-    flags, stats = audio_checks(timing, out / "narration.wav", asr, unclean)
+    flags, stats = audio_checks(timing, out / "narration.wav", asr, unclean, args.language)
+    if repaired_spans:
+        stats["retranscribed_spans"] = repaired_spans
     stats.update({"sentences": len(rows), "reused": reused, "voiced": len(pending), "reused_takes": len(set(reuse.takes.values())),
                   "voiced_takes": voiced_takes, "take_gain_db": take_gain_db, "take_target_sentence_db": take_target,
                   "normalization_gain_db": normalization_gain, "final_take_target_sentence_db": final_take_target,
