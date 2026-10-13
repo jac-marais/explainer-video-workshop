@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Final-film checks on an exact MP4. Prints failures only, then a one-line summary; exits 1 on any failure.
+"""Final-film checks on an exact MP4. Prints motion metrics, failures, then a one-line summary; exits 1 on any failure.
 
   check_film.py FILM.mp4 [--timing timing.json] [--captions captions.json] [--narration WAV]
                 [--holds S-E,...] [--tail S] [--uncaptioned ID,...] [--caption-band x,y,w,h] [--sheet OUT_DIR]
@@ -338,6 +338,9 @@ def main():
         a.sheet.mkdir(parents=True, exist_ok=True)
         timing = json.loads(a.timing.read_text())
         rep["sheets"] = contact_sheets(a.film, timing, fps, nframes, a.sheet)
+
+    if subprocess.call([sys.executable, str(Path(__file__).with_name("measure_motion.py")), str(a.film)]):
+        fails.append("motion gate failed; see motion metrics above")
 
     rep["failures"] = fails
     if a.sheet:

@@ -155,6 +155,10 @@ An accepted pilot is production evidence for that scene. It does not prove a ful
 
 ### 8. Run machine checks and bounded checkpoints
 
+Run `python3 scripts/film/measure_motion.py FILM.mp4` to check motion; `scripts/film/check_film.py` also runs this gate automatically, including without `--sheet`.
+At 5 fps and 160x90 grayscale, changed pixels have absolute delta >12: near-still is <1% with runs required to stay <3s; at least 15% of complete nonoverlapping 2s endpoint windows must change >=20%; adjacent changes >=40% mark cuts/layout changes, whose gaps including the start and full video end must be <=8s. Standalone threshold flags can override these defaults.
+If the gate fails, fix the render, rerender, and run the checker again.
+
 For a viable brief, use a small set of durable artifacts instead of a forest of status files:
 
 ```text
