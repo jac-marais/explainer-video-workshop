@@ -376,7 +376,7 @@ class GenerationTests(unittest.TestCase):
                     scene_file, output = root / "scenes.json", root / "first"
                     scene_file.write_text(json.dumps([{"id": r["scene_id"], "title": "Scene", "visual": "Visual", "claim_ids": [],
                                                       "narration": r["text"]} for r in current]))
-                    args = argparse.Namespace(scenes=scene_file, out=output, spoken=None, voice="selected", reuse=None, strict=False)
+                    args = argparse.Namespace(scenes=scene_file, out=output, spoken=None, voice="selected", reuse=None, strict=False, language="en")
                     expected_cache = {}
 
                     def fake_audio_tools(script, argv, capture=False):
@@ -473,7 +473,7 @@ class GenerationTests(unittest.TestCase):
             (output / "sentences").mkdir(parents=True)
             stale = output / "sentences" / "stale.wav"
             stale.write_bytes(b"left by an older script")
-            args = argparse.Namespace(scenes=scene_file, out=output, spoken=None, voice="clone", reuse=None, strict=False)
+            args = argparse.Namespace(scenes=scene_file, out=output, spoken=None, voice="clone", reuse=None, strict=False, language="en")
 
             def aligned(sentences, asr):
                 return [[{"text": s["text"], "start": s["start"], "end": s["end"]}] for s in sentences], []

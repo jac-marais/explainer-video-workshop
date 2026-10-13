@@ -7,7 +7,7 @@
 #   "mlx-audio==0.5.8; sys_platform == 'darwin' and platform_machine == 'arm64'",
 # ]
 # ///
-"""Turn text files into loudness-normalized narration WAVs with the voices listed in voice.json."""
+"""Turn text files into loudness-normalized narration WAVs; Kokoro uses each voice's lang (default en-us)."""
 from __future__ import annotations
 
 import argparse
@@ -31,7 +31,10 @@ import soundfile as sf
 HERE = Path(__file__).resolve().parent
 RATE = 24000
 LOUDNORM = "I=-16:TP=-1.5:LRA=11"
-KOKORO_LANG = "en-us"
+KOKORO_LANG = "en-us"  # Default for voice entries without lang.
+# A spoken form written [word](/phonemes/) makes Kokoro say those phonemes; other engines say the word.
+PHONEMES = re.compile(r"\[([^\]]+)\]\(/([^/]+)/\)")
+STAND_IN = "zzq"
 QWEN3_LANG = "english"
 # These match the mlx_audio.tts.generate CLI defaults.
 MLX_SAMPLING = {"temperature": 0.7, "top_p": 0.9, "top_k": 50, "repetition_penalty": 1.1}
@@ -84,14 +87,25 @@ def load_kokoro(spec: dict, seed: int) -> tuple[callable, dict]:
     if missing:
         raise SystemExit("Missing local speech assets: " + ", ".join(missing))
     model = Kokoro(str(model_path), str(voices_path), espeak_config=EspeakConfig(str(lib_path), str(data_path)))
+    lang = spec.get("lang", KOKORO_LANG)
 
     def synthesize(text: str) -> tuple[np.ndarray, int, dict]:
-        samples, rate = model.create(text, voice=spec["voice"], speed=spec["speed"], lang=KOKORO_LANG)
-        return samples.astype("float32", copy=False), rate, {}
+        if not PHONEMES.search(text):
+            samples, rate = model.create(text, voice=spec["voice"], speed=spec["speed"], lang=lang)
+            return samples.astype("float32", copy=False), rate, {}
+        # Phonemize the whole text with a stand-in for each pinned word, so the other words keep their context.
+        marks = list(PHONEMES.finditer(text))
+        stand_in = model.tokenizer.phonemize(STAND_IN, lang).strip(" .,")
+        pieces = model.tokenizer.phonemize(PHONEMES.sub(STAND_IN, text), lang).split(stand_in)
+        if len(pieces) != len(marks) + 1:
+            raise SystemExit(f"could not place pinned phonemes in: {text}")
+        phonemes = pieces[0] + "".join(m.group(2) + rest for m, rest in zip(marks, pieces[1:]))
+        samples, rate = model.create(phonemes, voice=spec["voice"], speed=spec["speed"], lang=lang, is_phonemes=True)
+        return samples.astype("float32", copy=False), rate, {"phonemes": phonemes}
 
     identity = {
         "model": {"id": "kokoro-v1.0", "onnx_sha256": sha256_file(model_path)},
-        "settings": {"voice": spec["voice"], "speed": spec["speed"], "lang": KOKORO_LANG},
+        "settings": {"voice": spec["voice"], "speed": spec["speed"], "lang": lang},
         "packages": {name: version(name) for name in ("kokoro-onnx", "onnxruntime")},
     }
     return synthesize, identity
@@ -249,7 +263,8 @@ def main() -> None:
     args.out_dir.mkdir(parents=True, exist_ok=True)
     for path, raw in texts:
         file_started = time.perf_counter()
-        samples, rate, extra = synthesize(" ".join(raw.split()))
+        text = " ".join(raw.split())
+        samples, rate, extra = synthesize(text if engine == "kokoro" else PHONEMES.sub(r"\1", text))
         wav = args.out_dir / f"{path.stem}.wav"
         with tempfile.TemporaryDirectory() as tmp:
             raw_wav = Path(tmp) / "raw.wav"

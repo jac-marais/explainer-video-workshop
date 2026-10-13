@@ -20,6 +20,7 @@ The voice tools that these build on (`voice.py`, `cut_takes.py`, `plan_runs.py`)
 
 ## film/
 
+- `build_data.py` writes a composition's `data.js` from the script's cues, captions and narration length, and sets its `data-duration`. `--estimate` times the script evenly for a silent preview before any voice exists, and `--key-script` keeps a translated film's cue names. `test_build_data.py` checks it on a small sample script.
 - `render.py` renders a HyperFrames composition to a new MP4 with the known fixes, including one worker by default, and never overwrites.
 - `check_film.py` runs the final checks on an exact MP4 and prints the motion metrics and the failures. `measure_motion.py` is its motion gate, which binds only with `--pacing fast`.
 

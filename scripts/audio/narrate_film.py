@@ -5,7 +5,10 @@
 """Turn a scenes file into film narration: sentence WAVs, narration.wav, timing.json and words.json, then check the audio.
 
   narrate_film.py SCENES.json --voice NAME --out AUDIO_DIR [--spoken RESPELLINGS.json] [--reuse OLD_AUDIO_DIR] [--strict]
-  narrate_film.py --check-only AUDIO_DIR [--out DIR]
+                  [--language CODE]
+  narrate_film.py --check-only AUDIO_DIR [--out DIR] [--language CODE]
+
+--language is the narration's language for Whisper (default en); the voice's own language is set in voice.json.
 
 SCENES.json is a list of scenes with id, title, visual, claim_ids and narration. A sentence ends at . ! or ?, or after one
 followed by a closing quote. Sentences of one scene from the same take join as the voice spoke them; the other gaps are in
@@ -397,12 +400,12 @@ def normalize(raw: Path, final: Path, preserve_take_levels: bool = False) -> flo
     ffmpeg(["-y", "-i", str(raw), "-af", apply, "-ar", "48000", "-ac", "1", "-c:a", "pcm_s24le", str(final)])
 
 
-def transcribe(path: Path) -> tuple[list[dict], str]:
+def transcribe(path: Path, language: str = "en") -> tuple[list[dict], str]:
     import mlx_whisper
     from huggingface_hub import snapshot_download
 
     log("transcribing narration.wav")
-    result = mlx_whisper.transcribe(str(path), path_or_hf_repo=WHISPER, language="en", word_timestamps=True,
+    result = mlx_whisper.transcribe(str(path), path_or_hf_repo=WHISPER, language=language, word_timestamps=True,
                                     condition_on_previous_text=False)
     words = [{"word": w["word"], "start": float(w["start"]), "end": float(w["end"])} for seg in result["segments"] for w in seg["words"]]
     if not words:
@@ -563,9 +566,9 @@ def report(flags: list[dict], stats: dict, fallbacks: list[dict], out: Path | No
     return result
 
 
-def check_only(audio_dir: Path, out: Path | None) -> None:
+def check_only(audio_dir: Path, out: Path | None, language: str = "en") -> None:
     timing = json.loads((audio_dir / "timing.json").read_text())
-    asr, _ = transcribe(audio_dir / "narration.wav")
+    asr, _ = transcribe(audio_dir / "narration.wav", language)
     flags, stats = audio_checks(timing, audio_dir / "narration.wav", asr, [])
     _, fallbacks = align_words(timing["sentences"], asr)
     if out:
@@ -637,11 +640,11 @@ def narrate(args: argparse.Namespace) -> None:
                          "explicit": EXPLICIT_PAUSE, "tail": TAIL, "none_after": sorted(run_on)}}
     (out / "timing.json").write_text(json.dumps(timing, indent=2) + "\n")
 
-    asr, model_path = transcribe(out / "narration.wav")
+    asr, model_path = transcribe(out / "narration.wav", args.language)
     word_rows, fallbacks = align_words(sentence_rows, asr)
     words = [w for sentence in word_rows for w in sentence]
     (out / "words.json").write_text(json.dumps({
-        "model": "mlx-whisper large-v3-turbo", "model_path": model_path, "language": "en", "language_probability": 1,
+        "model": "mlx-whisper large-v3-turbo", "model_path": model_path, "language": args.language, "language_probability": 1,
         "duration": timing["duration"], "word_count": len(words),
         "segments": [{"text": s["text"], "start": w[0]["start"], "end": w[-1]["end"]} for s, w in zip(sentence_rows, word_rows)],
         "words": words}, indent=2) + "\n")
@@ -665,9 +668,10 @@ def main() -> None:
     parser.add_argument("--reuse", type=Path, metavar="OLD_AUDIO_DIR")
     parser.add_argument("--strict", action="store_true", help="exit non-zero if any script word has no Whisper time")
     parser.add_argument("--check-only", type=Path, metavar="AUDIO_DIR", help="check finished audio and exit")
+    parser.add_argument("--language", default="en", help="narration language code for Whisper, such as pt (default: en)")
     args = parser.parse_args()
     if args.check_only:
-        return check_only(args.check_only, args.out)
+        return check_only(args.check_only, args.out, args.language)
     if not (args.scenes and args.voice and args.out):
         parser.error("provide SCENES.json, --voice and --out (or --check-only)")
     narrate(args)

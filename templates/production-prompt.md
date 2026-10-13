@@ -81,7 +81,7 @@ Independent bounded source or asset checks named by the prepared package may run
 
 M3 — Build all scenes
 
-- Implement each prepared shot and scene with the approved audio/timing contract. Read every audio-bound cue time from `cues.json`, never a hard-coded second. After a re-voice, rerun M1's captions and cues commands and rebuild.
+- Implement each prepared shot and scene with the approved audio/timing contract. Read every audio-bound cue time from `cues.json`, never a hard-coded second; `scripts/film/build_data.py` writes it into the composition. After a re-voice, rerun M1's captions and cues commands and rebuild.
 - Keep one comprehension job per scene. Preserve source-backed labels, formulas, units, captions, and uncertainty from the claim map. Remove decorative motion that competes with the learning target.
 - Animate only the planned beats, under the beat rule in step 4 of `methods/prepare-explainer-video.md`. When a check finds a quiet stretch, add a beat to the plan for it before building it.
 - Give the picture above the captions a planned beat at least every 5 s outside declared holds, because `scripts/film/check_film.py` fails a still of 6 s. A fast film must also pass the motion gate in step 8 of `methods/prepare-explainer-video.md`. A beat counts only when it moves the picture's mean luma by about 0.26 levels, so lighting one small gray label is too faint. Light a whole row, outline a box, or bring in an element.
