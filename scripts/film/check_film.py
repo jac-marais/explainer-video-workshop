@@ -3,13 +3,15 @@
 
   check_film.py FILM.mp4 [--timing timing.json] [--captions captions.json] [--narration WAV]
                 [--holds S-E,...] [--tail S] [--uncaptioned ID,...] [--caption-band x,y,w,h] [--sheet OUT_DIR]
+                [--pacing measured|fast]
 
 Checks: container, codecs, size, fps, pix_fmt and a full decode; colour tags set and equal in the
 MP4 `colr` box and the H.264 bitstream; dual-mono stereo AAC (left minus right at least 30 dB below
 the signal); integrated loudness of one channel within 1 LU of -16 LUFS (the workshop measures the
 mono narration that way) and true peak at most -1 dBTP; frame count against duration x fps; blank
 black (over --max-black) pictures, and pictures frozen above the caption band (over --max-still), outside
-the declared holds, plus the share of runtime spent still.
+the declared holds, plus the share of runtime spent still. The motion gate of measure_motion.py always
+prints its metrics, and fails the film only with --pacing fast.
 With --narration: duration against the narration (plus --tail if given), the loudness delta, and
 silence edges within one frame of the master's. With --captions: each cue is visible in the caption
 band and the band changes within one frame of its start and end, except --uncaptioned cues such as title cards. With --sheet and --timing: one
@@ -227,6 +229,7 @@ def main():
     ap.add_argument("--max-black", type=float, default=0.5, help="longest allowed blank black picture outside holds, s")
     ap.add_argument("--caption-band", default="360,860,1200,170", help="x,y,w,h of the burnt-in caption area")
     ap.add_argument("--uncaptioned", default="", help="cue ids the film shows without burnt-in captions, such as title cards, id,id")
+    ap.add_argument("--pacing", choices=("measured", "fast"), default="measured", help="the brief's pacing; fast makes a failed motion gate a failure")
     a = ap.parse_args()
     if a.sheet and not a.timing:
         ap.error("--sheet needs --timing")
@@ -339,7 +342,9 @@ def main():
         timing = json.loads(a.timing.read_text())
         rep["sheets"] = contact_sheets(a.film, timing, fps, nframes, a.sheet)
 
-    if subprocess.call([sys.executable, str(Path(__file__).with_name("measure_motion.py")), str(a.film)]):
+    motion = subprocess.call([sys.executable, str(Path(__file__).with_name("measure_motion.py")), str(a.film)])
+    rep["motion_gate"] = {"pacing": a.pacing, "exit": motion}
+    if motion == 2 or (motion and a.pacing == "fast"):
         fails.append("motion gate failed; see motion metrics above")
 
     rep["failures"] = fails

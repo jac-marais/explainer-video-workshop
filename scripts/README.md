@@ -21,7 +21,7 @@ The voice tools that these build on (`voice.py`, `cut_takes.py`, `plan_runs.py`)
 ## film/
 
 - `render.py` renders a HyperFrames composition to a new MP4 with the known fixes, and never overwrites.
-- `check_film.py` runs the final checks on an exact MP4 and prints only the failures.
+- `check_film.py` runs the final checks on an exact MP4 and prints the motion metrics and the failures. `measure_motion.py` is its motion gate, which binds only with `--pacing fast`.
 
 ## run/
 

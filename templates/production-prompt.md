@@ -23,6 +23,7 @@ Max selective-repair cycles: [default 2, or controller value]
 Full-production planning ceiling: [default 8 hours; adjustable ceiling, never a required runtime and never a quality guarantee]
 Taste gates: [none, or any of script, voice, stills that the user answers; an unnamed gate is an agent gate]
 Length ceiling: [maximum film length and sentence count, or none]
+Pacing: [measured or fast, from the brief]
 
 The external controller enforces time, money, credentials, network, and publication permissions. Record actual elapsed time and spend. Stop at acceptance or when a limit, critical blocker, or missing authority prevents safe progress. Do not keep working to fill the eight-hour ceiling.
 
@@ -83,7 +84,7 @@ M3 — Build all scenes
 - Implement each prepared shot and scene with the approved audio/timing contract. Read every audio-bound cue time from `cues.json`, never a hard-coded second. After a re-voice, rerun M1's captions and cues commands and rebuild.
 - Keep one comprehension job per scene. Preserve source-backed labels, formulas, units, captions, and uncertainty from the claim map. Remove decorative motion that competes with the learning target.
 - Animate only the planned beats, under the beat rule in step 4 of `methods/prepare-explainer-video.md`. When a check finds a quiet stretch, add a beat to the plan for it before building it.
-- Give the picture above the captions a beat at least every 5 s outside declared holds, because `scripts/film/check_film.py` fails a still of 6 s. A beat counts only when it moves the picture's mean luma by about 0.26 levels, so lighting one small gray label is too faint. Light a whole row, outline a box, or bring in an element.
+- Give the picture above the captions a planned beat at least every 5 s outside declared holds, because `scripts/film/check_film.py` fails a still of 6 s. A fast film must also pass the motion gate in step 8 of `methods/prepare-explainer-video.md`. A beat counts only when it moves the picture's mean luma by about 0.26 levels, so lighting one small gray label is too faint. Light a whole row, outline a box, or bring in an element.
 - Render cheap stills or selected frames for changed layout, text, or asset questions. For motion changes, render the changed scene and its boundary overlap; do not spend a full render on a known local defect.
 - Skip picture review for a scene whose source and timing are byte-identical to the last reviewed version (M4).
 - Record missing assets, failed renders, retries, and actual external spend.
@@ -92,7 +93,7 @@ Checkpoint: every planned scene has an implementation or an explicit blocker, an
 
 M4 — Selective inspection and repair
 
-- Run deterministic checks for source/asset presence, dimensions, FPS, duration metadata, caption bounds, scene coverage, renderer errors, and stale outputs. Run `scripts/film/check_film.py` on the latest render of the film or of the changed scenes. It prints failures only.
+- Run deterministic checks for source/asset presence, dimensions, FPS, duration metadata, caption bounds, scene coverage, renderer errors, and stale outputs. Run `scripts/film/check_film.py` on the latest render of the film or of the changed scenes. It prints the motion metrics and the failures.
 - Inspect changed scenes and their neighboring transitions at delivery size. A scene whose source and timing are byte-identical to the last reviewed version keeps its earlier picture review, with the matching hashes recorded. Check formulas, labels, contrast, visual hierarchy, motion purpose, pronunciation, caption text, and timing against the approved audio.
 - Run the fresh-reviewer pass of M6 on a scene here only when the checks flag it. Repair every move or statement that no source step supports.
 - Apply at most [max selective-repair cycles] selective-repair cycles. Stop with a repair report when the limit is reached or an upstream dependency needs to be reopened.
@@ -103,7 +104,7 @@ M5 — Full render
 
 - Render only after M4 passes. Record the exact command, dependency versions, start/end time, exit status, output path, dimensions, FPS, duration, and output checksum.
 - For HyperFrames, render with `scripts/film/render.py --hf CLI --project DIR COMPOSITION -o OUT.mp4 --narration NARRATION.wav --expect-seconds S`. It never overwrites an existing output and names the next free `OUT.vN.mp4`. It replaces the audio with the approved mix as dual-mono, with the video stream copied, and fails if the loudness moves more than 0.5 LU. It also fails if the frame count is wrong. Add `--relabel-601` only for a Docker render image built on ffmpeg 5.1, as the colour trap in `methods/renderer-traps.md` explains. `--skip-render INPUT.mp4` post-processes an existing render.
-- Then run `scripts/film/check_film.py OUT.mp4 --timing timing.json --captions captions.json --narration NARRATION.wav`, adding `--holds`, `--tail`, and `--uncaptioned` as the film declares. Pass `--caption-band x,y,w,h` when the film's captions sit elsewhere than the default band. It sets where the caption check looks and where the freeze check stops. Regenerate the `film` and `sha` receipt blocks with `scripts/run/receipts.py`.
+- Then run `scripts/film/check_film.py OUT.mp4 --timing timing.json --captions captions.json --narration NARRATION.wav`, adding `--holds`, `--tail`, and `--uncaptioned` as the film declares, and `--pacing fast` for a fast film. Pass `--caption-band x,y,w,h` when the film's captions sit elsewhere than the default band. It sets where the caption check looks and where the freeze check stops. Regenerate the `film` and `sha` receipt blocks with `scripts/run/receipts.py`.
 - For a route that `render.py` does not cover, compare the MP4 audio with the approved final mix. When both MP4 channels carry the same mono narration, measure one channel, because a loudness meter adds the power of both. If the integrated loudness differs by more than 1 LU or the voice onset moved, mux the approved mix into the MP4 with the video stream copied, then measure again.
 - Reject an absent, empty, stale, or failed output. Preserve failed-render diagnostics and do not let a previous MP4 satisfy this checkpoint.
 
