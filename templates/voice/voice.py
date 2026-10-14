@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import hashlib
 import json
 import os
@@ -12,6 +13,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import unicodedata
 from datetime import datetime, timezone
 from importlib.metadata import version
 from pathlib import Path
@@ -26,6 +28,12 @@ KOKORO_LANG = "en-us"  # Default for voice entries without lang.
 # A spoken form written [word](/phonemes/) makes Kokoro say those phonemes; other engines say the word.
 PHONEMES = re.compile(r"\[([^\]]+)\]\(/([^/]+)/\)")
 STAND_IN = "zzq"
+# The frontend needs a pronounceable stand-in, because French elision swallows "zzq" after L'.
+ELIDING_STAND_IN = "zazazazaza"
+# The voice spec keys the narration cache, so raise this number whenever the frontend's phonemes change.
+KOKORO_FRONTEND = 3
+# Kokoro garbles its own retroflex flap "ɽ", so eSpeak's flap "r." takes the nearest clear phoneme, the tap "ɾ".
+ESPEAK_SYMBOLS = {"r.": "ɾ"}
 QWEN3_LANG = "english"  # Default for Qwen3 voice entries without lang.
 # These match the mlx_audio.tts.generate CLI defaults.
 MLX_SAMPLING = {"temperature": 0.7, "top_p": 0.9, "top_k": 50, "repetition_penalty": 1.1}
@@ -65,6 +73,53 @@ def split_chunks(text: str, max_words: int) -> list[str]:
     return [" ".join(words) for words in chunks]
 
 
+def place_pins(text: str, phonemize, stand_in: str) -> str:
+    """Phonemize the whole text with a stand-in for each pinned word, so the other words keep their context."""
+    marks = list(PHONEMES.finditer(text))
+    marker = phonemize(stand_in).strip(" .,")
+    pieces = phonemize(PHONEMES.sub(stand_in, text)).split(marker)
+    if len(pieces) != len(marks) + 1:
+        raise SystemExit(f"could not place pinned phonemes in: {text}")
+    return pieces[0] + "".join(m.group(2) + rest for m, rest in zip(marks, pieces[1:]))
+
+
+def kokoro_stop(mark: str) -> str:
+    """Kokoro's nearest stop to a sentence terminator from any script."""
+    name = unicodedata.name(mark, "")
+    return "?" if "QUESTION" in name else "!" if "EXCLAMATION" in name else "."
+
+
+@functools.cache
+def espeak_backend(lang: str):
+    """One eSpeak backend per language, because building one loads eSpeak and takes about a second."""
+    import regex
+    from phonemizer.backend import EspeakBackend
+
+    class Backend(EspeakBackend):
+        # Here eSpeak's line still separates phonemes with "_", and the text's own punctuation is set aside.
+        def _postprocess_line(self, line, num, separator, strip):
+            line = re.sub(r"[^\s_]+", lambda symbol: ESPEAK_SYMBOLS.get(symbol[0], symbol[0]), line)
+            line, switched = super()._postprocess_line(line, num, separator, strip)
+            return regex.sub(r"\p{P}", "", line), switched
+
+    return Backend(lang, preserve_punctuation=True, with_stress=True, language_switch="remove-flags")
+
+
+def phonemize_kokoro(text: str, tokenizer, lang: str = KOKORO_LANG) -> str:
+    """The Kokoro frontend: eSpeak phones that Kokoro can say, including explicit pronunciation pins."""
+    import regex
+    backend = espeak_backend(lang)
+
+    def speak(value: str) -> str:
+        value = regex.sub(r"\p{Sentence_Terminal}", lambda mark: mark[0] if mark[0] in tokenizer.vocab else kokoro_stop(mark[0]),
+                          tokenizer.normalize_text(value))
+        lines = [line for line in value.split(os.linesep) if line.strip()]
+        phones = os.linesep.join(backend.phonemize(lines)) if lines else ""
+        return "".join(phone for phone in phones if phone in tokenizer.vocab).strip()
+
+    return place_pins(text, speak, ELIDING_STAND_IN) if PHONEMES.search(text) else speak(text)
+
+
 def load_kokoro(spec: dict, seed: int) -> tuple[callable, dict]:
     from kokoro_onnx import EspeakConfig, Kokoro
 
@@ -77,20 +132,21 @@ def load_kokoro(spec: dict, seed: int) -> tuple[callable, dict]:
     missing = [str(path) for path in (model_path, voices_path, lib_path, data_path) if not path.exists()]
     if missing:
         raise SystemExit("Missing local speech assets: " + ", ".join(missing))
+    frontend = spec.get("frontend")
+    if frontend not in (None, KOKORO_FRONTEND):
+        raise SystemExit(f"Unknown Kokoro frontend {frontend}; set {KOKORO_FRONTEND} or leave it out")
     model = Kokoro(str(model_path), str(voices_path), espeak_config=EspeakConfig(str(lib_path), str(data_path)))
     lang = spec.get("lang", KOKORO_LANG)
 
     def synthesize(text: str) -> tuple[np.ndarray, int, dict]:
+        if frontend:
+            phonemes = phonemize_kokoro(text, model.tokenizer, lang)
+            samples, rate = model.create(phonemes, voice=spec["voice"], speed=spec["speed"], lang=lang, is_phonemes=True)
+            return samples.astype("float32", copy=False), rate, {"phonemes": phonemes}
         if not PHONEMES.search(text):
             samples, rate = model.create(text, voice=spec["voice"], speed=spec["speed"], lang=lang)
             return samples.astype("float32", copy=False), rate, {}
-        # Phonemize the whole text with a stand-in for each pinned word, so the other words keep their context.
-        marks = list(PHONEMES.finditer(text))
-        stand_in = model.tokenizer.phonemize(STAND_IN, lang).strip(" .,")
-        pieces = model.tokenizer.phonemize(PHONEMES.sub(STAND_IN, text), lang).split(stand_in)
-        if len(pieces) != len(marks) + 1:
-            raise SystemExit(f"could not place pinned phonemes in: {text}")
-        phonemes = pieces[0] + "".join(m.group(2) + rest for m, rest in zip(marks, pieces[1:]))
+        phonemes = place_pins(text, lambda value: model.tokenizer.phonemize(value, lang), STAND_IN)
         samples, rate = model.create(phonemes, voice=spec["voice"], speed=spec["speed"], lang=lang, is_phonemes=True)
         return samples.astype("float32", copy=False), rate, {"phonemes": phonemes}
 
@@ -99,6 +155,8 @@ def load_kokoro(spec: dict, seed: int) -> tuple[callable, dict]:
         "settings": {"voice": spec["voice"], "speed": spec["speed"], "lang": lang},
         "packages": {name: version(name) for name in ("kokoro-onnx", "onnxruntime")},
     }
+    if frontend:
+        identity["settings"]["frontend"] = frontend
     return synthesize, identity
 
 
