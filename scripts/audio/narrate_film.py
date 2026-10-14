@@ -16,7 +16,7 @@ described in methods/voice-explainer-video.md; the other gaps are in assemble().
 instead (use (?i) for case-insensitive); it applies in order and never changes the captioned text.
 
 Kokoro voices are synthesized one sentence at a time, because the model does not drift over a long text. Every other voice
-is voiced in runs of about 60 to 120 s (local/voice/plan_runs.py), one take per run ending in a throwaway sentence, and cut
+is voiced in bounded runs (local/voice/plan_runs.py), one take per run ending in a throwaway sentence, and cut
 into sentences by local/voice/cut_takes.py.
 Sentence WAVs are keyed by voice config and spoken text, and takes.json records each sentence's original take id.
 --reuse and reruns follow the canonical take-level reuse rule in methods/voice-explainer-video.md#take-level-reuse.
@@ -61,6 +61,8 @@ RATE = 24000
 LEAD_IN, SENTENCE_PAUSE, SCENE_PAUSE, EXPLICIT_PAUSE, TAIL = 0.35, 0.22, 0.50, 3.0, 0.45
 LOUDNORM = "I=-16:TP=-1.5:LRA=11"
 WPM = 165
+MAX_TAKE_SECONDS = 120
+TAKE_RESERVE_SECONDS = 10
 THROWAWAY = "That's all for now."
 # Thresholds are set so the Kokoro audio of the v4 reference film raises nothing (its largest values are in parentheses).
 LEVEL_DEV_DB = 3.0  # a sentence's level from the film median (1.2)
@@ -69,6 +71,9 @@ TAIL_ABOVE_FLOOR_DB = 20.0  # the last 60 ms above the film's noise floor (14.0)
 LUFS_TOLERANCE, TRUE_PEAK_MAX = 1.0, -1.0  # v4 measures -16.3 LUFS and -1.47 dBTP
 TAIL_S = 0.06
 FRAME_S = 0.01
+SENTENCE_MATCH_DB = 1.2
+SENTENCE_GAIN_CAP_DB = 8.0
+SENTENCE_PEAK_DBFS = -2.0
 EDGE_SILENCE_S = 0.3  # Some voices leave long silent edges between sentences.
 SMOOTH = 5
 FLOOR_PCT = 5
@@ -247,19 +252,46 @@ def read_audio(path: Path) -> np.ndarray:
     return samples
 
 
+def check_scene_lengths(seconds: dict[str, float]) -> None:
+    limit = MAX_TAKE_SECONDS - TAKE_RESERVE_SECONDS
+    for scene, duration in seconds.items():
+        if duration > limit:
+            raise SystemExit(f"scene {scene} estimates {duration:.1f} s, above the {limit:g} s take text limit; split its narration into smaller scenes")
+
+
+def bound_runs(runs: list[list[str]], seconds: dict[str, float]) -> list[list[str]]:
+    """Keep whole scenes together while reserving headroom for pauses and the throwaway."""
+    limit = MAX_TAKE_SECONDS - TAKE_RESERVE_SECONDS
+    bounded = []
+    for run in runs:
+        current, duration = [], 0.0
+        for scene in run:
+            if current and duration + seconds[scene] > limit:
+                bounded.append(current)
+                current, duration = [], 0.0
+            current.append(scene)
+            duration += seconds[scene]
+        if current:
+            bounded.append(current)
+    return bounded
+
+
 def plan_runs(seconds: dict[str, float], work: Path) -> list[list[str]]:
+    check_scene_lengths(seconds)
     if len(seconds) > 18:
         raise SystemExit("plan_runs.py tries every grouping, so it handles at most 18 scenes with sentences to voice")
     empty = work / "plan-receipts"
     empty.mkdir(exist_ok=True)
-    out = run_uv("plan_runs.py", [empty, "--seconds", *(f"{k}={v:.1f}" for k, v in seconds.items())], capture=True)
+    out = run_uv("plan_runs.py", [empty, "--max", str(MAX_TAKE_SECONDS - TAKE_RESERVE_SECONDS),
+                                "--seconds", *(f"{k}={v:.1f}" for k, v in seconds.items())], capture=True)
     best = next(line for line in out.splitlines() if " || violation" in line)
     ids = list(seconds)
     runs = []
     for part in best.split("  ||")[0].split(" | "):
         first, _, last = part.split()[0].partition("-")
         runs.append(ids[ids.index(first):ids.index(last or first) + 1])
-    log("runs: " + best)
+    runs = bound_runs(runs, seconds)
+    log("runs: " + " | ".join(f"{'-'.join(run)} {sum(seconds[s] for s in run):.1f} s" for run in runs))
     return runs
 
 
@@ -342,6 +374,22 @@ def calculate_take_gains(audio: dict[str, np.ndarray], takes: dict[str, str]) ->
         levels.setdefault(takes[sid], []).append(sentence_level_db(frame_power(samples, RATE)))
     target = statistics.median(level for take in levels.values() for level in take)
     return target, {take: target - statistics.median(values) for take, values in levels.items()}
+
+
+def match_sentence_levels(audio: dict[str, np.ndarray]) -> tuple[dict[str, np.ndarray], float, dict[str, float]]:
+    """Match separate generations without changing cached samples or sentence durations."""
+    levels = {sid: sentence_level_db(frame_power(samples, RATE)) for sid, samples in audio.items()}
+    target = statistics.median(levels.values())
+    gains = {}
+    for sid, samples in audio.items():
+        gain = target - levels[sid]
+        gain = max(-SENTENCE_GAIN_CAP_DB, min(SENTENCE_GAIN_CAP_DB, gain)) if abs(gain) > SENTENCE_MATCH_DB else 0.0
+        peak = float(np.max(np.abs(samples))) if len(samples) else 0.0
+        # A boost stops at the peak ceiling, because clipping would distort the sentence.
+        headroom = SENTENCE_PEAK_DBFS - 20 * np.log10(peak) if peak > 0 else SENTENCE_GAIN_CAP_DB
+        gains[sid] = float(min(gain, max(0.0, headroom)))
+    matched = {sid: samples * 10 ** (gains[sid] / 20) for sid, samples in audio.items()}
+    return matched, target, gains
 
 
 def assemble(scenes: list[dict], rows: dict[str, dict], audio: dict[str, np.ndarray],
@@ -625,7 +673,8 @@ def audio_checks(timing: dict, wav: Path, asr: list[dict], unclean: list[dict], 
         flags.append({"check": "duration_mismatch", "wav_s": round(wav_s, 3), "timing_s": timing["duration"]})
     stats["duration_s"] = round(wav_s, 3)
     stats.update({key: timing[key] for key in ("take_gain_db", "take_target_sentence_db", "normalization_gain_db",
-                                             "final_take_target_sentence_db") if key in timing})
+                                             "final_take_target_sentence_db", "sentence_gain_db", "sentence_target_db",
+                                             "sentence_peak_dbfs") if key in timing})
     return flags, stats
 
 
@@ -689,14 +738,17 @@ def narrate(args: argparse.Namespace) -> None:
 
     audio = {sid: cap_edge_silence(samples) for sid, samples in audio.items()}
     take_target, take_gain_db = None, {}
-    if spec["engine"] != "kokoro":
+    assembly_audio, sentence_target, sentence_gain_db = audio, None, {}
+    if spec["engine"] == "kokoro":
+        assembly_audio, sentence_target, sentence_gain_db = match_sentence_levels(audio)
+    else:
         take_target, take_gain_db = calculate_take_gains(audio, take_origins)
         log(f"take level target: {take_target:.2f} dB; take_gain_db: {json.dumps(take_gain_db)}")
         for take, gain in take_gain_db.items():
             if abs(gain) > 3:
                 log(f"take gain exceeds 3 dB: {take} {gain:+.2f} dB")
     run_on = {flag["after"] for flag in unclean}
-    samples, scene_rows, sentence_rows, duration = assemble(scenes, rows, audio, take_origins, take_gain_db, run_on)
+    samples, scene_rows, sentence_rows, duration = assemble(scenes, rows, assembly_audio, take_origins, take_gain_db, run_on)
     shutil.rmtree(out / "sentences", ignore_errors=True)
     (out / "sentences").mkdir()
     for sid, data in audio.items():
@@ -712,6 +764,8 @@ def narrate(args: argparse.Namespace) -> None:
               "scenes": scene_rows, "sentences": sentence_rows,
               "take_gain_db": take_gain_db, "take_target_sentence_db": take_target,
               "normalization_gain_db": normalization_gain, "final_take_target_sentence_db": final_take_target,
+              "sentence_gain_db": sentence_gain_db, "sentence_target_db": sentence_target,
+              "sentence_peak_dbfs": SENTENCE_PEAK_DBFS if sentence_target is not None else None,
               "pauses": {"lead_in": LEAD_IN, "between_sentences": SENTENCE_PAUSE, "between_scenes": SCENE_PAUSE,
                          "explicit": EXPLICIT_PAUSE, "tail": TAIL, "none_after": sorted(run_on)}}
     (out / "timing.json").write_text(json.dumps(timing, indent=2) + "\n")
@@ -731,6 +785,8 @@ def narrate(args: argparse.Namespace) -> None:
     stats.update({"sentences": len(rows), "reused": reused, "voiced": len(pending), "reused_takes": len(set(reuse.takes.values())),
                   "voiced_takes": voiced_takes, "take_gain_db": take_gain_db, "take_target_sentence_db": take_target,
                   "normalization_gain_db": normalization_gain, "final_take_target_sentence_db": final_take_target,
+                  "sentence_gain_db": sentence_gain_db, "sentence_target_db": sentence_target,
+                  "sentence_peak_dbfs": timing["sentence_peak_dbfs"],
                   "wall_s": round(time.perf_counter() - started, 1)})
     report(flags, stats, fallbacks, out)
     if args.strict and fallbacks:

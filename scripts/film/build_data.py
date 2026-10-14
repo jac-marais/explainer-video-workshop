@@ -10,13 +10,14 @@
 --estimate times whitespace words or Han/Kana characters evenly at --wpm, with short pauses after sentences and scenes, for a silent
 preview before any voice exists; --scenes N stops after scene N. Both modes write the same shape to DIR/data.js:
 
-  window.FILM = {source, duration, cues: {"sNN|quoted words": start seconds}, captions, strings, ...embeds}
+  window.FILM = {source, duration, cues: {"sNN|quoted words": start seconds}, caption_onsets: {"sNN|sNN-NN": start seconds}, captions, strings, ...embeds}
 
 and set the first data-duration attribute in DIR/index.html, because the renderer reads it before any script runs.
 duration is the narration length plus --tail. --strings adds the on-screen text for one language. --key-script names
 every quoted cue by the quoted cue at the same position in the same scene of another script, so a translated film keeps the cue
 names its code uses; the run exits 1 when a scene's quoted cue or sentence counts differ.
 Sentence cue names stay unchanged in both modes without --key-script; measured starts come from timing.json. --embed adds a JSON file under NAME.
+caption_onsets holds the first caption start for each sentence with caption metadata; missing entries have no inferred fallback.
 The run exits 1 on a cue with no time.
 """
 import argparse, json, re, sys
@@ -43,7 +44,7 @@ def estimate(script, wpm, last_scene):
     for num, text, quotes in scenes(script):
         if last_scene and num > last_scene:
             break
-        sid, words, starts, sentence_rows = f"s{num:02d}", [], [], []
+        sid, words, starts, sentence_rows, word_sentences = f"s{num:02d}", [], [], [], []
         for index, sentence in enumerate(sentences(text), 1):
             if sentence["pause_before"]:
                 t += 3.0
@@ -51,6 +52,7 @@ def estimate(script, wpm, last_scene):
             for w in tokenize(sentence["text"]):
                 words.append(w)
                 starts.append(t)
+                word_sentences.append(f"{sid}-{index:02d}")
                 t += per_word
             sentence_rows.append({"id": f"{sid}-{index:02d}", "scene_id": sid, "start": start, "end": t})
             t += 0.35
@@ -61,9 +63,11 @@ def estimate(script, wpm, last_scene):
             s0 = starts[i] if s0 is None else s0
             part.append(w)
             last = i == len(words) - 1
-            if last or END.search(w) or (w.endswith(",") and len(part) >= 5) or len(part) >= 9:
-                end = starts[i] + per_word if last or END.search(w) else starts[i + 1]
-                captions.append({"id": f"{sid}-{len(captions):03d}", "scene_id": sid, "start": round(s0, 3),
+            sentence_end = last or word_sentences[i] != word_sentences[i + 1]
+            if sentence_end or END.search(w) or (w.endswith(",") and len(part) >= 5) or len(part) >= 9:
+                end = starts[i] + per_word if sentence_end or END.search(w) else starts[i + 1]
+                captions.append({"id": f"{sid}-{len(captions):03d}", "scene_id": sid,
+                                 "sentence_id": word_sentences[i], "start": round(s0, 3),
                                  "end": round(end, 3), "text": join_tokens(part)})
                 part, s0 = [], None
         # Punctuation-only tokens are skipped on both sides, as in cues.py.
@@ -95,6 +99,16 @@ def cue_keys(script, key_script):
             sys.exit(f"scene {num}: {len(quotes)} cues, but the key script has {len(keys.get(num, []))}")
         out.update({(f"s{num:02d}", q): k for q, k in zip(quotes, keys[num])})
     return out
+
+
+def caption_onsets(captions):
+    """Keep the earliest caption start for every sentence with explicit metadata."""
+    onsets = {}
+    for caption in captions:
+        if caption.get("sentence_id") and caption.get("scene_id"):
+            key = f'{caption["scene_id"]}|{caption["sentence_id"]}'
+            onsets[key] = min(onsets.get(key, caption["start"]), caption["start"])
+    return onsets
 
 
 def main():
@@ -133,6 +147,7 @@ def main():
     keyed = cue_keys(a.script, a.key_script) if a.key_script else {}
     data = {"source": source, "duration": round(duration + a.tail, 3),
             "cues": {f'{c["scene"]}|{keyed.get((c["scene"], c["cue"]), c["cue"])}': c["start"] for c in cues},
+            "caption_onsets": caption_onsets(captions),
             "captions": captions, "strings": json.loads(a.strings.read_text()) if a.strings else {}}
     for item in a.embed:
         name, _, path = item.partition("=")

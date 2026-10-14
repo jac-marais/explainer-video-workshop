@@ -101,7 +101,8 @@ class TakeGainTests(unittest.TestCase):
     def test_audio_checks_copy_recorded_gain_stats_for_check_only(self):
         timing = {"sentences": [{"id": "first", "scene_id": "opening", "text": "Hello.", "start": 0.1, "end": 0.3}],
                   "duration": 0.4, "take_gain_db": {"original": 4.5}, "take_target_sentence_db": -24,
-                  "normalization_gain_db": -0.65, "final_take_target_sentence_db": -24.65}
+                  "normalization_gain_db": -0.65, "final_take_target_sentence_db": -24.65,
+                  "sentence_gain_db": {"first": 2.0}, "sentence_target_db": -24, "sentence_peak_dbfs": -2.0}
         with tempfile.TemporaryDirectory(dir="/tmp") as directory:
             wav = Path(directory) / "narration.wav"
             sf.write(wav, np.concatenate([np.zeros(2400), tone(-24), np.zeros(2400)]), film.RATE)
@@ -112,6 +113,8 @@ class TakeGainTests(unittest.TestCase):
             self.assertEqual(stats["take_target_sentence_db"], timing["take_target_sentence_db"])
             self.assertEqual(stats["normalization_gain_db"], timing["normalization_gain_db"])
             self.assertEqual(stats["final_take_target_sentence_db"], timing["final_take_target_sentence_db"])
+            for key in ("sentence_gain_db", "sentence_target_db", "sentence_peak_dbfs"):
+                self.assertEqual(stats[key], timing[key])
 
 
 class RunOnTests(unittest.TestCase):
@@ -443,10 +446,15 @@ class GenerationTests(unittest.TestCase):
                         self.assertEqual(first_timing["sentences"], raw_reference[2])
                         self.assertEqual(first_timing["scenes"], raw_reference[1])
                         self.assertEqual(first_timing["duration"], round(raw_reference[3], 3))
+                        self.assertFalse(np.array_equal(actual_audio, raw_reference[0]))
                         if engine == "kokoro":
-                            np.testing.assert_array_equal(actual_audio, raw_reference[0])
-                        else:
-                            self.assertFalse(np.array_equal(actual_audio, raw_reference[0]))
+                            matched, target, gains = film.match_sentence_levels(raw_audio)
+                            expected = film.assemble(film.load_scenes(scene_file), {r["id"]: r for r in current}, matched,
+                                                     takes=origins, run_on=run_on)[0]
+                            np.testing.assert_allclose(actual_audio, expected, atol=1 / 32768)
+                            self.assertEqual(first_timing["sentence_gain_db"], gains)
+                            self.assertEqual(first_timing["sentence_target_db"], target)
+                            self.assertEqual(first_checks["stats"]["sentence_gain_db"], gains)
                         if reuse_mode == "external":
                             args.reuse, args.out = output, root / "second"
                         for _ in range(2):

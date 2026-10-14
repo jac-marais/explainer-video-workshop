@@ -182,7 +182,9 @@ def caption_checks(path, cues, fps, nframes, crop):
         if mid < 200:
             fails.append(f"caption {c.get('id')} at {c['start']:.2f}s not visible mid-cue ({mid} bright px): {text!r}")
         elif not on[2]:
-            fails.append(f"caption {c.get('id')} onset {c['start']:.2f}s: no change within a frame (jump {on[0]:.2f}, calm {on[1]:.2f}): {text!r}")
+            fails.append(f"caption {c.get('id')} onset {c['start']:.2f}s: no change within a frame (jump {on[0]:.2f}, calm {on[1]:.2f}): {text!r}; "
+                         "a hard cut on the sentence cue can precede its first caption by a few frames; "
+                         "time sentence cuts on FILM.caption_onsets, and scene-start cuts in the pause before the cue")
         if mid >= 200 and off and not off[2]:
             fails.append(f"caption {c.get('id')} end {c['end']:.2f}s: no change within a frame (jump {off[0]:.2f}, calm {off[1]:.2f}): {text!r}")
     return rows, fails
