@@ -78,6 +78,12 @@ class RunnerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "scene 1: 1 sentences, but the key script has 2"):
             self.invoke(["--key-script", str(key), "--key-language", "en"])
 
+    def test_quoted_cue_translations_may_split_differently(self):
+        self.script.write_text('## Scene 1: Garden\n**Narration**\nA seed rests.\n**Visual**\n- On "seed", show a seed.\n')
+        key = self.root / "key.md"
+        key.write_text('## Scene 1: Garden\n**Narration**\nA seed rests. A leaf grows.\n**Visual**\n- On "seed", show a seed.\n')
+        self.assertEqual(len(self.invoke(["--key-script", str(key), "--key-language", "en"])), 6)
+
     def test_every_restart_runs_only_suffix(self):
         for index, step in enumerate(film.STEPS):
             self.assertEqual(len(self.invoke(["--from", step])), len(film.STEPS) - index)

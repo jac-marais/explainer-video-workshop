@@ -16,7 +16,7 @@ preview before any voice exists; --language names the script's language for the 
 and set the first data-duration attribute in DIR/index.html, because the renderer reads it before any script runs.
 duration is the narration length plus --tail. --strings adds the on-screen text for one language. --key-script names
 every quoted cue by the quoted cue at the same position in the same scene of another script, so a translated film keeps the cue
-names its code uses; the run exits 1 when a scene's quoted cue counts differ. make_film.py and storyboard.py check sentence counts.
+names its code uses; the run exits 1 when a scene's quoted cue counts differ. scripts/README.md says when make_film.py and storyboard.py check sentence counts.
 Sentence cue names stay unchanged in both modes without --key-script; measured starts come from timing.json. --embed adds a JSON file under NAME.
 caption_onsets holds the first caption start for each sentence with caption metadata; missing entries have no inferred fallback.
 The run exits 1 on a cue with no time.
