@@ -9,6 +9,8 @@ from unittest.mock import patch
 
 import make_film as film
 
+SPLIT = film.split_sentences
+
 
 class RunnerTests(unittest.TestCase):
     def setUp(self):
@@ -25,7 +27,11 @@ class RunnerTests(unittest.TestCase):
         (self.audio / "timing.json").write_text('{"duration": 2}')
         (self.audio / "audio-checks.json").write_text('{"ok": true, "flags": [], "fallback_words": []}')
         self.argv = ["make_film.py", "--script", str(self.script), "--scenes", str(self.scenes), "--project", str(self.root),
-                     "--hf", "/tmp/invented-hf", "--out", str(self.root / "film.mp4"), "--voice", "test-voice", "--language", "de"]
+                     "--hf", "/tmp/invented-hf", "--out", str(self.root / "film.mp4"), "--voice", "test-voice", "--language", "fr"]
+        # A stand-in splits after ". "; test_split_runs_text_tokens_once_under_heavy covers the real split.
+        split = patch.object(film, "split_sentences", side_effect=lambda texts: [text.replace(". ", ".\n").splitlines() for _, text in texts])
+        split.start()
+        self.addCleanup(split.stop)
 
     def invoke(self, extra=(), effect=None):
         with patch.object(sys, "argv", self.argv + list(extra)), patch.object(film, "execute", side_effect=effect) as execute:
@@ -36,11 +42,41 @@ class RunnerTests(unittest.TestCase):
         calls = self.invoke()
         names = [next(Path(str(item)).name for item in call.args[0] if str(item).endswith('.py')) for call in calls]
         self.assertEqual(names, ["narrate_film.py", "captions.py", "cues.py", "build_data.py", "render.py", "check_film.py"])
-        self.assertEqual([call.kwargs.get("heavy", False) for call in calls], [True, False, False, False, True, True])
+        self.assertEqual([call.kwargs.get("heavy", False) for call in calls], [True, True, False, False, True, True])
         command = calls[0].args[0]
         self.assertEqual(command[0], film.SCRIPTS / "run/py")
-        self.assertEqual(command[command.index("--language") + 1], "de")
+        self.assertEqual(command[command.index("--language") + 1], "fr")
+        self.assertEqual(calls[1].args[0][0], film.SCRIPTS / "run/py")
+        self.assertFalse({"--font", "--font-size", "--font-weight", "--line-width"} & set(map(str, calls[1].args[0])))
         self.assertEqual(calls[-1].args[0][2], self.root / "film.mp4")
+
+    def test_caption_font_options_reach_captions(self):
+        calls = self.invoke(["--from", "captions", "--caption-font", "a.woff2", "--caption-font", "b.ttc#2",
+                             "--caption-font-size", "40", "--caption-font-weight", "600", "--caption-line-width", "900"])
+        command = list(map(str, calls[0].args[0]))
+        self.assertEqual(command[command.index("--json-output") + 2:],
+                         ["--font", "a.woff2", "--font", "b.ttc#2", "--font-size", "40.0", "--font-weight", "600.0", "--line-width", "900.0"])
+
+    def test_split_runs_text_tokens_once_under_heavy(self):
+        texts = [["en", "A seed rests."], ["fr", "Une graine. Deux feuilles."]]
+        output = json.dumps([[{"text": "A seed rests.", "pause_before": False}],
+                             [{"text": "Une graine.", "pause_before": False}, {"text": "Deux feuilles.", "pause_before": False}]])
+        with patch.object(film.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, output)) as run:
+            self.assertEqual(SPLIT(texts), [["A seed rests."], ["Une graine.", "Deux feuilles."]])
+        run.assert_called_once()
+        self.assertEqual(run.call_args.args[0], [film.SCRIPTS / "run/heavy", film.SCRIPTS / "run/py", film.SCRIPTS / "audio/text_tokens.py"])
+        self.assertEqual(json.loads(run.call_args.kwargs["input"]), texts)
+        with patch.object(film.subprocess, "run", return_value=subprocess.CompletedProcess([], 1, "")):
+            with self.assertRaisesRegex(ValueError, "could not split"):
+                SPLIT(texts)
+
+    def test_key_script_needs_its_language_and_equal_sentence_counts(self):
+        key = self.root / "key.md"
+        key.write_text('## Scene 1: Garden\n**Narration**\nA seed rests. A leaf grows.\n**Visual**\n- On s01-01, show a seed.\n')
+        with self.assertRaises(SystemExit):
+            self.invoke(["--key-script", str(key)])
+        with self.assertRaisesRegex(ValueError, "scene 1: 1 sentences, but the key script has 2"):
+            self.invoke(["--key-script", str(key), "--key-language", "en"])
 
     def test_every_restart_runs_only_suffix(self):
         for index, step in enumerate(film.STEPS):

@@ -30,28 +30,28 @@ The sun warms the sea.
 """
 
 # The same beats in another language, in the same order.
-TRANSLATED = """# Ein Testfilm
+TRANSLATED = """# Un film d'essai
 
-## Scene 1: Wasser
-
-**Narration**
-
-Regen fällt auf die Hügel, und er fließt bergab in den Fluss.
-
-**Visual**
-
-- On "Regen fällt", clouds gather.
-- On "fließt bergab", a stream forms.
-
-## Scene 2: Sonne
+## Scene 1: Eau
 
 **Narration**
 
-Die Sonne wärmt das Meer.
+Il pleut sur les collines, et l'eau descend vers la rivière.
 
 **Visual**
 
-- On "wärmt das Meer", vapour rises.
+- On "Il pleut", clouds gather.
+- On "descend vers", a stream forms.
+
+## Scene 2: Soleil
+
+**Narration**
+
+Le soleil chauffe la mer.
+
+**Visual**
+
+- On "chauffe la mer", vapour rises.
 """
 
 
@@ -74,7 +74,7 @@ class BuildDataTest(unittest.TestCase):
         (self.project / "index.html").write_text('<div id="film" data-duration="1"></div>')
 
     def test_estimate_times_every_cue_and_sets_duration(self):
-        r = run(self.tmp, "--script", "script.md", "--project", "project", "--estimate", "--tail", "1")
+        r = run(self.tmp, "--script", "script.md", "--project", "project", "--estimate", "--language", "en", "--tail", "1")
         self.assertEqual(r.returncode, 0, r.stderr)
         f = film(self.project)
         self.assertEqual(set(f["cues"]), {"s01|Rain falls", "s01|runs downhill", "s02|warms the sea"})
@@ -97,14 +97,14 @@ class BuildDataTest(unittest.TestCase):
         self.assertEqual(f["extra"], {"k": 1})
 
     def test_translated_cues_take_the_key_scripts_names(self):
-        r = run(self.tmp, "--script", "translated.md", "--project", "project", "--estimate", "--key-script", "script.md")
+        r = run(self.tmp, "--script", "translated.md", "--project", "project", "--estimate", "--language", "fr", "--key-script", "script.md")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(set(film(self.project)["cues"]), {"s01|Rain falls", "s01|runs downhill", "s02|warms the sea"})
 
     def test_estimates_expose_each_sentences_first_caption_in_two_languages(self):
-        for script in ("script.md", "translated.md"):
+        for script, language in (("script.md", "en"), ("translated.md", "fr")):
             with self.subTest(script=script):
-                r = run(self.tmp, "--script", script, "--project", "project", "--estimate")
+                r = run(self.tmp, "--script", script, "--project", "project", "--estimate", "--language", language)
                 self.assertEqual(r.returncode, 0, r.stderr)
                 data = film(self.project)
                 self.assertEqual(set(data["caption_onsets"]), {"s01|s01-01", "s02|s02-01"})
@@ -115,7 +115,7 @@ class BuildDataTest(unittest.TestCase):
     def test_measured_caption_onsets_do_not_move_sentence_or_fraction_cues(self):
         audio = self.tmp / "audio"
         audio.mkdir()
-        for text in ("A flower opens. A leaf falls.", "小花开了。叶子落了。"):
+        for language, text in (("en", "A flower opens. A leaf falls."), ("zh", "小花开了。叶子落了。")):
             with self.subTest(text=text):
                 (self.tmp / "cued.md").write_text(f'## Scene 1: Garden\n\n**Narration**\n\n{text}\n\n**Visual**\n\nOn s01-01\nOn s01-02\nOn s01-02+0.4\n')
                 (audio / "cues.json").write_text("[]")
@@ -132,7 +132,7 @@ class BuildDataTest(unittest.TestCase):
                 self.assertEqual(data["cues"], {"s01|s01-01": 0.4, "s01|s01-02": 2.0, "s01|s01-02+0.4": 3.0})
                 self.assertEqual(data["caption_onsets"], {"s01|s01-01": 0.5, "s01|s01-02": 2.08})
                 self.assertEqual(data["captions"], captions)
-                r = run(self.tmp, "--script", "cued.md", "--project", "project", "--estimate")
+                r = run(self.tmp, "--script", "cued.md", "--project", "project", "--estimate", "--language", language)
                 self.assertEqual(r.returncode, 0, r.stderr)
                 estimated = film(self.project)
                 self.assertEqual(set(estimated["caption_onsets"]), {"s01|s01-01", "s01|s01-02"})
@@ -146,13 +146,13 @@ class BuildDataTest(unittest.TestCase):
 
     def test_estimate_skips_words_that_normalize_to_nothing(self):
         (self.tmp / "accent.md").write_text(SCRIPT.replace("Rain falls on the hills", "Rain é falls on the hills").replace('On "Rain falls"', 'On "Rain é falls"'))
-        r = run(self.tmp, "--script", "accent.md", "--project", "project", "--estimate")
+        r = run(self.tmp, "--script", "accent.md", "--project", "project", "--estimate", "--language", "en")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("s01|Rain é falls", film(self.project)["cues"])
 
     def test_unequal_cue_counts_fail(self):
-        (self.tmp / "short.md").write_text(TRANSLATED.replace('- On "fließt bergab", a stream forms.\n', ""))
-        r = run(self.tmp, "--script", "short.md", "--project", "project", "--estimate", "--key-script", "script.md")
+        (self.tmp / "short.md").write_text(TRANSLATED.replace('- On "descend vers", a stream forms.\n', ""))
+        r = run(self.tmp, "--script", "short.md", "--project", "project", "--estimate", "--language", "fr", "--key-script", "script.md")
         self.assertEqual(r.returncode, 1)
         self.assertIn("scene 1: 1 cues, but the key script has 2", r.stderr)
 

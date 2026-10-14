@@ -40,7 +40,7 @@ def run(script, out_name="board.html"):
         src = Path(d) / "script.md"
         src.write_text(script)
         out = Path(d) / out_name
-        r = subprocess.run([sys.executable, TOOL, src, "--out", out], capture_output=True, text=True)
+        r = subprocess.run([sys.executable, TOOL, src, "--language", "en", "--out", out], capture_output=True, text=True)
         return r, out.read_text() if out.exists() else ""
 
 

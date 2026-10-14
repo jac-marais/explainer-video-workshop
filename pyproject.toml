@@ -7,10 +7,12 @@ dependencies = [
   "mlx-audio==0.5.5",
   "mlx-whisper==0.4.3",
   "numpy==2.5.3",
-  # voice.py calls its eSpeak backend directly.
+  # voice.py and narrate_film.py call its eSpeak backend directly.
   "phonemizer-fork==3.3.1",
   "pillow",
+  "regex==2026.9.29",
   "soundfile==0.14.0",
+  "stanza==1.15.0",
 ]
 
 [tool.uv]

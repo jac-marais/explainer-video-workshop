@@ -64,6 +64,10 @@ done
 [ -f "$ESPEAK/lib/libespeak-ng.dylib" ]; check $? "espeak-ng library" "espeak-ng library missing: $ESPEAK/lib/libespeak-ng.dylib (brew install espeak-ng)"
 [ -d "$ESPEAK/share/espeak-ng-data" ]; check $? "espeak-ng data" "espeak-ng data missing: $ESPEAK/share/espeak-ng-data"
 
+echo "== text"
+dir="$(UV_OFFLINE=1 "$WS/scripts/run/py" -c 'from stanza.resources.common import DEFAULT_MODEL_DIR; print(DEFAULT_MODEL_DIR)')"
+[ -f "$dir/resources.json" ]; check $? "Stanza models: $dir" "Stanza models missing in $dir; download them as Setup in README.md says"
+
 echo "== whisper"
 snapshot mlx-community--whisper-large-v3-turbo
 check $? "mlx-whisper large-v3-turbo snapshot" "mlx-whisper large-v3-turbo snapshot missing in $HFHUB"

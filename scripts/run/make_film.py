@@ -9,7 +9,7 @@ import sys
 
 SCRIPTS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS / "film"))
-from build_data import scenes, cue_keys, sentences, sentence_time
+from build_data import scenes, cue_keys, check_sentence_counts, sentence_time
 
 STEPS = ("narrate", "captions", "cues", "data", "render", "check")
 
@@ -22,23 +22,38 @@ def execute(command, heavy=False):
     subprocess.run(command, check=True)
 
 
+def split_sentences(texts):
+    """Each (language, text) pair's sentence texts, split by text_tokens.py in the workshop environment."""
+    result = subprocess.run([SCRIPTS / "run/heavy", SCRIPTS / "run/py", SCRIPTS / "audio/text_tokens.py"],
+                            input=json.dumps(texts), stdout=subprocess.PIPE, text=True)
+    if result.returncode:
+        raise ValueError(f"text_tokens.py could not split the narration (exit {result.returncode})")
+    return [[sentence["text"] for sentence in split] for split in json.loads(result.stdout)]
+
+
 def validate_inputs(args):
     script = list(scenes(args.script))
     if not script:
         raise ValueError("script has no scenes")
-    for num, text, names in script:
-        rows = [{"id": f"s{num:02d}-{i:02d}", "start": 0, "end": 1} for i, _ in enumerate(sentences(text), 1)]
+    source = json.loads(args.scenes.read_text())
+    parts = [[text] if isinstance(text, str) else text for text in (scene["narration"] for scene in source)]
+    key = list(scenes(args.key_script)) if args.key_script else []
+    # One process splits every text, because loading Stanza takes seconds.
+    split = split_sentences([[args.language, text] for _, text, _ in script]
+                            + [[args.language, part] for scene in parts for part in scene]
+                            + [[args.key_language, text] for _, text, _ in key])
+    expected = dict(zip((f"s{num:02d}" for num, _, _ in script), split))
+    for num, _, names in script:
+        rows = [{"id": f"s{num:02d}-{i:02d}", "start": 0, "end": 1} for i in range(1, len(expected[f"s{num:02d}"]) + 1)]
         for name in names:
             sentence_time(name, f"s{num:02d}", rows)
-    source = json.loads(args.scenes.read_text())
-    expected = {f"s{num:02d}": [s["text"] for s in sentences(text)] for num, text, _ in script}
-    actual = {}
-    for scene in source:
-        text = scene["narration"]
-        actual[scene["id"]] = [s["text"] for part in ([text] if isinstance(text, str) else text) for s in sentences(part)]
+    rest = iter(split[len(script):])
+    actual = {scene["id"]: [sentence for _ in scene_parts for sentence in next(rest)] for scene, scene_parts in zip(source, parts)}
     if len(actual) != len(source) or actual != expected:
         raise ValueError("scenes JSON must match the script's scene IDs, sentences and narration")
     if args.key_script:
+        check_sentence_counts({num: len(expected[f"s{num:02d}"]) for num, _, _ in script},
+                              {num: len(sentences) for (num, _, _), sentences in zip(key, rest)})
         cue_keys(args.script, args.key_script)
 
 
@@ -48,6 +63,7 @@ def main():
         parser.add_argument(f"--{name}", type=Path, required=True)
     parser.add_argument("--voice", required=True)
     parser.add_argument("--language", required=True)
+    parser.add_argument("--key-language", help="the --key-script's language code")
     parser.add_argument("--audio", type=Path, help="defaults to PROJECT/audio")
     parser.add_argument("--from", dest="start", choices=STEPS, default="narrate")
     parser.add_argument("--composition", default=".")
@@ -58,10 +74,15 @@ def main():
     parser.add_argument("--pacing", choices=("measured", "fast"), default="measured")
     parser.add_argument("--holds", default="")
     parser.add_argument("--uncaptioned", default="")
+    parser.add_argument("--caption-font", action="append", default=[], metavar="FILE[#INDEX]")
+    for name in ("caption-font-size", "caption-font-weight", "caption-line-width"):
+        parser.add_argument(f"--{name}", type=float)
     parser.add_argument("--caption-band", default="360,860,1200,170")
     parser.add_argument("--size", default="1920x1080")
     parser.add_argument("--fps", type=float, default=30)
     args = parser.parse_args()
+    if args.key_script and not args.key_language:
+        parser.error("--key-script needs --key-language")
     validate_inputs(args)
     audio = (args.audio or args.project / "audio").resolve()
     timing, words = audio / "timing.json", audio / "words.json"
@@ -84,13 +105,18 @@ def main():
             if report.get("flags") or report.get("fallback_words"):
                 raise ValueError(f"resolve audio flags in {audio / 'audio-checks.json'} before continuing")
         elif step == "captions":
-            execute([sys.executable, SCRIPTS / "audio/captions.py", timing, words,
-                     "--output", audio / "captions.vtt", "--json-output", captions])
+            command = [SCRIPTS / "run/py", SCRIPTS / "audio/captions.py", timing, words,
+                       "--output", audio / "captions.vtt", "--json-output", captions]
+            for font in args.caption_font:
+                command += ["--font", font]
+            for name in ("font_size", "font_weight", "line_width"):
+                if getattr(args, f"caption_{name}") is not None:
+                    command += ["--" + name.replace("_", "-"), getattr(args, f"caption_{name}")]
+            execute(command, heavy=True)
         elif step == "cues":
             command = [sys.executable, SCRIPTS / "audio/cues.py", args.script, words, timing, "--out", cues, "--strict"]
-            for name in ("aliases", "key_script"):
-                if getattr(args, name):
-                    command += ["--" + name.replace("_", "-"), getattr(args, name)]
+            if args.aliases:
+                command += ["--aliases", args.aliases]
             execute(command)
         elif step == "data":
             command = [sys.executable, SCRIPTS / "film/build_data.py", "--script", args.script,

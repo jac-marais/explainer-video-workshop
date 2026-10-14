@@ -151,13 +151,13 @@ class RunOnTests(unittest.TestCase):
 
 class SentenceSplitTests(unittest.TestCase):
     def test_a_sentence_ending_inside_a_quotation_splits_after_the_closing_mark(self):
-        split = film.sentences('The cup fills. "It spills," she says, "every time." The table is wet. [pause] Then “it dries.” Done.')
+        split = film.sentences('The cup fills. "It spills," she says, "every time." The table is wet. [pause] Then “it dries.” Done.', "en")
         self.assertEqual([s["text"] for s in split], ["The cup fills.", '"It spills," she says, "every time."',
                                                       "The table is wet.", "Then “it dries.”", "Done."])
         self.assertEqual([s["pause_before"] for s in split], [False, False, False, True, False])
 
     def test_a_comma_inside_a_quotation_does_not_split(self):
-        self.assertEqual(len(film.sentences('"It spills," she says, "every time."')), 1)
+        self.assertEqual(len(film.sentences('"It spills," she says, "every time."', "en")), 1)
 
 
 class NormalizationTests(unittest.TestCase):
@@ -435,7 +435,7 @@ class GenerationTests(unittest.TestCase):
                         raw_audio = {sid: film.read_audio(output / "sentences" / f"{sid}.wav") for sid in origins}
                         run_on = {f["after"] for f in first_checks["flags"] if f.get("check") == "unclean_cut"}
                         self.assertEqual(first_timing["pauses"]["none_after"], sorted(run_on))
-                        raw_reference = film.assemble(film.load_scenes(scene_file), {r["id"]: r for r in current}, raw_audio,
+                        raw_reference = film.assemble(film.load_scenes(scene_file, "en"), {r["id"]: r for r in current}, raw_audio,
                                                      takes=origins, run_on=run_on)
                         actual_audio = film.read_audio(output / "narration-raw.wav")
                         self.assertEqual(len(actual_audio), len(raw_reference[0]))
@@ -445,7 +445,7 @@ class GenerationTests(unittest.TestCase):
                         self.assertFalse(np.array_equal(actual_audio, raw_reference[0]))
                         if engine == "kokoro":
                             matched, target, gains = film.match_sentence_levels(raw_audio)
-                            expected = film.assemble(film.load_scenes(scene_file), {r["id"]: r for r in current}, matched,
+                            expected = film.assemble(film.load_scenes(scene_file, "en"), {r["id"]: r for r in current}, matched,
                                                      takes=origins, run_on=run_on)[0]
                             np.testing.assert_allclose(actual_audio, expected, atol=1 / 32768)
                             self.assertEqual(first_timing["sentence_gain_db"], gains)

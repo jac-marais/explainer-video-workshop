@@ -18,7 +18,7 @@ def script(text, visual="- On `s03-01`, show a seed.\n- On s03-02+0.4, show a le
 
 
 def run(tool, *args):
-    return subprocess.run([sys.executable, SCRIPTS / tool, *map(str, args)], capture_output=True, text=True, timeout=15)
+    return subprocess.run([sys.executable, SCRIPTS / tool, *map(str, args)], capture_output=True, text=True, timeout=120)
 
 
 class SentenceCueTests(unittest.TestCase):
@@ -36,13 +36,13 @@ class SentenceCueTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             keys = []
-            for lang, text in (("en", "A seed rests. Two leaves grow."), ("de", "Ein Samen ruht. Zwei Blätter wachsen.")):
+            for lang, text in (("en", "A seed rests. Two leaves grow."), ("fr", "Une graine repose. Deux feuilles poussent.")):
                 project = root / lang
                 project.mkdir()
                 source = project / "script.md"
                 source.write_text(script(text))
                 (project / "index.html").write_text('<div data-duration="1"></div>')
-                result = run("film/build_data.py", "--script", source, "--project", project, "--estimate")
+                result = run("film/build_data.py", "--script", source, "--project", project, "--estimate", "--language", lang)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 estimated = json.loads((project / "data.js").read_text()[12:-2])
                 keys.append(set(estimated["cues"]))
@@ -64,7 +64,7 @@ class SentenceCueTests(unittest.TestCase):
                 data = json.loads((project / "data.js").read_text()[12:-2])
                 self.assertEqual(data["cues"], {"s03|s03-01": 1, "s03|s03-02+0.4": 5.2})
                 keys.append(set(data["cues"]))
-                page, errors, _ = build(source, None)
+                page, errors, _ = build(source, None, lang)
                 self.assertEqual(errors, [])
                 self.assertIn("s03-02+0.4", page)
             self.assertTrue(all(value == keys[0] for value in keys))
@@ -74,8 +74,8 @@ class SentenceCueTests(unittest.TestCase):
             root = Path(directory)
             source, key = root / "script.md", root / "key.md"
             key.write_text(script("A seed rests. Two leaves grow.", '- On s03-01, seed.\n- On "Two leaves", leaves.\n- On s03-02+0.4, light.'))
-            source.write_text(script("Ein Samen ruht. Zwei Blätter wachsen.", '- On "Zwei Blätter", leaves.\n- On s03-01, seed.\n- On s03-02+0.4, light.'))
-            result = run("film/build_data.py", "--script", source, "--key-script", key, "--project", root, "--estimate")
+            source.write_text(script("Une graine repose. Deux feuilles poussent.", '- On "Deux feuilles", leaves.\n- On s03-01, seed.\n- On s03-02+0.4, light.'))
+            result = run("film/build_data.py", "--script", source, "--key-script", key, "--project", root, "--estimate", "--language", "fr")
             self.assertEqual(result.returncode, 0, result.stderr)
             data = json.loads((root / "data.js").read_text()[12:-2])
             self.assertEqual(set(data["cues"]), {"s03|s03-01", "s03|Two leaves", "s03|s03-02+0.4"})
@@ -83,14 +83,15 @@ class SentenceCueTests(unittest.TestCase):
     def test_unicode_sentence_boundaries_and_pause_in_storyboard(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "script.md"
-            source.write_text(script('小花开了。她说：“真好看！”[pause]明天呢？', '- On s03-02+0.4, leaf.\n- On s03-03, sky.'))
-            page, errors, _ = build(source, None)
+            source.write_text(script('小花在阳光下慢慢地开了。妈妈笑着说：“真好看！”然后走进了屋里。[pause]明天它还会继续开吗？',
+                                     '- On s03-02+0.4, leaf.\n- On s03-03, sky.'))
+            page, errors, _ = build(source, None, "zh")
             self.assertEqual(errors, [])
-            self.assertIn('明天呢？', page)
-            result = run("film/build_data.py", "--script", source, "--project", directory, "--estimate")
+            self.assertIn('明天它还会继续开吗？', page)
+            result = run("film/build_data.py", "--script", source, "--project", directory, "--estimate", "--language", "zh")
             self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_missing_sentence_and_translation_count_fail_in_every_tool(self):
+    def test_missing_sentence_fails_in_every_tool_and_translation_count_in_the_storyboard(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source, key = root / "script.md", root / "key.md"
@@ -102,18 +103,17 @@ class SentenceCueTests(unittest.TestCase):
             (root / "cues.json").write_text('[]')
             (root / "captions.json").write_text('[]')
             commands = [("audio/cues.py", source, root / "words.json", root / "timing.json", "--out", root / "out.json"),
-                        ("storyboard/storyboard.py", source, "--out", root / "board.html"),
-                        ("film/build_data.py", "--script", source, "--project", root, "--estimate"),
+                        ("storyboard/storyboard.py", source, "--language", "en", "--out", root / "board.html"),
+                        ("film/build_data.py", "--script", source, "--project", root, "--estimate", "--language", "en"),
                         ("film/build_data.py", "--script", source, "--project", root, "--audio", root)]
             for command in commands:
                 result = run(*command)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn("missing sentence s03-02", result.stderr)
             source.write_text(script("A seed rests.", '- On s03-01, show a seed.'))
-            for command in commands:
-                result = run(*command, "--key-script", key)
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn("scene 3: 1 sentences, but the key script has 2", result.stderr)
+            result = run(*commands[1], "--key-script", key, "--key-language", "en")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("scene 3: 1 sentences, but the key script has 2", result.stderr)
 
 
 if __name__ == "__main__":

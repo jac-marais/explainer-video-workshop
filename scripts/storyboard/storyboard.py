@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """Build a hover storyboard from a script, so a reader can check each planned picture against the words it lands on.
 
-  storyboard.py SCRIPT.md --out storyboard.html [--css BRAND.css]
+  storyboard.py SCRIPT.md --language CODE --out storyboard.html [--css BRAND.css] [--key-script KEY.md --key-language CODE]
 
 SCRIPT.md has the `## Scene N: title` sections that cues.py reads, each with a `**Narration**` part and then a
 `**Visual**` part. Every list item in the Visual part is one shot, and so is any other Visual paragraph that holds a
 cue. A shot's cue is its first quoted span, written `On "words"` or `**"words"**`, and must be consecutive words of
 that scene's narration, or a sentence cue such as `On s03-02+0.4`. Sentence fractions select an approximate token
-position for preview; measured timing remains in cues.py. --key-script checks sentence counts. Words compare as in cues.py. A shot without a cue follows the shot above it. Markdown images
+position for preview; measured timing remains in cues.py. --language names the script's language for the sentence split in
+text_tokens.py, so run this with scripts/run/py, which has Stanza. --key-script checks sentence counts against another script in
+--key-language. Words compare as in cues.py. A shot without a cue follows the shot above it. Markdown images
 in a shot, `![what it shows](path)`, become its key frames; give the path relative to SCRIPT.md.
 
 The page shows the narration on the left. Hovering a phrase shows the shots that start on it, clicking pins it, and
@@ -19,8 +21,10 @@ import argparse, html, os, re, sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "audio"))
-from text_tokens import norm, tokenize, normalized_tokens  # noqa: E402
-from cues import CUE, SCENE, VISUAL, cue_text, sentence_ref, sentences, validate_translation  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "film"))
+from text_tokens import norm, tokenize, normalized_tokens, sentences  # noqa: E402
+from cues import CUE, SCENE, VISUAL, cue_text, sentence_ref  # noqa: E402
+from build_data import scenes, check_sentence_counts  # noqa: E402
 
 NARRATION = re.compile(r"\*\*Narration\.?\*\*")
 ITEM = re.compile(r"^(\s*)(?:\d+\.|[-*])\s+(.*)")
@@ -76,9 +80,10 @@ def find(words, quote, start):
     return None
 
 
-def build(script, css, key_script=None):
+def build(script, css, language, key_script=None, key_language=None):
     if key_script:
-        validate_translation(script, key_script)
+        check_sentence_counts({num: len(sentences(text, language)) for num, text, _ in scenes(script)},
+                              {num: len(sentences(text, key_language)) for num, text, _ in scenes(key_script)})
     text = script.read_text()
     title = (re.search(r"^# (.+)$", text, re.M) or [None, script.stem])[1]
     errors, left, panels = [], [], []
@@ -92,7 +97,7 @@ def build(script, css, key_script=None):
         narration, *visual = VISUAL.split(parts[1], 1)
         narration, visual = narration.strip(), "".join(visual)
         narration = re.sub(r"\[pause\]", " ", narration, flags=re.I)
-        words = words_of(narration)
+        words, said = words_of(narration), None
         groups, cursor = [], 0  # each group: [start word index, [shots]]
         for shot in shots_of(visual):
             quote = CUE.search(shot)
@@ -100,14 +105,14 @@ def build(script, css, key_script=None):
             ref = sentence_ref(name) if name else None
             at = find(words, name, cursor) if name and not ref else None
             if ref:
-                parts = sentences(narration)
-                ids = [f"s{num:02d}-{i:02d}" for i in range(1, len(parts) + 1)]
+                said = said or sentences(narration, language)
+                ids = [f"s{num:02d}-{i:02d}" for i in range(1, len(said) + 1)]
                 if ref[0] not in ids:
                     errors.append(f"scene {num}: missing sentence {ref[0]}")
                 else:
                     index = ids.index(ref[0])
-                    offset = sum(len(words_of(part["text"])) for part in parts[:index])
-                    count = len(words_of(parts[index]["text"]))
+                    offset = sum(len(words_of(sentence["text"])) for sentence in said[:index])
+                    count = len(words_of(said[index]["text"]))
                     at = offset + min(int(ref[1] * count), max(0, count - 1))
             if quote and at is None:
                 errors.append(f'scene {num}: cue not in narration: "{name}"')
@@ -277,12 +282,16 @@ if(panels.length)show(0);
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("script", type=Path)
+    ap.add_argument("--language", required=True, help="the script's language code, such as pt")
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--key-script", type=Path, help="validate translated sentence counts")
+    ap.add_argument("--key-language", help="the --key-script's language code")
     ap.add_argument("--css", type=Path, help="stylesheet to load after the defaults")
     args = ap.parse_args()
+    if args.key_script and not args.key_language:
+        ap.error("--key-script needs --key-language")
     css = os.path.relpath(args.css, args.out.parent) if args.css else None
-    page, errors, groups = build(args.script, css, args.key_script)
+    page, errors, groups = build(args.script, css, args.language, args.key_script, args.key_language)
     # Image paths are written relative to the script, so the page must sit beside it.
     if args.out.resolve().parent != args.script.resolve().parent and "<img" in page:
         errors.append("--out must be in the script's folder, because image paths are relative to the script")

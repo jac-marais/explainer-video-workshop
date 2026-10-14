@@ -7,7 +7,7 @@ SCRIPT.md has a `## Scene N` section per scene with a `**Visual**` part. Each qu
 `**"words"**`, must be words the narrator says. The cue is matched to those consecutive measured words inside scene
 sN's window in TIMING.json (padded 0.6 s), and cues.json gets the first word's start and the last word's end, in seconds.
 Sentence cues such as `On s03-02` or `On s03-02+0.4` use timing.json sentence bounds directly.
-The suffix is a fraction from 0 to 1; missing sentences always fail. --key-script checks sentence counts.
+The suffix is a fraction from 0 to 1; missing sentences always fail.
 A quoted cue that matches nothing gets null times, is listed on stderr, and fails the run under --strict.
 
 Tokens compare after NFKC/casefold, keeping Unicode letters, marks and numbers, so `A-C-P` and `ACP` are the same word.
@@ -17,7 +17,7 @@ It applies to both script and Whisper, so use it for spoken forms and for words 
 """
 import argparse, json, re, sys
 from pathlib import Path
-from text_tokens import norm, normalized_tokens, timed_tokens, sentences
+from text_tokens import norm, normalized_tokens, timed_tokens
 
 PAD = 0.6  # seconds; a cue may start a little outside its scene window because Whisper times are rough
 SCENE = re.compile(r"## Scene (\d+):.*?(?=\n## |\n---\n|\Z)", re.S)
@@ -57,21 +57,6 @@ def sentence_time(cue, scene, rows):
     return round(start + fraction * (end - start), 3), round(end, 3)
 
 
-def validate_translation(script, key_script):
-    def counts(path):
-        result = {}
-        for match in SCENE.finditer(path.read_text()):
-            body = re.split(r"\*\*Narration\.?\*\*", match[0], maxsplit=1)
-            if len(body) != 2:
-                raise ValueError(f"scene {match[1]}: no **Narration** part")
-            result[int(match[1])] = len(sentences(VISUAL.split(body[1], 1)[0]))
-        return result
-    actual, expected = counts(script), counts(key_script)
-    for num in sorted(actual.keys() | expected.keys()):
-        if actual.get(num) != expected.get(num):
-            raise ValueError(f"scene {num}: {actual.get(num, 0)} sentences, but the key script has {expected.get(num, 0)}")
-
-
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("script", type=Path)
@@ -79,12 +64,9 @@ def main():
     ap.add_argument("timing", type=Path, help="timing.json from narrate_film.py")
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--aliases", type=Path, help="JSON map from a normalized word to the words that stand for it")
-    ap.add_argument("--key-script", type=Path, help="validate translated sentence counts")
     ap.add_argument("--strict", action="store_true", help="exit 1 when any cue is unmatched")
     args = ap.parse_args()
 
-    if args.key_script:
-        validate_translation(args.script, args.key_script)
     aliases = {}
     if args.aliases:
         aliases = {norm(k): [t for p in v for t in normalized_tokens(p)] for k, v in json.loads(args.aliases.read_text()).items()}

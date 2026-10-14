@@ -2,20 +2,21 @@
 """Write a composition's data.js from a script's cues and captions, so the picture reads every time from the voice.
 
   build_data.py --script SCRIPT.md --project DIR --audio AUDIO_DIR [--tail S] [options]
-  build_data.py --script SCRIPT.md --project DIR --estimate [--wpm 150] [--scenes N] [options]
+  build_data.py --script SCRIPT.md --project DIR --estimate --language CODE [--wpm 150] [--scenes N] [options]
 
   options: [--strings STRINGS.json] [--key-script KEY_SCRIPT.md] [--embed NAME=FILE.json ...]
 
 --audio reads AUDIO_DIR/cues.json (from cues.py), captions.json (from captions.py) and timing.json (from narrate_film.py).
 --estimate times whitespace words or Han/Kana characters evenly at --wpm, with short pauses after sentences and scenes, for a silent
-preview before any voice exists; --scenes N stops after scene N. Both modes write the same shape to DIR/data.js:
+preview before any voice exists; --language names the script's language for the sentence split in text_tokens.py, and
+--scenes N stops after scene N. Run --estimate with scripts/run/py, which has Stanza. Both modes write the same shape to DIR/data.js:
 
   window.FILM = {source, duration, cues: {"sNN|quoted words": start seconds}, caption_onsets: {"sNN|sNN-NN": start seconds}, captions, strings, ...embeds}
 
 and set the first data-duration attribute in DIR/index.html, because the renderer reads it before any script runs.
 duration is the narration length plus --tail. --strings adds the on-screen text for one language. --key-script names
 every quoted cue by the quoted cue at the same position in the same scene of another script, so a translated film keeps the cue
-names its code uses; the run exits 1 when a scene's quoted cue or sentence counts differ.
+names its code uses; the run exits 1 when a scene's quoted cue counts differ. make_film.py and storyboard.py check sentence counts.
 Sentence cue names stay unchanged in both modes without --key-script; measured starts come from timing.json. --embed adds a JSON file under NAME.
 caption_onsets holds the first caption start for each sentence with caption metadata; missing entries have no inferred fallback.
 The run exits 1 on a cue with no time.
@@ -24,28 +25,37 @@ import argparse, json, re, sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "audio"))
-from text_tokens import norm, tokenize, normalized_tokens, join_tokens  # noqa: E402
-from cues import SCENE, VISUAL, cue_names, sentence_ref, sentence_time, validate_translation, sentences  # noqa: E402
+from text_tokens import norm, tokenize, normalized_tokens, join_tokens, sentences  # noqa: E402
+from cues import SCENE, VISUAL, cue_names, sentence_ref, sentence_time  # noqa: E402
 
 NARRATION = re.compile(r"\*\*Narration\.?\*\*")
-END = re.compile(r"[.?!。？！।]$")
 
 
 def scenes(script):
     """Each scene's number, its narration as one line, and its cue quotes in order."""
     for m in SCENE.finditer(script.read_text()):
-        narration, visual = VISUAL.split(NARRATION.split(m.group(0), 1)[1], 1)
-        yield int(m.group(1)), " ".join(narration.split()), cue_names(visual)
+        parts = NARRATION.split(m.group(0), 1)
+        if len(parts) != 2:
+            raise ValueError(f"scene {m.group(1)}: no **Narration** part")
+        narration, *visual = VISUAL.split(parts[1], 1)
+        yield int(m.group(1)), " ".join(narration.split()), cue_names("".join(visual))
 
 
-def estimate(script, wpm, last_scene):
+def check_sentence_counts(counts, key_counts):
+    """Fail when a translation's sentence count per scene differs from its key script's."""
+    for num in sorted(counts.keys() | key_counts.keys()):
+        if counts.get(num) != key_counts.get(num):
+            raise ValueError(f"scene {num}: {counts.get(num, 0)} sentences, but the key script has {key_counts.get(num, 0)}")
+
+
+def estimate(script, wpm, last_scene, language):
     """Even token timing (whitespace words or Han/Kana characters) with short pauses after sentences and scenes; planning only."""
     cues, captions, t, per_word = [], [], 0.4, 60 / wpm
     for num, text, quotes in scenes(script):
         if last_scene and num > last_scene:
             break
         sid, words, starts, sentence_rows, word_sentences = f"s{num:02d}", [], [], [], []
-        for index, sentence in enumerate(sentences(text), 1):
+        for index, sentence in enumerate(sentences(text, language), 1):
             if sentence["pause_before"]:
                 t += 3.0
             start = t
@@ -64,8 +74,8 @@ def estimate(script, wpm, last_scene):
             part.append(w)
             last = i == len(words) - 1
             sentence_end = last or word_sentences[i] != word_sentences[i + 1]
-            if sentence_end or END.search(w) or (w.endswith(",") and len(part) >= 5) or len(part) >= 9:
-                end = starts[i] + per_word if sentence_end or END.search(w) else starts[i + 1]
+            if sentence_end or (w.endswith(",") and len(part) >= 5) or len(part) >= 9:
+                end = starts[i] + per_word if sentence_end else starts[i + 1]
                 captions.append({"id": f"{sid}-{len(captions):03d}", "scene_id": sid,
                                  "sentence_id": word_sentences[i], "start": round(s0, 3),
                                  "end": round(end, 3), "text": join_tokens(part)})
@@ -90,7 +100,6 @@ def estimate(script, wpm, last_scene):
 
 def cue_keys(script, key_script):
     """Map each (scene, quote) of script to the quote at the same position in key_script."""
-    validate_translation(script, key_script)
     keys = {num: [q for q in quotes if sentence_ref(q) is None] for num, _, quotes in scenes(key_script)}
     out = {}
     for num, _, quotes in scenes(script):
@@ -118,6 +127,7 @@ def main():
     mode = ap.add_mutually_exclusive_group(required=True)
     mode.add_argument("--audio", type=Path, help="folder with cues.json, captions.json and timing.json")
     mode.add_argument("--estimate", action="store_true", help="time the script evenly, before any voice exists")
+    ap.add_argument("--language", help="with --estimate, the script's language code, such as pt")
     ap.add_argument("--wpm", type=float, default=150)
     ap.add_argument("--scenes", type=int, help="with --estimate, stop after scene N")
     ap.add_argument("--tail", type=float, default=0, help="seconds of picture after the narration ends")
@@ -127,7 +137,9 @@ def main():
     a = ap.parse_args()
 
     if a.estimate:
-        cues, captions, duration = estimate(a.script, a.wpm, a.scenes)
+        if not a.language:
+            ap.error("--estimate needs --language")
+        cues, captions, duration = estimate(a.script, a.wpm, a.scenes, a.language)
         source = f"estimate at {a.wpm:g} WPM"
     else:
         cues = json.loads((a.audio / "cues.json").read_text())

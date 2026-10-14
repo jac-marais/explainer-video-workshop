@@ -54,9 +54,9 @@ Install the tools once per computer, never per checkout or per run. Every checko
 
 - [uv](https://docs.astral.sh/uv/), on your `PATH`.
 - One Python environment, locked by `pyproject.toml` and `uv.lock`. Run any script that needs packages as `scripts/run/py SCRIPT [ARG...]`, which runs it in that environment and syncs the environment to the lock from uv's own cache. The standard-library scripts also run with any `python3`.
-- The models, in their tools' own per-user caches: Hugging Face's for Whisper and Qwen3-TTS, and HyperFrames' for Kokoro (see [the voice method](methods/voice-explainer-video.md)).
+- The models, in their tools' own per-user caches: Hugging Face's for Whisper and Qwen3-TTS, HyperFrames' for Kokoro (see [the voice method](methods/voice-explainer-video.md)), and Stanza's for the sentence splitter and the caption line breaks. Download Stanza's models once per narration language, for example French, with `scripts/run/py -c 'import stanza; stanza.download("fr", processors="tokenize,pos,lemma,depparse", proxies={"https": None})'`. The `proxies` value makes Stanza download its files directly, so no second copy lands in Hugging Face's cache. The tools load them offline.
 
-Never point `UV_CACHE_DIR`, `HF_HOME` or `KOKORO_TTS_CACHE` at a copy inside a checkout or a run. `sh scripts/run/setup_check.sh` checks the setup and downloads nothing.
+Never point `UV_CACHE_DIR`, `HF_HOME`, `KOKORO_TTS_CACHE` or `STANZA_RESOURCES_DIR` at a copy inside a checkout or a run. `sh scripts/run/setup_check.sh` checks the setup and downloads nothing.
 
 ## Layout and runtime
 

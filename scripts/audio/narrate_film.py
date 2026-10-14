@@ -4,10 +4,11 @@
                   [--language CODE]
   narrate_film.py --check-only AUDIO_DIR [--out DIR] [--language CODE]
 
---language selects Whisper and number matching (default en); the voice's own language is set in voice.json.
+--language (default en) selects Whisper, number matching, Stanza's sentence splitter and the eSpeak voice that estimates take
+lengths; the voice's own language is set in voice.json. Run it with scripts/run/py, which has Stanza and eSpeak's bindings.
 
-SCENES.json is a list of scenes with id, title, visual, claim_ids and narration. A sentence ends at . ! ? 。 ！ ？ or ।, or after one
-followed by a closing quote. Sentences of one scene from the same take join without an added gap after the edge silence cap
+SCENES.json is a list of scenes with id, title, visual, claim_ids and narration, split into sentences by text_tokens.py.
+Sentences of one scene from the same take join without an added gap after the edge silence cap
 described in methods/voice-explainer-video.md; the other gaps are in assemble(). RESPELLINGS.json maps a regex to the text the voice reads
 instead (use (?i) for case-insensitive); it applies in order and never changes the captioned text.
 
@@ -29,6 +30,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass, field
 import difflib
+import functools
 import hashlib
 import json
 import os
@@ -56,7 +58,9 @@ WHISPER = "mlx-community/whisper-large-v3-turbo"
 RATE = 24000
 LEAD_IN, SENTENCE_PAUSE, SCENE_PAUSE, EXPLICIT_PAUSE, TAIL = 0.35, 0.22, 0.50, 3.0, 0.45
 LOUDNORM = "I=-16:TP=-1.5:LRA=11"
-WPM = 165
+ESPEAK = Path("/opt/homebrew/opt/espeak-ng")
+# The slowest language's measured rate, because an overestimate only shortens a take but an underestimate can exceed MAX_TAKE_SECONDS.
+PHONEMES_PER_SECOND = 9.0
 MAX_TAKE_SECONDS = 120
 TAKE_RESERVE_SECONDS = 10
 THROWAWAY = "That's all for now."
@@ -86,7 +90,7 @@ def sha256(data: bytes) -> str:
 
 
 
-def load_scenes(path: Path) -> list[dict]:
+def load_scenes(path: Path, language: str) -> list[dict]:
     source = json.loads(path.read_text())
     if not isinstance(source, list) or not source:
         raise SystemExit("scenes file must contain a non-empty array of scene objects")
@@ -108,7 +112,7 @@ def load_scenes(path: Path) -> list[dict]:
             narration = [narration]
         if not (isinstance(narration, list) and narration and all(isinstance(item, str) for item in narration)):
             raise SystemExit(f"scene {scene_id} narration must be a string or a non-empty array of strings")
-        scenes.append({**scene, "_sentences": [part for item in narration for part in sentences(item)]})
+        scenes.append({**scene, "_sentences": [part for item in narration for part in sentences(item, language)]})
     return scenes
 
 
@@ -248,6 +252,28 @@ def read_audio(path: Path) -> np.ndarray:
     return samples
 
 
+@functools.cache
+def espeak(language: str):
+    """eSpeak's first choice of voice for a language, built once because building one takes about a second."""
+    from phonemizer.backend import EspeakBackend
+    from phonemizer.backend.espeak.wrapper import EspeakWrapper
+    EspeakWrapper.set_library(str(ESPEAK / "lib/libespeak-ng.dylib"))
+    EspeakWrapper.set_data_path(str(ESPEAK / "share/espeak-ng-data"))
+    # eSpeak ranks its voices for the language, and the phonemizer reads only its own voices, not MBROLA's.
+    supported = EspeakBackend.supported_languages()
+    voice = next((voice.language for voice in EspeakWrapper().available_voices(language) if voice.language in supported), None)
+    if not voice:
+        raise SystemExit(f"eSpeak has no voice for {language!r}")
+    return EspeakBackend(voice, language_switch="remove-flags")
+
+
+def estimate_seconds(texts: list[str], language: str) -> list[float]:
+    """Each text's estimated speech time, from the phonemes eSpeak reads in it."""
+    from phonemizer.separator import Separator
+    phones = espeak(language).phonemize(texts, separator=Separator(phone="|", word=" "), strip=True)
+    return [len(phone.replace("|", " ").split()) / PHONEMES_PER_SECOND for phone in phones]
+
+
 def check_scene_lengths(seconds: dict[str, float]) -> None:
     limit = MAX_TAKE_SECONDS - TAKE_RESERVE_SECONDS
     for scene, duration in seconds.items():
@@ -316,9 +342,11 @@ def voice_takes(name: str, spec: dict, pending: list[dict], work: Path, language
             record_take(row["id"], [row])
         return {row["id"]: read_audio(work / f"{row['id']}.wav") for row in pending}, origins, [], manifests
     units: dict[str, list[dict]] = {}
-    for row in pending:
+    seconds: dict[str, float] = {}
+    # The authored text, because eSpeak would read a respelling's phoneme markup letter by letter.
+    for row, estimate in zip(pending, estimate_seconds([row["text"] for row in pending], language)):
         units.setdefault(row["alias"], []).append(row)
-    seconds = {alias: sum(len(tokenize(r["spoken"])) for r in rows) / WPM * 60 for alias, rows in units.items()}
+        seconds[row["alias"]] = seconds.get(row["alias"], 0.0) + estimate
     takes, take_members = [], {}
     for run in plan_runs(seconds, work):
         stem = run[0] if len(run) == 1 else f"{run[0]}-{run[-1]}"
@@ -699,7 +727,7 @@ def check_only(audio_dir: Path, out: Path | None, language: str = "en") -> None:
 
 def narrate(args: argparse.Namespace) -> None:
     started = time.perf_counter()
-    scenes = load_scenes(args.scenes)
+    scenes = load_scenes(args.scenes, args.language)
     respellings = load_respellings(args.spoken)
     spec, identity = voice_identity(args.voice)
     rows: dict[str, dict] = {}
@@ -798,7 +826,7 @@ def main() -> None:
     parser.add_argument("--reuse", type=Path, metavar="OLD_AUDIO_DIR")
     parser.add_argument("--strict", action="store_true", help="exit non-zero if any script word has no Whisper time")
     parser.add_argument("--check-only", type=Path, metavar="AUDIO_DIR", help="check finished audio and exit")
-    parser.add_argument("--language", default="en", help="narration language code for Whisper, such as pt (default: en)")
+    parser.add_argument("--language", default="en", help="narration language code for Whisper, Stanza and eSpeak, such as pt (default: en)")
     args = parser.parse_args()
     if args.check_only:
         return check_only(args.check_only, args.out, args.language)

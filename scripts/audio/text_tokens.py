@@ -1,10 +1,16 @@
-"""Shared Unicode matching and display tokens for narration, cues and captions.
+"""Shared Unicode matching, display tokens and sentences for narration, cues and captions.
 
 Matching uses NFKC/casefold and keeps letters, combining marks and numbers.
 Han and Kana use character tokens; other scripts use whitespace-delimited words.
 Display tokens retain authored spelling, punctuation, spacing boundaries and spans.
+Sentences and syntax come from Stanza's models for the language, loaded offline from Stanza's per-user cache.
+
+  text_tokens.py < [[LANGUAGE, TEXT], ...]   prints each text's sentences as JSON, for tools outside the environment
 """
+import functools
+import json
 import re
+import sys
 import unicodedata
 
 
@@ -77,18 +83,41 @@ def timed_tokens(rows: list[dict], key: str = "text") -> list[dict]:
     return result
 
 
-def sentences(text: str) -> list[dict]:
-    """Split at . ! ? or the Devanagari danda ।, or after one followed by a closing quote, as in: she says, "every time." Then…
-    Chinese 。！？ split even with no space after them."""
-    normalized = " ".join(text.split())
-    if not normalized:
+@functools.cache
+def stanza_pipeline(language: str, parse: bool = False):
+    """Stanza's tokenizer for a language; with parse, also its tagger and dependency parser, one sentence per text."""
+    import stanza  # Only sentence and syntax users pay for loading Stanza.
+    processors = "tokenize,pos,lemma,depparse" if parse else "tokenize"
+    try:
+        # ERROR, because Stanza warns on every load that it added the multi-word token expander a language needs.
+        return stanza.Pipeline(language, processors=processors, tokenize_no_ssplit=parse,
+                               download_method=None, logging_level="ERROR")
+    except FileNotFoundError as exc:
+        raise SystemExit(f"Stanza has no {processors} models for {language!r}; download them as Setup in README.md says ({exc})")
+
+
+def sentences(text: str, language: str) -> list[dict]:
+    """Split narration into the sentences that Stanza's tokenizer for the language finds.
+
+    A boundary counts only where the text before it ends in a Unicode Sentence_Terminal, then any closing punctuation and spaces.
+    A [pause] mark never splits a sentence. It sets pause_before on the sentence that holds the text after it.
+    """
+    import regex  # Standard-library tools import this module too, and only the environment has regex.
+    pieces = [" ".join(piece.split()) for piece in re.split(r"\[pause\]", text, flags=re.IGNORECASE)]
+    clean, pauses = "", set()
+    for index, piece in enumerate(pieces):
+        if piece:
+            clean += " " if clean else ""
+            if index:
+                pauses.add(len(clean))
+            clean += piece
+    if not clean:
         raise ValueError("scene narration must not be empty")
-    marker = "␞PAUSE␞"
-    normalized = re.sub(r"\s*\[pause\]\s*", f" {marker} ", normalized, flags=re.IGNORECASE)
-    result = []
-    for part in re.split(r"(?<=[.!?।])\s+|(?<=[.!?।][\"”’])\s+|(?<=[。！？])(?![\"”’」』])\s*|(?<=[。！？][\"”’」』])\s*", normalized):
-        pause_before = marker in part
-        clean = " ".join(part.replace(marker, " ").split())
-        if clean:
-            result.append({"text": clean, "pause_before": pause_before})
-    return result
+    end = regex.compile(r"\p{Sentence_Terminal}[\p{SB=Close}\s]*\Z")
+    starts = [0] + [start for start in (sentence.tokens[0].start_char for sentence in stanza_pipeline(language)(clean).sentences[1:])
+                    if end.search(clean, 0, start)] + [len(clean)]
+    return [{"text": clean[a:b].strip(), "pause_before": any(a <= p < b for p in pauses)} for a, b in zip(starts, starts[1:])]
+
+
+if __name__ == "__main__":
+    print(json.dumps([sentences(text, language) for language, text in json.load(sys.stdin)], ensure_ascii=False))
