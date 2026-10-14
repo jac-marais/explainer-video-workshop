@@ -75,3 +75,20 @@ def timed_tokens(rows: list[dict], key: str = "text") -> list[dict]:
             end = row["end"] if offset == total else row["start"] + (row["end"] - row["start"]) * offset / total
             result.append({**row, key: token, "start": start, "end": end})
     return result
+
+
+def sentences(text: str) -> list[dict]:
+    """Split at . ! ? or the Devanagari danda ।, or after one followed by a closing quote, as in: she says, "every time." Then…
+    Chinese 。！？ split even with no space after them."""
+    normalized = " ".join(text.split())
+    if not normalized:
+        raise ValueError("scene narration must not be empty")
+    marker = "␞PAUSE␞"
+    normalized = re.sub(r"\s*\[pause\]\s*", f" {marker} ", normalized, flags=re.IGNORECASE)
+    result = []
+    for part in re.split(r"(?<=[.!?।])\s+|(?<=[.!?।][\"”’])\s+|(?<=[。！？])(?![\"”’」』])\s*|(?<=[。！？][\"”’」』])\s*", normalized):
+        pause_before = marker in part
+        clean = " ".join(part.replace(marker, " ").split())
+        if clean:
+            result.append({"text": clean, "pause_before": pause_before})
+    return result

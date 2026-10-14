@@ -48,7 +48,7 @@ from pathlib import Path
 # Whisper must come from the local cache; nothing here downloads.
 os.environ["HF_HUB_OFFLINE"] = "1"
 
-from text_tokens import norm as letters, tokenize, normalized_tokens
+from text_tokens import norm as letters, tokenize, normalized_tokens, sentences
 from number_readings import LANGUAGES, spoken_numbers
 
 import numpy as np
@@ -83,22 +83,6 @@ def log(message: str) -> None:
 def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
-
-def sentences(text: str) -> list[dict]:
-    """Split at . ! ? or the Devanagari danda ।, or after one followed by a closing quote, as in: she says, "every time." Then…
-    Chinese 。！？ split even with no space after them."""
-    normalized = " ".join(text.split())
-    if not normalized:
-        raise ValueError("scene narration must not be empty")
-    marker = "␞PAUSE␞"
-    normalized = re.sub(r"\s*\[pause\]\s*", f" {marker} ", normalized, flags=re.IGNORECASE)
-    result = []
-    for part in re.split(r"(?<=[.!?।])\s+|(?<=[.!?।][\"”’])\s+|(?<=[。！？])(?![\"”’」』])\s*|(?<=[。！？][\"”’」』])\s*", normalized):
-        pause_before = marker in part
-        clean = " ".join(part.replace(marker, " ").split())
-        if clean:
-            result.append({"text": clean, "pause_before": pause_before})
-    return result
 
 
 def load_scenes(path: Path) -> list[dict]:

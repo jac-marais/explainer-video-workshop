@@ -1,4 +1,4 @@
-# Production prompt — execute a prepared explainer run
+# Production prompt - execute a prepared explainer run
 
 **Prompt provenance:** original workshop reconstruction. This is a model-neutral, documented route for a production agent. It is not a creator's prompt, a named-model recipe, or evidence that any route reliably produces a successful video, and no eight-hour run has been validated. Route status is in `library/renderers.md`. It assumes the package has already passed the preparation mode of `scorecards/run-quality.md`.
 
@@ -36,9 +36,15 @@ PRODUCTION CONTRACT
 6. Use storyboard.html as the composition reference when building the pilot and the scenes. Where it differs from the scene plan or approved audio, follow those and leave the storyboard unchanged.
 7. Keep the run lean. Start each film in a fresh session from the prepared package and run-state.md. The lead reads check reports and verdicts, and leaves mechanical work to a script (`scripts/README.md` lists the tools). Mark every milestone with `scripts/run/runlog.py mark RUN_STATE.md PHASE SESSION...`. Keep the script and film inside the length ceiling. Reports and hand-backs use absolute paths and stay short. Do not commit or push unless asked. If a hand-back is refused, report once by text and stop. Only one session edits the workshop at a time.
 
+MECHANICAL LANGUAGE BUILD
+
+After the package, voice and pilot gates pass and the composition is ready, run one command per language:
+`scripts/run/make_film.py --language CODE --voice NAME --script SCRIPT.md --scenes SCENES.json --project PROJECT --hf CLI --out OUT.mp4`
+It runs narration, captions, cues, data, render and checks, with heavy work queued under the shared lock. Use separate paths per language. Add `--from STEP` after a repair and choose a new MP4 output when rerendering. The options, restart boundaries and prerequisites are in `scripts/README.md#one-command-per-language`. It does not replace milestone gates, exact-output playback or review. Wrap separate TTS, Whisper, render and media-check commands with `scripts/run/heavy` too; do not wrap the whole pipeline, since its heavy steps acquire the same lock.
+
 MILESTONES
 
-M0 — Preflight and resume
+M0 - Preflight and resume
 
 - Read the brief, claim map, script, scene plan, assets manifest, route, and state. Inspect any existing project and preserve its meaningful files.
 - Verify source readability, asset rights notes, required dependencies, output dimensions, FPS, language, caption requirement, and the current next action.
@@ -48,15 +54,16 @@ M0 — Preflight and resume
 
 Checkpoint: the route, inputs, limits, and current dependency graph are explicit.
 
-M1 — Narration and timing
+M1 - Narration and timing
 
 - The script gate, when named, opens before the first voicing, and the voice gate before M2.
 - Apply the known fixes in `local/pronunciation.md` and record each new verdict there (format in `templates/pronunciation.md`).
 - Before full synthesis, synthesize one test sentence that says every term in the script's pronunciation line. Transcribe it with a local speech-to-text model, such as Whisper, and respell each term that it hears wrong. Then get the user's approval by ear, which overrules the transcript. The ear check is required unless the user waives it. Without it, accept a term only when the transcript hears it correctly. If no spelling passes, keep the closest one and list it in the audio receipt for the final listen. Record the approved spoken forms in the script and the audio receipt.
 - Use the supplied approved audio when valid. If production is authorized and audio is pending, create or record it using the provider/recorder allowed by the package.
 - Pick the voice as "Pick the voice for a run" in `methods/voice-explainer-video.md` says. Generate through `scripts/audio/narrate_film.py`, which drives `local/voice/voice.py`; that method covers both.
-- Run `uv run scripts/audio/narrate_film.py SCENES.json --voice NAME --out AUDIO_DIR --strict`, adding `--spoken RESPELLINGS.json` for the approved spoken forms and `--language CODE` for a script that is not in English (see `scripts/README.md`). It voices, cuts, and assembles the narration, and writes `timing.json`, `words.json` aligned to the script, and `audio-checks.json`. `--strict` fails only when a script word has no Whisper time. The audio flags do not change the exit code, so open `audio-checks.json` and resolve every flag. After a script edit, rerun with `--reuse OLD_AUDIO_DIR` under the canonical take-level reuse rule in `methods/voice-explainer-video.md#take-level-reuse`. `--check-only AUDIO_DIR` checks supplied audio.
-- Re-voice once, at the end of the review. A re-voice regenerates whole 1–2 minute takes, so it is expensive. First review every sentence of every take and write one complete issue list, grouped by take. Then re-voice every affected take in a single pass with all the fixes applied, and give that pass the same full review. Do not re-voice again. Fix what needs no new audio, such as alignment or metadata, and list the rest in the audio receipt.
+- Run `scripts/run/heavy uv run scripts/audio/narrate_film.py SCENES.json --voice NAME --out AUDIO_DIR --strict`, adding `--spoken RESPELLINGS.json` for the approved spoken forms and `--language CODE` for a script that is not in English (see `scripts/README.md`). It voices, cuts, and assembles the narration, and writes `timing.json`, `words.json` aligned to the script, and `audio-checks.json`. `--strict` fails only when a script word has no Whisper time. The audio flags do not change the exit code, so open `audio-checks.json` and resolve every flag. After a script edit, rerun with `--reuse OLD_AUDIO_DIR` under the canonical take-level reuse rule in `methods/voice-explainer-video.md#take-level-reuse`. `--check-only AUDIO_DIR` checks supplied audio.
+- Re-voice once, at the end of the review. A re-voice regenerates whole 1-2 minute takes, so it is expensive. First review every sentence of every take and write one complete issue list, grouped by take. Then re-voice every affected take in a single pass with all the fixes applied, and give that pass the same full review. Do not re-voice again. Fix what needs no new audio, such as alignment or metadata, and list the rest in the audio receipt.
+- Keep sentence IDs and sentence counts stable across languages. Use sentence cues such as `On s03-02` or `On s03-02+0.4` for translated films; `scripts/README.md#sentence-cues-and-translations` owns the syntax and validation rules.
 - Then run `scripts/audio/captions.py TIMING.json WORDS.json --output CAPTIONS.vtt --json-output captions.json`, and `scripts/audio/cues.py SCRIPT.md WORDS.json TIMING.json --out cues.json --strict`. `--strict` fails on a quoted cue with no matching words, so fix its quote or give the word an alias with `--aliases ALIASES.json` (format in the script's docstring).
 - Save the audio receipt with path, provider or recorder, language, measured duration, and checksum when available. Keep credentials outside the source artifacts. Generate every receipt table with `scripts/run/receipts.py FILE.md... --audio AUDIO_DIR` between its `<!-- receipts:NAME -->` markers (`--init FILE.md BLOCK...` adds them), never by hand. Add `--film MP4`, `--captions captions.json`, or `--scenes SCENES.json` for the `film`, `captions`, and `scenes` blocks.
 - Pre-cut audio before alignment when edits are needed. Derive scene, sentence/word, and caption timestamps from the approved audio. Mark low-confidence matches and repair them before visual timing depends on them.
@@ -64,11 +71,11 @@ M1 — Narration and timing
 
 Checkpoint: timing names the exact approved audio receipt, or the run stops with a concrete audio blocker. Do not build audio-dependent scenes against a guessed duration.
 
-M2 — Hard voiced pilot and shared style
+M2 - Hard voiced pilot and shared style
 
 - Choose the pilot shot from the prepared scene plan, and judge it by the pilot selection rule and the pilot gate in step 7 of `methods/prepare-explainer-video.md`.
 - If `local/brand.md` names guidelines, build the shared style from them per `methods/brand-explainer-video.md`.
-- Build the shared style and this shot with its real or representative audio. Produce still frames and a contiguous 2–4 second voiced sample; inspect neighboring frames at delivery size.
+- Build the shared style and this shot with its real or representative audio. Produce still frames and a contiguous 2-4 second voiced sample; inspect neighboring frames at delivery size.
 - Use every check that the chosen route offers. Examples are the M0 preflight for HyperFrames, Studio/stills for Remotion, a low-quality render for Manim, and the scene graph and errors for Motion Canvas.
 - Repair only bounded pilot defects. Record each cycle and stop if the configured repair limit is reached. A passing pilot is evidence for this scene; it is not full-film proof.
 - The stills gate, when named, opens here, before M3.
@@ -79,7 +86,7 @@ PARALLEL WORK RULE
 
 Independent bounded source or asset checks named by the prepared package may run in parallel before M3. Each worker records source IDs, exact locators, rights notes, and proposed changes; one sequential convergence step updates the canonical claim map or asset manifest before dependent work consumes it. After M2 passes, independent scene construction may proceed in parallel when each worker uses the locked style tokens, claim IDs, timing IDs, asset paths, and renderer versions. Keep shared dependencies sequential: source/claim changes, script order, audio production, timing, global style, captions, scene transitions, final mix, full render, and final review. If a shared dependency changes, invalidate every affected branch before merging it.
 
-M3 — Build all scenes
+M3 - Build all scenes
 
 - Implement each prepared shot and scene with the approved audio/timing contract. Read every audio-bound cue time from `cues.json`, never a hard-coded second; `scripts/film/build_data.py` writes it into the composition. After a re-voice, rerun M1's captions and cues commands and rebuild.
 - Keep one comprehension job per scene. Preserve source-backed labels, formulas, units, captions, and uncertainty from the claim map. Remove decorative motion that competes with the learning target.
@@ -91,7 +98,7 @@ M3 — Build all scenes
 
 Checkpoint: every planned scene has an implementation or an explicit blocker, and scene coverage, claim coverage, and timing coverage are reconciled.
 
-M4 — Selective inspection and repair
+M4 - Selective inspection and repair
 
 - Run deterministic checks for source/asset presence, dimensions, FPS, duration metadata, caption bounds, scene coverage, renderer errors, and stale outputs. Run `scripts/film/check_film.py` on the latest render of the film or of the changed scenes. It prints the motion metrics and the failures.
 - Inspect changed scenes and their neighboring transitions at delivery size. A scene whose source and timing are byte-identical to the last reviewed version keeps its earlier picture review, with the matching hashes recorded. Check formulas, labels, contrast, visual hierarchy, motion purpose, pronunciation, caption text, and timing against the approved audio.
@@ -100,19 +107,19 @@ M4 — Selective inspection and repair
 
 Checkpoint: pre-render review is updated and bound to the current script, audio/timing, scene plan, assets, renderer, and dimensions.
 
-M5 — Full render
+M5 - Full render
 
 - Render only after M4 passes. Record the exact command, dependency versions, start/end time, exit status, output path, dimensions, FPS, duration, and output checksum.
-- For HyperFrames, render with `scripts/film/render.py --hf CLI --project DIR COMPOSITION -o OUT.mp4 --narration NARRATION.wav --expect-seconds S`. It never overwrites an existing output and names the next free `OUT.vN.mp4`. It replaces the audio with the approved mix as dual-mono, with the video stream copied, and fails if the loudness moves more than 0.5 LU. It also fails if the frame count is wrong. Add `--relabel-601` only for a Docker render image built on ffmpeg 5.1, as the colour trap in `methods/renderer-traps.md` explains. `--skip-render INPUT.mp4` post-processes an existing render.
-- Then run `scripts/film/check_film.py OUT.mp4 --timing timing.json --captions captions.json --narration NARRATION.wav`, adding `--holds`, `--tail`, and `--uncaptioned` as the film declares, and `--pacing fast` for a fast film. Pass `--caption-band x,y,w,h` when the film's captions sit elsewhere than the default band. It sets where the caption check looks and where the freeze check stops. Regenerate the `film` and `sha` receipt blocks with `scripts/run/receipts.py`.
+- For HyperFrames, render with `scripts/run/heavy python3 scripts/film/render.py --hf CLI --project DIR COMPOSITION -o OUT.mp4 --narration NARRATION.wav --expect-seconds S`. It never overwrites an existing output and names the next free `OUT.vN.mp4`. It replaces the audio with the approved mix as dual-mono, with the video stream copied, and fails if the loudness moves more than 0.5 LU. It also fails if the frame count is wrong. Add `--relabel-601` only for a Docker render image built on ffmpeg 5.1, as the colour trap in `methods/renderer-traps.md` explains. `--skip-render INPUT.mp4` post-processes an existing render.
+- Then run `scripts/run/heavy python3 scripts/film/check_film.py OUT.mp4 --timing timing.json --captions captions.json --narration NARRATION.wav`, adding `--holds`, `--tail`, and `--uncaptioned` as the film declares, and `--pacing fast` for a fast film. Pass `--caption-band x,y,w,h` when the film's captions sit elsewhere than the default band. It sets where the caption check looks and where the freeze check stops. Regenerate the `film` and `sha` receipt blocks with `scripts/run/receipts.py`.
 - For a route that `render.py` does not cover, compare the MP4 audio with the approved final mix. When both MP4 channels carry the same mono narration, measure one channel, because a loudness meter adds the power of both. If the integrated loudness differs by more than 1 LU or the voice onset moved, mux the approved mix into the MP4 with the video stream copied, then measure again.
 - Reject an absent, empty, stale, or failed output. Preserve failed-render diagnostics and do not let a previous MP4 satisfy this checkpoint.
 
 Checkpoint: a new output exists and objective checks pass.
 
-M6 — Full playback, listening, and final review
+M6 - Full playback, listening, and final review
 
-- Before the watch, run `scripts/film/check_film.py OUT.mp4 --timing timing.json --sheet SHEET_DIR` and inspect each scene's contact sheet. It holds a frame from 0.1 s before the end of every sentence. Check each frame against its caption and the script, because a layout check can pass a frame that shows the wrong thing. Open the full-size frame when a sheet frame is too small to judge.
+- Before the watch, run `scripts/run/heavy python3 scripts/film/check_film.py OUT.mp4 --timing timing.json --sheet SHEET_DIR` and inspect each scene's contact sheet. It holds a frame from 0.1 s before the end of every sentence. Check each frame against its caption and the script, because a layout check can pass a frame that shows the wrong thing. Open the full-size frame when a sheet frame is too small to judge.
 - Get one independent review of the exact MP4. Give a fresh reviewer the sources, the script, the built scene source, and the MP4, and withhold the claim map. Ask them to list every element that moves between parts of the picture, with its label, start, end, and cue, and to name the source step that supports each move and each spoken statement about what goes where. Repair every move or statement that no source step supports. No other review layer overlaps it.
 - Watch and listen to the complete exact MP4 at the delivery resolution and normal speed.
 - Check every claim against the claim map and source receipts; check whether the learning target is served; check scene order, visual explanation, motion, legibility, audio levels, pronunciation, caption text and bounds, transitions, and end card.
@@ -121,7 +128,7 @@ M6 — Full playback, listening, and final review
 
 Checkpoint: final review passes or the run stops with a bounded repair list and the exact artifact it applies to. Do not claim educational effectiveness from a review alone.
 
-M7 — Exact handoff and stop at acceptance
+M7 - Exact handoff and stop at acceptance
 
 Deliver the MP4, editable project/source, render command, pinned dependencies, source and asset manifests with rights notes, script, timing/captions, pilot and review receipts, run state with its decisions log, actual time/spend, failed-render history, and unresolved claims. State whether each artifact was actually run. Stop when the acceptance contract passes; optional polish is a new request. Do not publish or upload.
 

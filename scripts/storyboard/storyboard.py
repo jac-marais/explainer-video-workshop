@@ -6,7 +6,8 @@
 SCRIPT.md has the `## Scene N: title` sections that cues.py reads, each with a `**Narration**` part and then a
 `**Visual**` part. Every list item in the Visual part is one shot, and so is any other Visual paragraph that holds a
 cue. A shot's cue is its first quoted span, written `On "words"` or `**"words"**`, and must be consecutive words of
-that scene's narration. Words compare as in cues.py. A shot without a cue follows the shot above it. Markdown images
+that scene's narration, or a sentence cue such as `On s03-02+0.4`. Sentence fractions select an approximate token
+position for preview; measured timing remains in cues.py. --key-script checks sentence counts. Words compare as in cues.py. A shot without a cue follows the shot above it. Markdown images
 in a shot, `![what it shows](path)`, become its key frames; give the path relative to SCRIPT.md.
 
 The page shows the narration on the left. Hovering a phrase shows the shots that start on it, clicking pins it, and
@@ -19,7 +20,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "audio"))
 from text_tokens import norm, tokenize, normalized_tokens  # noqa: E402
-from cues import CUE, SCENE, VISUAL  # noqa: E402
+from cues import CUE, SCENE, VISUAL, cue_text, sentence_ref, sentences, validate_translation  # noqa: E402
 
 NARRATION = re.compile(r"\*\*Narration\.?\*\*")
 ITEM = re.compile(r"^(\s*)(?:\d+\.|[-*])\s+(.*)")
@@ -75,7 +76,9 @@ def find(words, quote, start):
     return None
 
 
-def build(script, css):
+def build(script, css, key_script=None):
+    if key_script:
+        validate_translation(script, key_script)
     text = script.read_text()
     title = (re.search(r"^# (.+)$", text, re.M) or [None, script.stem])[1]
     errors, left, panels = [], [], []
@@ -88,13 +91,26 @@ def build(script, css):
             continue
         narration, *visual = VISUAL.split(parts[1], 1)
         narration, visual = narration.strip(), "".join(visual)
+        narration = re.sub(r"\[pause\]", " ", narration, flags=re.I)
         words = words_of(narration)
         groups, cursor = [], 0  # each group: [start word index, [shots]]
         for shot in shots_of(visual):
             quote = CUE.search(shot)
-            at = find(words, quote.group(1), cursor) if quote else None
+            name = cue_text(quote) if quote else None
+            ref = sentence_ref(name) if name else None
+            at = find(words, name, cursor) if name and not ref else None
+            if ref:
+                parts = sentences(narration)
+                ids = [f"s{num:02d}-{i:02d}" for i in range(1, len(parts) + 1)]
+                if ref[0] not in ids:
+                    errors.append(f"scene {num}: missing sentence {ref[0]}")
+                else:
+                    index = ids.index(ref[0])
+                    offset = sum(len(words_of(part["text"])) for part in parts[:index])
+                    count = len(words_of(parts[index]["text"]))
+                    at = offset + min(int(ref[1] * count), max(0, count - 1))
             if quote and at is None:
-                errors.append(f'scene {num}: cue not in narration: "{quote.group(1)}"')
+                errors.append(f'scene {num}: cue not in narration: "{name}"')
             if at is None:
                 if not groups:
                     groups.append([0, []])
@@ -103,9 +119,9 @@ def build(script, css):
             cursor = at
             hit = next((g for g in groups if g[0] == at), None)
             if hit:
-                hit[1].append((quote.group(1), shot))
+                hit[1].append((name, shot))
             else:
-                groups.append([at, [(quote.group(1), shot)]])
+                groups.append([at, [(name, shot)]])
         groups.sort(key=lambda g: g[0])
         if groups:
             groups[0][0] = 0
@@ -262,10 +278,11 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("script", type=Path)
     ap.add_argument("--out", required=True, type=Path)
+    ap.add_argument("--key-script", type=Path, help="validate translated sentence counts")
     ap.add_argument("--css", type=Path, help="stylesheet to load after the defaults")
     args = ap.parse_args()
     css = os.path.relpath(args.css, args.out.parent) if args.css else None
-    page, errors, groups = build(args.script, css)
+    page, errors, groups = build(args.script, css, args.key_script)
     # Image paths are written relative to the script, so the page must sit beside it.
     if args.out.resolve().parent != args.script.resolve().parent and "<img" in page:
         errors.append("--out must be in the script's folder, because image paths are relative to the script")
@@ -277,4 +294,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except ValueError as exc:
+        sys.exit(str(exc))

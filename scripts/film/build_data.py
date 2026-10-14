@@ -14,8 +14,9 @@ preview before any voice exists; --scenes N stops after scene N. Both modes writ
 
 and set the first data-duration attribute in DIR/index.html, because the renderer reads it before any script runs.
 duration is the narration length plus --tail. --strings adds the on-screen text for one language. --key-script names
-every cue by the cue at the same position in the same scene of another script, so a translated film keeps the cue
-names its code uses; the run exits 1 when a scene's cue counts differ. --embed adds a JSON file under NAME.
+every quoted cue by the quoted cue at the same position in the same scene of another script, so a translated film keeps the cue
+names its code uses; the run exits 1 when a scene's quoted cue or sentence counts differ.
+Sentence cue names stay unchanged in both modes without --key-script; measured starts come from timing.json. --embed adds a JSON file under NAME.
 The run exits 1 on a cue with no time.
 """
 import argparse, json, re, sys
@@ -23,7 +24,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "audio"))
 from text_tokens import norm, tokenize, normalized_tokens, join_tokens  # noqa: E402
-from cues import CUE, SCENE, VISUAL  # noqa: E402
+from cues import SCENE, VISUAL, cue_names, sentence_ref, sentence_time, validate_translation, sentences  # noqa: E402
 
 NARRATION = re.compile(r"\*\*Narration\.?\*\*")
 END = re.compile(r"[.?!。？！।]$")
@@ -33,7 +34,7 @@ def scenes(script):
     """Each scene's number, its narration as one line, and its cue quotes in order."""
     for m in SCENE.finditer(script.read_text()):
         narration, visual = VISUAL.split(NARRATION.split(m.group(0), 1)[1], 1)
-        yield int(m.group(1)), " ".join(narration.split()), CUE.findall(visual)
+        yield int(m.group(1)), " ".join(narration.split()), cue_names(visual)
 
 
 def estimate(script, wpm, last_scene):
@@ -42,10 +43,17 @@ def estimate(script, wpm, last_scene):
     for num, text, quotes in scenes(script):
         if last_scene and num > last_scene:
             break
-        sid, words, starts = f"s{num:02d}", tokenize(text), []
-        for w in words:
-            starts.append(t)
-            t += per_word + (0.35 if END.search(w) else 0)
+        sid, words, starts, sentence_rows = f"s{num:02d}", [], [], []
+        for index, sentence in enumerate(sentences(text), 1):
+            if sentence["pause_before"]:
+                t += 3.0
+            start = t
+            for w in tokenize(sentence["text"]):
+                words.append(w)
+                starts.append(t)
+                t += per_word
+            sentence_rows.append({"id": f"{sid}-{index:02d}", "scene_id": sid, "start": start, "end": t})
+            t += 0.35
         ends = starts[1:] + [t]
         # A caption part breaks at a sentence end, at a comma once it has 5 words, or at 9 words.
         part, s0 = [], None
@@ -62,6 +70,10 @@ def estimate(script, wpm, last_scene):
         kept = [(norm(w), i) for i, w in enumerate(words) if norm(w)]
         normed = [n for n, _ in kept]
         for q in quotes:
+            measured = sentence_time(q, sid, sentence_rows)
+            if measured is not None:
+                cues.append({"scene": sid, "cue": q, "start": measured[0], "end": measured[1]})
+                continue
             toks = normalized_tokens(q)
             at = next((k for k in range(len(normed)) if normed[k:k + len(toks)] == toks), None)
             if not toks or at is None:
@@ -74,9 +86,11 @@ def estimate(script, wpm, last_scene):
 
 def cue_keys(script, key_script):
     """Map each (scene, quote) of script to the quote at the same position in key_script."""
-    keys = {num: quotes for num, _, quotes in scenes(key_script)}
+    validate_translation(script, key_script)
+    keys = {num: [q for q in quotes if sentence_ref(q) is None] for num, _, quotes in scenes(key_script)}
     out = {}
     for num, _, quotes in scenes(script):
+        quotes = [q for q in quotes if sentence_ref(q) is None]
         if len(quotes) != len(keys.get(num, [])):
             sys.exit(f"scene {num}: {len(quotes)} cues, but the key script has {len(keys.get(num, []))}")
         out.update({(f"s{num:02d}", q): k for q, k in zip(quotes, keys[num])})
@@ -104,7 +118,14 @@ def main():
     else:
         cues = json.loads((a.audio / "cues.json").read_text())
         captions = json.loads((a.audio / "captions.json").read_text())
-        duration = json.loads((a.audio / "timing.json").read_text())["duration"]
+        timing = json.loads((a.audio / "timing.json").read_text())
+        duration = timing["duration"]
+        for num, _, names in scenes(a.script):
+            for name in names:
+                measured = sentence_time(name, f"s{num:02d}", timing.get("sentences", []))
+                if measured is not None:
+                    cues = [c for c in cues if (c["scene"], c["cue"]) != (f"s{num:02d}", name)]
+                    cues.append({"scene": f"s{num:02d}", "cue": name, "start": measured[0], "end": measured[1]})
         source = str(a.audio)
     missing = [c["cue"] for c in cues if c.get("start") is None]
     if missing:
@@ -124,4 +145,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except ValueError as exc:
+        sys.exit(str(exc))
