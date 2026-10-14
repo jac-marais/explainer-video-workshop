@@ -1,5 +1,5 @@
 #!/bin/sh
-# Read-only check of the local tools a production needs: sh scripts/run/setup_check.sh [PATH_TO_hyperframes_BIN]
+# Offline check of the local tools a production needs: sh scripts/run/setup_check.sh [PATH_TO_hyperframes_BIN]
 # Prints OK/FAIL per item and exits 1 on any FAIL. Without the argument it skips the HyperFrames CLI check.
 set -u
 WS="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -31,9 +31,9 @@ command -v uv >/dev/null
 check $? "uv: $(command -v uv)" "uv is not on PATH"
 if command -v uv >/dev/null; then
   tmp="$(mktemp)"
-  # --offline makes uv resolve the script header from its cache and never download.
-  uv run --offline "$WS/local/voice/voice.py" --list >"$tmp" 2>&1
-  check $? "uv run --offline resolves local/voice/voice.py" "uv run --offline cannot resolve voice.py (cache cold?): $(tail -1 "$tmp")"
+  # UV_OFFLINE makes uv sync the shared environment from its cache and never download.
+  UV_OFFLINE=1 "$WS/scripts/run/py" "$WS/local/voice/voice.py" --list >"$tmp" 2>&1
+  check $? "scripts/run/py runs local/voice/voice.py offline" "scripts/run/py cannot run voice.py offline (cache cold?): $(tail -1 "$tmp")"
   rm -f "$tmp"
 fi
 if [ -f "$WS/local/voice/voice.json" ]; then

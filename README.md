@@ -48,10 +48,21 @@ Narration uses a stock local voice, Kokoro `af_heart`, unless you clone your own
 | Execute a prepared run | [Production prompt](templates/production-prompt.md) and [scorecard](scorecards/run-quality.md) |
 | Check evidence | [Source map](library/source-map.md) and [manifest](library/manifest.json) |
 
+## Setup
+
+Install the tools once per computer, never per checkout or per run. Every checkout, copy and run shares them:
+
+- [uv](https://docs.astral.sh/uv/), on your `PATH`.
+- One Python environment, locked by `pyproject.toml` and `uv.lock`. Run any script that needs packages as `scripts/run/py SCRIPT [ARG...]`, which runs it in that environment and syncs the environment to the lock from uv's own cache. The standard-library scripts also run with any `python3`.
+- The models, in their tools' own per-user caches: Hugging Face's for Whisper and Qwen3-TTS, and HyperFrames' for Kokoro (see [the voice method](methods/voice-explainer-video.md)).
+
+Never point `UV_CACHE_DIR`, `HF_HOME` or `KOKORO_TTS_CACHE` at a copy inside a checkout or a run. `sh scripts/run/setup_check.sh` checks the setup and downloads nothing.
+
 ## Layout and runtime
 
 ```text
 AGENTS.md                   mission, routing, guarantees
+pyproject.toml, uv.lock     the shared Python environment's packages and lock
 brands/                     style gallery, published on GitHub Pages
 library/                    source map, prior art, renderer and 3D asset notes
 methods/                    preparation, brand, and voice procedures

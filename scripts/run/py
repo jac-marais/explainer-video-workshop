@@ -1,0 +1,3 @@
+#!/bin/sh
+# Run Python in this computer's one workshop environment, synced to this checkout's uv.lock: scripts/run/py [PYTHON_ARG ...]
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/explainer-video-venv" exec uv run --project "$(dirname "$0")/../.." --locked python "$@"

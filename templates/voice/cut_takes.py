@@ -1,7 +1,3 @@
-# /// script
-# requires-python = "==3.12.*"
-# dependencies = ["numpy==2.5.3", "soundfile==0.14.0", "mlx-whisper==0.4.3"]
-# ///
 """Cut each take into its sentences, in the pause between Whisper's sentence-end and sentence-start words, and write <out>/<id>.wav.
 
 Whisper only says roughly where a pause is. The cut goes in the middle of the whole quiet stretch that is longest near

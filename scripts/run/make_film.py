@@ -74,7 +74,7 @@ def main():
     for step in STEPS[STEPS.index(args.start):]:
         print(f"[{step}]", flush=True)
         if step == "narrate":
-            command = ["uv", "run", SCRIPTS / "audio/narrate_film.py", args.scenes, "--voice", args.voice,
+            command = [SCRIPTS / "run/py", SCRIPTS / "audio/narrate_film.py", args.scenes, "--voice", args.voice,
                        "--language", args.language, "--out", audio, "--strict"]
             for name in ("spoken", "reuse"):
                 if getattr(args, name):

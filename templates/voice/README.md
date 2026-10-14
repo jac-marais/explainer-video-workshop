@@ -6,7 +6,7 @@ Copy this folder to `local/voice/`, which is git-ignored, and fill in this file.
 - **Choice:** `[stock Kokoro | own clone]`
 - **Recorded:** `[date]`, `[who answered]`
 
-`voice.json` holds the voices and the default, and `uv run local/voice/voice.py --list` shows them.
+`voice.json` holds the voices and the default, and `scripts/run/py local/voice/voice.py --list` shows them.
 
 A Kokoro voice entry may set `"lang"` to an eSpeak language code (for example `"pt-br"`); it defaults to `"en-us"`, controls synthesis and is recorded in the receipt's `settings.lang`. A Qwen3 voice entry may set `"lang"` to one of the model's language names (for example `"korean"`); it defaults to `"english"`. A spoken form may pin a word's sound as phonemes, written `[word](/phonemes/)`, for example `[Writing](/ɹˈaɪtɪŋ/)`: Kokoro says the phonemes in any voice and language, and other engines say the word. Use it in a respellings file for names and foreign terms that a language's spelling rules cannot reach.
 

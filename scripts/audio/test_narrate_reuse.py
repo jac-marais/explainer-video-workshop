@@ -1,7 +1,3 @@
-# /// script
-# requires-python = "==3.12.*"
-# dependencies = ["numpy==2.5.3", "soundfile==0.14.0"]
-# ///
 """Exercise narration reuse and provenance without loading or running a speech model."""
 import argparse
 import io
@@ -330,7 +326,7 @@ class SourceLoadingTests(unittest.TestCase):
 
 
 class GenerationTests(unittest.TestCase):
-    def fake_run_uv(self, script, args, capture=False):
+    def fake_run_tool(self, script, args, capture=False):
         if script == "voice.py":
             for item in args:
                 if isinstance(item, Path) and item.suffix == ".txt":
@@ -348,7 +344,7 @@ class GenerationTests(unittest.TestCase):
 
     def test_whole_pending_scenes_are_grouped_and_provenance_matches_raw_hashes(self):
         current = rows(count=1)
-        with tempfile.TemporaryDirectory(dir="/tmp") as directory, patch.object(film, "run_uv", side_effect=self.fake_run_uv), \
+        with tempfile.TemporaryDirectory(dir="/tmp") as directory, patch.object(film, "run_tool", side_effect=self.fake_run_tool), \
                 patch.object(film, "plan_runs", return_value=[["S01", "S02", "S03"]]) as planner:
             audio, takes, flags, manifests = film.voice_takes("clone", {"engine": "qwen3"}, current, Path(directory))
             self.assertEqual(set(audio), {r["id"] for r in current})
@@ -364,7 +360,7 @@ class GenerationTests(unittest.TestCase):
 
     def test_kokoro_generations_get_unique_ids_per_sentence_and_rerun(self):
         current = rows(("opening",), 2)
-        with tempfile.TemporaryDirectory(dir="/tmp") as directory, patch.object(film, "run_uv", side_effect=self.fake_run_uv):
+        with tempfile.TemporaryDirectory(dir="/tmp") as directory, patch.object(film, "run_tool", side_effect=self.fake_run_tool):
             first = film.voice_takes("kokoro", {"engine": "kokoro"}, current, Path(directory) / "first")
             second = film.voice_takes("kokoro", {"engine": "kokoro"}, current, Path(directory) / "second")
             self.assertEqual(len(set(first[1].values())), len(current))
@@ -410,7 +406,7 @@ class GenerationTests(unittest.TestCase):
                         return -0.65 if kwargs["preserve_take_levels"] else None
 
                     with patch.object(film, "voice_identity", return_value=({"engine": engine}, "voice-identity")), \
-                            patch.object(film, "run_uv", side_effect=fake_audio_tools) as voice_tools, \
+                            patch.object(film, "run_tool", side_effect=fake_audio_tools) as voice_tools, \
                             patch.object(film, "plan_runs", return_value=[["S01"], ["S02"], ["S03"]]), \
                             patch.object(film, "normalize", side_effect=normalized) as normalizer, \
                             patch.object(film, "transcribe", return_value=([], "local-model")), \
@@ -487,7 +483,7 @@ class GenerationTests(unittest.TestCase):
                 return [[{"text": s["text"], "start": s["start"], "end": s["end"]}] for s in sentences], []
 
             with patch.object(film, "voice_identity", return_value=({"engine": "qwen3"}, "voice-identity")), \
-                    patch.object(film, "run_uv", side_effect=self.fake_run_uv) as voice_tools, \
+                    patch.object(film, "run_tool", side_effect=self.fake_run_tool) as voice_tools, \
                     patch.object(film, "plan_runs", return_value=[["S01", "S02", "S03"]]) as planner, \
                     patch.object(film, "normalize", side_effect=lambda raw, final, **kwargs: final.write_bytes(raw.read_bytes())), \
                     patch.object(film, "transcribe", return_value=([{"word": "words", "start": 0, "end": 1}], "local-model")), \

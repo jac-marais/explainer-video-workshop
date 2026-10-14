@@ -1,7 +1,3 @@
-# /// script
-# requires-python = "==3.12.*"
-# dependencies = []
-# ///
 """Group consecutive scenes into TTS runs of MIN to MAX seconds, as evenly as possible, and print the best groupings.
 
 SRC is a directory of per-scene voice.py receipts (S01.json, S02.json, ...). Each file's stem is the scene id and its duration_s is the scene's length."""

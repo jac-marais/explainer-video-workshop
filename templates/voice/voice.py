@@ -1,12 +1,3 @@
-# /// script
-# requires-python = "==3.12.*"
-# dependencies = [
-#   "numpy==2.5.3",
-#   "soundfile==0.14.0",
-#   "kokoro-onnx==0.4.7",
-#   "mlx-audio==0.5.8; sys_platform == 'darwin' and platform_machine == 'arm64'",
-# ]
-# ///
 """Turn text files into loudness-normalized narration WAVs; Kokoro uses each voice's lang (default en-us)."""
 from __future__ import annotations
 

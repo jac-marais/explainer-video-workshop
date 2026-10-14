@@ -38,6 +38,7 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(names, ["narrate_film.py", "captions.py", "cues.py", "build_data.py", "render.py", "check_film.py"])
         self.assertEqual([call.kwargs.get("heavy", False) for call in calls], [True, False, False, False, True, True])
         command = calls[0].args[0]
+        self.assertEqual(command[0], film.SCRIPTS / "run/py")
         self.assertEqual(command[command.index("--language") + 1], "de")
         self.assertEqual(calls[-1].args[0][2], self.root / "film.mp4")
 

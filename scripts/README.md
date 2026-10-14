@@ -12,7 +12,7 @@ The voice tools that these build on (`voice.py`, `cut_takes.py`, `plan_runs.py`)
 
 All five narration, cue, caption, film-data and storyboard tools share `audio/text_tokens.py`: matching uses NFKC/casefold and retains Unicode letters, combining marks and numbers. Han/Kana split into character tokens; Latin, Devanagari and Hangul split on whitespace. Caption breaks use those same boundaries and preserve punctuation; Latin words and numbers remain intact. Times within a multi-character ASR piece are interpolated from its measured bounds.
 
-- `narrate_film.py` drives the voice tools for a whole film. Its take length limit is in [the voice method](../methods/voice-explainer-video.md#estimated-runs). It voices the scenes, cuts them into sentences, assembles the narration, aligns the script's words, writes the timing, and checks the audio. `--language` (default `en`) sets Whisper's language for take cutting, alignment and `--check-only`, and the number readings used in matching: French, Hindi, Chinese and Sino-Korean read integers below a million, dot decimals and percents, including a number Whisper joins to a word, such as `12층`; English, Portuguese and Spanish keep their existing readings. Long-form Whisper can skip a stretch of audio, so sentences left with interpolated words get one repair pass: adjacent ones merge into a span, padded by 0.15 s and clamped to the file, which the same model and settings transcribe again; its words replace the long-form words whose midpoints fall inside it only when that leaves fewer interpolated words, because a short clip can swap homophones or hallucinate. The run records nonzero `retranscribed_spans` in the `audio-checks.json` stats. Fully aligned runs make no extra Whisper call. It's a uv script, so run it as `uv run scripts/audio/narrate_film.py`.
+- `narrate_film.py` drives the voice tools for a whole film. Its take length limit is in [the voice method](../methods/voice-explainer-video.md#estimated-runs). It voices the scenes, cuts them into sentences, assembles the narration, aligns the script's words, writes the timing, and checks the audio. `--language` (default `en`) sets Whisper's language for take cutting, alignment and `--check-only`, and the number readings used in matching: French, Hindi, Chinese and Sino-Korean read integers below a million, dot decimals and percents, including a number Whisper joins to a word, such as `12층`; English, Portuguese and Spanish keep their existing readings. Long-form Whisper can skip a stretch of audio, so sentences left with interpolated words get one repair pass: adjacent ones merge into a span, padded by 0.15 s and clamped to the file, which the same model and settings transcribe again; its words replace the long-form words whose midpoints fall inside it only when that leaves fewer interpolated words, because a short clip can swap homophones or hallucinate. The run records nonzero `retranscribed_spans` in the `audio-checks.json` stats. Fully aligned runs make no extra Whisper call. Run it as `scripts/run/py scripts/audio/narrate_film.py`.
 - `cues.py` writes measured visual cue times to `cues.json`. Quoted cues match consecutive words in their scene window. Sentence cues use `timing.json` directly; their syntax and translation rules are below.
 - `captions.py` builds sentence captions from the timing and the words.
 
@@ -28,7 +28,8 @@ All five narration, cue, caption, film-data and storyboard tools share `audio/te
 
 ## run/
 
-- `setup_check.sh` checks the local tools a production needs, without changing anything.
+- `setup_check.sh` checks the local tools a production needs and downloads nothing.
+- `py [PYTHON_ARG...]` runs Python in the environment that every checkout on this computer shares; see [Setup](../README.md#setup).
 - `receipts.py` regenerates the measured tables in receipt documents.
 - `runlog.py` prices sessions and appends timed phase rows to `run-state.md`.
 
@@ -60,4 +61,4 @@ Add `--from STEP` to run that step and every later step. After a voice or narrat
 
 ## Tests
 
-Run `python3 -m unittest discover -s scripts/DIR` for each of `audio`, `film`, `storyboard` and `run`. Audio tests need the NumPy and SoundFile versions declared in the narration test scripts; they do not load speech models. The run tests use tiny commands and mocked production tools, and the lock test needs permission to lower process priority. No test voices or renders a film or accesses the network.
+Run `scripts/run/py -m unittest discover -s scripts/DIR` for each of `audio`, `film`, `storyboard` and `run`. The audio tests do not load speech models. The run tests use tiny commands and mocked production tools, and the lock test needs permission to lower process priority. No test voices or renders a film or accesses the network.

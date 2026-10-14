@@ -1,7 +1,3 @@
-# /// script
-# requires-python = "==3.12.*"
-# dependencies = ["numpy==2.5.3", "soundfile==0.14.0", "mlx-whisper==0.4.3"]
-# ///
 """Turn a scenes file into film narration: sentence WAVs, narration.wav, timing.json and words.json, then check the audio.
 
   narrate_film.py SCENES.json --voice NAME --out AUDIO_DIR [--spoken RESPELLINGS.json] [--reuse OLD_AUDIO_DIR] [--strict]
@@ -235,8 +231,8 @@ def decide_reuse(rows: list[dict], engine: str, sources: list[ReuseSource]) -> R
     return result
 
 
-def run_uv(script: str, args: list[str], capture: bool = False) -> str:
-    result = subprocess.run(["uv", "run", "--offline", str(VOICE_DIR / script), *map(str, args)], text=True,
+def run_tool(script: str, args: list[str], capture: bool = False) -> str:
+    result = subprocess.run([sys.executable, str(VOICE_DIR / script), *map(str, args)], text=True,
                             stdout=subprocess.PIPE if capture else None, stderr=None if not capture else subprocess.PIPE)
     if result.returncode:
         raise SystemExit(f"{script} failed (exit {result.returncode})\n{(result.stderr or '')[-2000:]}")
@@ -282,8 +278,8 @@ def plan_runs(seconds: dict[str, float], work: Path) -> list[list[str]]:
         raise SystemExit("plan_runs.py tries every grouping, so it handles at most 18 scenes with sentences to voice")
     empty = work / "plan-receipts"
     empty.mkdir(exist_ok=True)
-    out = run_uv("plan_runs.py", [empty, "--max", str(MAX_TAKE_SECONDS - TAKE_RESERVE_SECONDS),
-                                "--seconds", *(f"{k}={v:.1f}" for k, v in seconds.items())], capture=True)
+    out = run_tool("plan_runs.py", [empty, "--max", str(MAX_TAKE_SECONDS - TAKE_RESERVE_SECONDS),
+                                  "--seconds", *(f"{k}={v:.1f}" for k, v in seconds.items())], capture=True)
     best = next(line for line in out.splitlines() if " || violation" in line)
     ids = list(seconds)
     runs = []
@@ -315,7 +311,7 @@ def voice_takes(name: str, spec: dict, pending: list[dict], work: Path, language
     if spec["engine"] == "kokoro":
         for row in pending:
             (work / f"{row['id']}.txt").write_text(row["spoken"])
-        run_uv("voice.py", [*(work / f"{row['id']}.txt" for row in pending), "--out-dir", work, "--voice", name])
+        run_tool("voice.py", [*(work / f"{row['id']}.txt" for row in pending), "--out-dir", work, "--voice", name])
         for row in pending:
             record_take(row["id"], [row])
         return {row["id"]: read_audio(work / f"{row['id']}.wav") for row in pending}, origins, [], manifests
@@ -329,12 +325,12 @@ def voice_takes(name: str, spec: dict, pending: list[dict], work: Path, language
         (work / f"{stem}.txt").write_text(" ".join(r["spoken"] for alias in run for r in units[alias]) + " " + THROWAWAY)
         takes.append(work / f"{stem}.txt")
         take_members[stem] = [r for alias in run for r in units[alias]]
-    run_uv("voice.py", [*takes, "--out-dir", work, "--voice", name])
+    run_tool("voice.py", [*takes, "--out-dir", work, "--voice", name])
     take_ids = {stem: record_take(stem, members) for stem, members in take_members.items()}
     (work / "sentences.json").write_text(json.dumps([{"id": r["id"], "scene": r["alias"], "text": r["spoken"]} for r in pending]))
     cut = work / "cut"
-    out = run_uv("cut_takes.py", [*(t.with_suffix(".wav") for t in takes), "--sentences", work / "sentences.json", "--out", cut,
-                                  "--throwaway", THROWAWAY, "--language", language], capture=True)
+    out = run_tool("cut_takes.py", [*(t.with_suffix(".wav") for t in takes), "--sentences", work / "sentences.json", "--out", cut,
+                                    "--throwaway", THROWAWAY, "--language", language], capture=True)
     lines = [json.loads(line) for line in out.splitlines() if line.startswith("{")]
     unclean = [{"check": "unclean_cut", "take": take_ids[r["take"]], "after": r["after"], "gap_s": r["gap_s"]}
                for r in lines if r.get("clean") is False]
