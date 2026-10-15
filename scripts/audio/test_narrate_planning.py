@@ -14,6 +14,13 @@ TEXTS = {"en": "A small flower opens in the garden.", "es": "Una flor pequeña s
 
 
 class PlanningTests(unittest.TestCase):
+    def test_later_respellings_leave_earlier_pins_whole(self):
+        quote = (film.re.compile(r'"([^"]+)"'), r'"[\1](en-us)"')
+        word = (film.re.compile(r"\bGarden\b"), "[Garden](/ɡˈɑːɹdən/)")
+        text = 'Ela disse "Garden walks help." e Garden.'
+        self.assertEqual(film.respell(text, [quote, word]), 'Ela disse "[Garden walks help.](en-us)" e [Garden](/ɡˈɑːɹdən/).')
+        self.assertEqual(film.respell(text, [word, quote]), 'Ela disse "[Garden](/ɡˈɑːɹdən/) walks help." e [Garden](/ɡˈɑːɹdən/).')
+
     def test_estimates_follow_phonemes_in_every_language(self):
         for language, text in TEXTS.items():
             with self.subTest(language=language):

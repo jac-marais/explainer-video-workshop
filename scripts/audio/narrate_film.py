@@ -10,7 +10,8 @@ lengths; the voice's own language is set in voice.json. Run it with scripts/run/
 SCENES.json is a list of scenes with id, title, visual, claim_ids and narration, split into sentences by text_tokens.py.
 Sentences of one scene from the same take join without an added gap after the edge silence cap
 described in methods/voice-explainer-video.md; the other gaps are in assemble(). RESPELLINGS.json maps a regex to the text the voice reads
-instead (use (?i) for case-insensitive); it applies in order and never changes the captioned text.
+instead (use (?i) for case-insensitive); it applies in order, a later rule leaves an earlier rule's pin whole,
+and it never changes the captioned text.
 
 Kokoro voices are synthesized one sentence at a time, because the model does not drift over a long text. Every other voice
 is voiced in bounded runs (local/voice/plan_runs.py), one take per run ending in a throwaway sentence, and cut
@@ -116,6 +117,17 @@ def load_scenes(path: Path, language: str) -> list[dict]:
             raise SystemExit(f"scene {scene_id} narration must be a string or a non-empty array of strings")
         scenes.append({**scene, "_sentences": [part for item in narration for part in sentences(item, language)]})
     return scenes
+
+
+# A pin an earlier rule wrote, [word](/phonemes/) or [text](language), which later rules leave whole.
+PIN = re.compile(r"(\[[^\]]+\]\([^)]*\))")
+
+
+def respell(text: str, rules: list[tuple[re.Pattern, str]]) -> str:
+    """Apply each rule in order to the text outside earlier rules' pins."""
+    for pattern, replacement in rules:
+        text = "".join(part if k % 2 else pattern.sub(replacement, part) for k, part in enumerate(PIN.split(text)))
+    return text
 
 
 def load_respellings(path: Path | None) -> list[tuple[re.Pattern, str]]:
@@ -747,9 +759,7 @@ def narrate(args: argparse.Namespace) -> None:
     rows: dict[str, dict] = {}
     for number, scene in enumerate(scenes, 1):
         for index, sentence in enumerate(scene["_sentences"], 1):
-            spoken = sentence["text"]
-            for pattern, replacement in respellings:
-                spoken = pattern.sub(replacement, spoken)
+            spoken = respell(sentence["text"], respellings)
             sid = f"{scene['id']}-{index:02d}"
             rows[sid] = {"id": sid, "scene_id": scene["id"], "alias": f"S{number:02d}", "text": sentence["text"],
                          "spoken": spoken, "key": cache_key(identity, spoken)}
