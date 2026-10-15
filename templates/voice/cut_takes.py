@@ -1,11 +1,14 @@
-"""Cut each take into its sentences, in the pause between Whisper's sentence-end and sentence-start words, and write <out>/<id>.wav.
+"""Cut each take into its sentences using pauses near Whisper word times, and write <out>/<id>.wav.
 
-Whisper only says roughly where a pause is. The cut goes in the middle of the whole quiet stretch that is longest near
-those word times, judged on loudness averaged over 50 ms against the take's own floor, so one near-silent frame cannot
-pass for a pause.
+Whisper only says roughly where pauses are. Quiet is judged on loudness averaged over 50 ms against the take's own
+floor, so one near-silent frame cannot pass for a pause.
 Matching uses shared Unicode letters, marks and numbers; --language selects Whisper (default en).
 Unmatched sentences use nearest matched words on each side (or take edges), and their cuts are unclean.
-A cut with no quiet stretch of at least MIN_GAP falls back to the quietest averaged point and is logged as unclean.
+Consecutive boundaries with equal bounds share one search window and take its longest distinct quiet stretches, one per
+boundary in time order, each grown to its whole pause and cut at the middle. With too few stretches, the remaining cuts
+bisect the widest interval left in the window, and every cut in a shared window is unclean.
+A lone boundary without a quiet stretch of at least MIN_GAP cuts at the quietest averaged point and is logged as unclean.
+Cuts must strictly increase, or the take stops with its sentence ids before any of its sentence WAVs are written.
 
 Nothing is trimmed and nothing is faded: each sentence runs from cut to cut, the first from the take's start, so the
 written sentences rejoin into the take exactly. Film assembly follows methods/voice-explainer-video.md, including its
@@ -80,6 +83,7 @@ def main():
         covered = order[order.index(first_scene):order.index(last_scene) + 1]
         sents = [s for s in segments if s["scene"] in covered] + ([{"id": None, "text": args.throwaway}] if args.throwaway else [])
         y, rate = sf.read(path, dtype="float32")
+        invalid = f"{path.name}: cannot place strictly increasing cuts for sentences " + ", ".join(s["id"] or "<throwaway>" for s in sents)
         # A file path makes Whisper resample to 16 kHz, so its timestamps are in seconds of this file.
         words = [w for seg in mlx_whisper.transcribe(str(path), path_or_hf_repo=WHISPER, language=args.language, word_timestamps=True,
                                                       condition_on_previous_text=False)["segments"] for w in seg["words"]]
@@ -92,31 +96,50 @@ def main():
         floor = float(np.percentile(smooth[power > 0], FLOOR_PCT))
         quiet = smooth <= floor + QUIET_DB
         edges, log = [0], []
-        for k in range(len(sents) - 1):
+        k = 0
+        while k < len(bounds):
             end, start, matched = bounds[k]
+            stop = k + 1
+            while stop < len(bounds) and bounds[stop][:2] == (end, start): stop += 1
+            count = stop - k
             # Whisper's word times often run early, and the pause can sit up to half a second after them.
             lo = max(0, int((min(end, start) - BEFORE) / WINDOW))
             hi = min(len(smooth), int((max(end, start) + AFTER) / WINDOW) + 1)
+            if lo >= hi:
+                raise SystemExit(invalid)
             runs, i = [], lo
             while i < hi:
                 j = i
                 while j < hi and quiet[j]: j += 1
                 if j - i >= MIN_GAP / WINDOW: runs.append((j - i, i))
                 i = max(j, i + 1)
-            if runs:
-                length, at = max(runs)
+            cuts = {}
+            for length, at in sorted(runs, reverse=True)[:count]:
                 # Whisper can clip the window short of the pause, so grow the run to the whole pause before taking its middle.
                 a, b = at, at + length
                 while a > 0 and quiet[a - 1]: a -= 1
                 while b < len(quiet) and quiet[b]: b += 1
                 cut, gap = (a + b) // 2, (b - a) * WINDOW
-            else:
-                cut, gap = lo + int(np.argmin(smooth[lo:hi])), 0.0
-            edges.append(cut * n + n // 2)
-            log.append({"take": path.stem, "after": sents[k]["id"], "word_end": round(end, 2), "next_start": round(start, 2),
-                        "cut_s": round(edges[-1] / rate, 3), "gap_s": round(gap, 2), "clean": bool(runs) and matched,
-                        "smooth_db": round(float(smooth[cut]), 1)})
+                cuts[cut * n + n // 2] = gap
+            if not runs and count == 1:
+                cut = lo + int(np.argmin(smooth[lo:hi]))
+                cuts[cut * n + n // 2] = 0.0
+            while len(cuts) < count:
+                anchors = sorted({edges[-1], *cuts, len(y)})
+                a, b = max(((max(a, lo * n - 1), min(b, hi * n)) for a, b in zip(anchors, anchors[1:])),
+                           key=lambda pair: pair[1] - pair[0])
+                if b - a <= 1:
+                    raise SystemExit(invalid)
+                cuts[(a + b) // 2] = 0.0
+            for edge, gap in sorted(cuts.items()):
+                edges.append(edge)
+                log.append({"take": path.stem, "after": sents[k]["id"], "word_end": round(end, 2), "next_start": round(start, 2),
+                            "cut_s": round(edge / rate, 3), "gap_s": round(gap, 2), "clean": gap > 0 and matched and count == 1,
+                            "smooth_db": round(float(smooth[edge // n]), 1)})
+                k += 1
         edges.append(len(y))
+        if any(a >= b for a, b in zip(edges, edges[1:])):
+            raise SystemExit(invalid)
         for k, s in enumerate(sents):
             if s["id"]:
                 sf.write(args.out / f"{s['id']}.wav", y[edges[k]:edges[k + 1]], rate, subtype="PCM_16")

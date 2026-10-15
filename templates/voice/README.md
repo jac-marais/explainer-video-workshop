@@ -22,4 +22,4 @@ The user's voice choices that should hold for every run. Each entry is one line,
 
 - `[e.g. Default to the clone; use Kokoro when asked (2026-01-01)]`
 
-`cut_takes.py --language CODE` selects Whisper's language (default `en`); `narrate_film.py` forwards its language. Take matching uses shared Unicode normalization. A sentence without matches falls back to the nearest matched words on either side, or the take edges, and marks the cut unclean. Narration number matching is described in [scripts/README.md](../../scripts/README.md).
+`cut_takes.py --language CODE` selects Whisper's language (default `en`); `narrate_film.py` forwards its language. Take matching uses shared Unicode normalization. A sentence without matches takes its cuts from the pauses between the nearest matched words on either side, or the take edges, and those cuts are unclean; the `cut_takes.py` docstring gives the rules. Narration number matching is described in [scripts/README.md](../../scripts/README.md).

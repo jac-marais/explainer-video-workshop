@@ -123,6 +123,103 @@ class CutTests(unittest.TestCase):
             self.assertEqual(cut.sentence_bounds([{'text': '!'}, {'text': '花'}], words[:1], 3), [(0, 0, False)])
             self.assertEqual(cut.sentence_bounds(sentences, [], 3), [(0, 3, False), (0, 3, False)])
 
+    def test_shared_windows_cut_distinct_pauses(self):
+        for cut in self.modules():
+            for missing in [1, 2]:
+                with self.subTest(module=cut.__file__, missing=missing), tempfile.TemporaryDirectory() as directory:
+                    root, rate = Path(directory), 24000
+                    tone = .2 * np.sin(2 * np.pi * 220 * np.arange(rate) / rate)
+                    dipped = tone.copy()
+                    for at in [.2, .5, .8]:
+                        dipped[int(at * rate):int((at + .02) * rate)] = 1e-4
+                    parts, pauses = [tone], []
+                    for i in range(missing + 1):
+                        start = sum(len(part) for part in parts)
+                        silence = np.full(int((.4 + .1 * i) * rate), 1e-4)
+                        pauses.append((start, start + len(silence)))
+                        parts.extend([silence, dipped if i < missing else tone])
+                    sf.write(root / 'S01.wav', np.concatenate(parts), rate)
+                    texts = ['花'] + ['Murmur.', 'Ripple.'][:missing] + ['开']
+                    sentences = [{'id': f's{i}', 'scene': 'S01', 'text': text} for i, text in enumerate(texts)]
+                    (root / 'sentences.json').write_text(json.dumps(sentences))
+                    words = [{'word': '花', 'start': .1, 'end': .9},
+                             {'word': '开', 'start': pauses[-1][1] / rate + .1,
+                              'end': sum(len(part) for part in parts) / rate - .1}]
+                    whisper = SimpleNamespace(transcribe=lambda *a, **kw: {'segments': [{'words': words}]})
+                    args = ['cut_takes.py', str(root / 'S01.wav'), '--sentences', str(root / 'sentences.json'),
+                            '--out', str(root / 'cut')]
+                    stdout = io.StringIO()
+                    with patch.dict(sys.modules, {'mlx_whisper': whisper}), patch.object(sys, 'argv', args), \
+                            contextlib.redirect_stdout(stdout):
+                        cut.main()
+                    frames = [sf.info(root / 'cut' / f"{s['id']}.wav").frames for s in sentences]
+                    self.assertTrue(all(size > 0 for size in frames))
+                    self.assertEqual(sum(frames), sum(len(part) for part in parts))
+                    self.assertEqual(len(list((root / 'cut').glob('*.wav'))), missing + 2)
+                    joined = np.concatenate([sf.read(root / 'cut' / f"{s['id']}.wav", dtype='int16')[0]
+                                             for s in sentences])
+                    np.testing.assert_array_equal(joined, sf.read(root / 'S01.wav', dtype='int16')[0])
+                    for edge, (start, end) in zip(np.cumsum(frames)[:-1], pauses):
+                        self.assertGreater(edge, start)
+                        self.assertLess(edge, end)
+                        self.assertAlmostEqual(edge / rate, (start + end) / (2 * rate), delta=.02)
+                    logs = [json.loads(line) for line in stdout.getvalue().splitlines()]
+                    self.assertEqual(logs[0]['unclean_cuts'], [s['id'] for s in sentences[:-1]])
+
+    def test_shared_window_fills_missing_pauses(self):
+        for cut in self.modules():
+            for min_gap in [cut.MIN_GAP, 2.0]:
+                with self.subTest(module=cut.__file__, min_gap=min_gap), tempfile.TemporaryDirectory() as directory:
+                    root, rate = Path(directory), 24000
+                    # Constant power gives one whole-take quiet run; a two-second minimum gives none.
+                    sf.write(root / 'S01.wav', np.full(rate, .1), rate)
+                    sentences = [{'id': f's{i}', 'scene': 'S01', 'text': text}
+                                 for i, text in enumerate(['Bud.', 'Leaf.', 'Stem.', 'Root.'])]
+                    (root / 'sentences.json').write_text(json.dumps(sentences))
+                    whisper = SimpleNamespace(transcribe=lambda *a, **kw: {'segments': []})
+                    args = ['cut_takes.py', str(root / 'S01.wav'), '--sentences', str(root / 'sentences.json'),
+                            '--out', str(root / 'cut')]
+                    stdout = io.StringIO()
+                    with patch.dict(sys.modules, {'mlx_whisper': whisper}), patch.object(sys, 'argv', args), \
+                            patch.object(cut, 'MIN_GAP', min_gap), contextlib.redirect_stdout(stdout):
+                        cut.main()
+                    frames = [sf.info(root / 'cut' / f"{s['id']}.wav").frames for s in sentences]
+                    self.assertTrue(all(size > 0 for size in frames))
+                    self.assertEqual(sum(frames), rate)
+                    middle = rate // 2 + (int(rate * cut.WINDOW) // 2 if min_gap < 1 else 0)
+                    self.assertEqual(list(np.cumsum(frames)[:-1]),
+                                     [middle // 2, middle, (middle + rate) // 2])
+                    logs = [json.loads(line) for line in stdout.getvalue().splitlines()]
+                    self.assertEqual(logs[0]['unclean_cuts'], [s['id'] for s in sentences[:-1]])
+                    gaps = [row['gap_s'] for row in logs if 'gap_s' in row]
+                    self.assertEqual(sum(gap > 0 for gap in gaps), int(min_gap < 1))
+
+    def test_invalid_edges_stop_before_writing(self):
+        for cut in self.modules():
+            for bounds in [[(.5, .5, False)] * 2,
+                           [(.7, .9, True), (.1, .2, True)]]:
+                with self.subTest(module=cut.__file__, bounds=bounds), tempfile.TemporaryDirectory() as directory:
+                    root, rate = Path(directory), 24000
+                    sf.write(root / 'S01.wav', np.full(rate, .1), rate)
+                    sentences = [{'id': f's{i}', 'scene': 'S01', 'text': text}
+                                 for i, text in enumerate(['Bud.', 'Leaf.', 'Root.'])]
+                    (root / 'sentences.json').write_text(json.dumps(sentences))
+                    whisper = SimpleNamespace(transcribe=lambda *a, **kw: {'segments': []})
+                    args = ['cut_takes.py', str(root / 'S01.wav'), '--sentences', str(root / 'sentences.json'),
+                            '--out', str(root / 'cut')]
+                    # One sample-wide search window cannot hold two interior cuts.
+                    window = 1 / rate if bounds[0][2] is False else cut.WINDOW
+                    before, after = (0, 0) if window < cut.WINDOW else (cut.BEFORE, cut.AFTER)
+                    with patch.dict(sys.modules, {'mlx_whisper': whisper}), patch.object(sys, 'argv', args), \
+                            patch.object(cut, 'sentence_bounds', return_value=bounds), \
+                            patch.object(cut, 'WINDOW', window), patch.object(cut, 'BEFORE', before), \
+                            patch.object(cut, 'AFTER', after), patch.object(cut, 'MIN_GAP', 2.0):
+                        with self.assertRaises(SystemExit) as stopped:
+                            cut.main()
+                    for name in ['S01.wav', 's0', 's1', 's2']:
+                        self.assertIn(name, str(stopped.exception))
+                    self.assertEqual(list((root / 'cut').glob('*.wav')), [])
+
 
 if __name__ == '__main__':
     unittest.main()
