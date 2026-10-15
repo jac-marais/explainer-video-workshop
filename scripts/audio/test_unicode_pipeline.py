@@ -93,6 +93,22 @@ class UnicodePipelineTests(unittest.TestCase):
         self.assertEqual([s["pause_before"] for s in split], [False, False, True])
         split = narrate_film.sentences("छोटा फूल खिला। क्या कल भी खिलेगा?", "hi")
         self.assertEqual([s["text"] for s in split], ["छोटा फूल खिला।", "क्या कल भी खिलेगा?"])
+        # A closing quote stays with the question it closes, wherever Stanza proposes the boundary.
+        split = narrate_film.sentences("छोटा फूल खिला। “क्या कल भी खिलेगा?” माली मुस्कुराया।", "hi")
+        self.assertTrue(all(any(c.isalpha() for c in s["text"]) for s in split))
+        self.assertIn("खिलेगा?”", " | ".join(s["text"] for s in split))
+        self.assertFalse(any(s["text"].startswith("”") for s in split))
+
+    def test_a_boundary_before_a_closing_quote_moves_after_it(self):
+        import text_tokens
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        text = "The seed sleeps. “Will it grow?” Rain falls."
+        cuts = [text.index("“"), text.index("”"), text.index("Rain")]
+        doc = SimpleNamespace(sentences=[SimpleNamespace(tokens=[SimpleNamespace(start_char=c)]) for c in [0] + cuts])
+        with patch.object(text_tokens, "stanza_pipeline", return_value=lambda clean: doc):
+            split = text_tokens.sentences(text, "en")
+        self.assertEqual([s["text"] for s in split], ["The seed sleeps.", "“Will it grow?”", "Rain falls."])
         # Stanza splits both texts; only the boundary after a sentence terminal and its closing quote counts.
         split = narrate_film.sentences("Une graine repose dans la terre ; deux feuilles poussent vers le soleil.", "fr")
         self.assertEqual(len(split), 1)

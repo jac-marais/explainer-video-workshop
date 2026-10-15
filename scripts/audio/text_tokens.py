@@ -100,6 +100,7 @@ def sentences(text: str, language: str) -> list[dict]:
     """Split narration into the sentences that Stanza's tokenizer for the language finds.
 
     A boundary counts only where the text before it ends in a Unicode Sentence_Terminal, then any closing punctuation and spaces.
+    A proposed boundary moves past closing punctuation that touches the text before it, so a closing quote stays with its sentence.
     A [pause] mark never splits a sentence. It sets pause_before on the sentence that holds the text after it.
     """
     import regex  # Standard-library tools import this module too, and only the environment has regex.
@@ -114,8 +115,10 @@ def sentences(text: str, language: str) -> list[dict]:
     if not clean:
         raise ValueError("scene narration must not be empty")
     end = regex.compile(r"\p{Sentence_Terminal}[\p{SB=Close}\s]*\Z")
-    starts = [0] + [start for start in (sentence.tokens[0].start_char for sentence in stanza_pipeline(language)(clean).sentences[1:])
-                    if end.search(clean, 0, start)] + [len(clean)]
+    closing = regex.compile(r"[\p{Pe}\p{Pf}]*\s*")
+    proposed = (sentence.tokens[0].start_char for sentence in stanza_pipeline(language)(clean).sentences[1:])
+    settled = {closing.match(clean, start).end() if not clean[start - 1].isspace() else start for start in proposed}
+    starts = [0] + sorted(start for start in settled if start < len(clean) and end.search(clean, 0, start)) + [len(clean)]
     return [{"text": clean[a:b].strip(), "pause_before": any(a <= p < b for p in pauses)} for a, b in zip(starts, starts[1:])]
 
 
