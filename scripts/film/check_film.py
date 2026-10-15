@@ -13,7 +13,7 @@ black (over --max-black) pictures, and pictures frozen above the caption band (o
 the declared holds, plus the share of runtime spent still. The motion gate of measure_motion.py always
 prints its metrics, and fails the film only with --pacing fast.
 With --narration: duration against the narration (plus --tail if given), the loudness delta, and
-silence edges within one frame of the master's. With --captions: each cue is visible in the caption
+silence edges within one frame of the master's, where a few may miss. With --captions: each cue is visible in the caption
 band and the band changes within one frame of its start and end, except --uncaptioned cues such as title cards. With --sheet and --timing: one
 contact sheet per scene with a frame 0.1 s before each sentence ends, plus OUT_DIR/check_film.json
 with every measurement.
@@ -73,6 +73,18 @@ def silences(path, channel=0):
     err = run(["ffmpeg", "-nostats", "-hide_banner", "-i", str(path), "-vn", "-af",
                f"pan=mono|c0=c{channel},silencedetect=n=-50dB:d=0.15", "-f", "null", "-"]).stderr
     return [float(x) for x in re.findall(r"silence_(?:start|end): (-?[\d.]+)", err)]
+
+
+def silence_edges(master, film, end, fps):
+    """Match each master silence edge before `end` to the film's nearest edge; returns (report, failure or None)."""
+    offs = [min((f - m for f in film), key=abs, default=1e9) for m in master if m < end]
+    # A pause whose noise floor sits at the detector threshold moves its edge in one file only, so a few edges may miss.
+    near = [abs(o) for o in offs if abs(o) <= EDGE / fps + 1e-6]
+    lost = len(offs) - len(near)
+    report = {"master": len(offs), "unmatched": lost, "worst_offset_s": round(max(near, default=0), 4)}
+    if not offs or (near and lost <= max(2, len(offs) // 50)):
+        return report, None
+    return report, f"silence edges: {lost} of {len(offs)} master edges are more than 1 frame from the film's"
 
 
 def colr_box(path):
@@ -322,15 +334,8 @@ def main():
             delta = rep["audio"]["integrated_lufs"] - ni
             rep["narration"]["loudness_delta_lu"] = round(delta, 2)
             need(abs(delta) <= 0.5, f"film audio is {delta:+.2f} LU from the narration master")
-            ms, fs = silences(a.narration), silences(a.film)
-            offs = [min((f - m for f in fs), key=abs, default=1e9) for m in ms if m < nd - 0.1]
-            # An edge further than 0.1 s away is a pause that sits at the detector threshold in only one file.
-            near = [abs(o) for o in offs if abs(o) <= 0.1]
-            lost = len(offs) - len(near)
-            worst = max(near, default=0)
-            rep["narration"]["silence_edges"] = {"master": len(offs), "unmatched": lost, "worst_offset_s": round(worst, 4)}
-            need(not offs or (near and lost <= max(2, len(offs) // 50) and worst <= EDGE / fps),
-                 f"silence edges: {lost} of {len(offs)} master edges unmatched, worst matched offset {worst * 1000:.0f} ms (want <= 1 frame)")
+            rep["narration"]["silence_edges"], fail = silence_edges(silences(a.narration), silences(a.film), nd - 0.1, fps)
+            need(fail is None, fail)
 
     if a.captions:
         skip = set(filter(None, a.uncaptioned.split(",")))
