@@ -72,6 +72,18 @@ class VoiceFrontendTests(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertEqual(self.phones(text, lang), phones)
 
+    def test_language_pins_take_that_languages_phonemes(self):
+        quote = "I see a red cup."
+        english = self.phones(quote, "en-us")
+        self.assertNotEqual(english, self.phones(quote, "pt-br"))
+        for lang, text in [("pt-br", f'Ela disse "[{quote}](en-us)" hoje.'), ("fr-fr", f"L’[{quote}](en-us) arrive.")]:
+            with self.subTest(lang=lang):
+                self.assertEqual(self.phones(text, lang), self.phones(text.replace("(en-us)", f"(/{english}/)"), lang))
+                self.assertIn(english, self.phones(text, lang))
+
+    def test_engines_without_phonemes_read_the_pinned_words(self):
+        self.assertEqual(self.voice.unpinned("The [cup](/kˈʌp/) and [the tea](en-us) are here."), "The cup and the tea are here.")
+
     def test_pins_with_symbols_kokoro_lacks_fail_instead_of_vanishing(self):
         self.assertNotIn("ɝ", self.tokenizer.vocab)
         with self.assertRaisesRegex(SystemExit, "cannot say the pinned phonemes ɝ"):
@@ -95,7 +107,8 @@ class VoiceFrontendTests(unittest.TestCase):
         frontend = self.voice.KOKORO_FRONTEND
         for lang, plain, pinned in [("en-us", "The red cup is full.", "The [cup](/kˈʌp/) is full."),
                                     ("fr-fr", "Le football est simple.", "Le [chat](/ʃˈa/) dort."),
-                                    ("hi", "लड़का है।", "यह [घर](/ɡʰˈʌɾ/) है.")]:
+                                    ("hi", "लड़का है।", "यह [घर](/ɡʰˈʌɾ/) है."),
+                                    ("pt-br", "O copo está cheio.", "O [cup](en-us) está cheio.")]:
             for key in [None, frontend]:
                 for text in [plain, pinned]:
                     with self.subTest(lang=lang, frontend=key, text=text):
@@ -107,7 +120,8 @@ class VoiceFrontendTests(unittest.TestCase):
                             phonemes = self.phones(text, lang)
                         elif text == pinned:
                             kokoro = lambda value: self.tokenizer.phonemize(value, lang)
-                            phonemes = self.voice.place_pins(text, kokoro, self.voice.STAND_IN)
+                            expanded = text.replace("(en-us)", f"(/{self.tokenizer.phonemize('cup', 'en-us')}/)")
+                            phonemes = self.voice.place_pins(expanded, kokoro, self.voice.STAND_IN)
                         else:
                             phonemes = None
                         if phonemes:

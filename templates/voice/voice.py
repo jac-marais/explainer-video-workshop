@@ -27,6 +27,8 @@ LOUDNORM = "I=-16:TP=-1.5:LRA=11"
 KOKORO_LANG = "en-us"  # Default for voice entries without lang.
 # A spoken form written [word](/phonemes/) makes Kokoro say those phonemes; other engines say the word.
 PHONEMES = re.compile(r"\[([^\]]+)\]\(/([^/]+)/\)")
+# A span written [text](en-us) takes that eSpeak language's phonemes, so a quote keeps its own sounds in another voice.
+LANGUAGE_PIN = re.compile(r"\[([^\]]+)\]\(([a-z]{2,3}(?:-[a-z]{2,4})?)\)")
 STAND_IN = "zzq"
 # The frontend needs a pronounceable stand-in, because French elision swallows "zzq" after L'.
 ELIDING_STAND_IN = "zazazazaza"
@@ -83,6 +85,16 @@ def place_pins(text: str, phonemize, stand_in: str) -> str:
     return pieces[0] + "".join(m.group(2) + rest for m, rest in zip(marks, pieces[1:]))
 
 
+def expand_language_pins(text: str, phonemize) -> str:
+    """Turn each [text](language) span into a phoneme pin from phonemize(text, language)."""
+    return LANGUAGE_PIN.sub(lambda pin: f"[{pin[1]}](/{phonemize(pin[1], pin[2])}/)", text)
+
+
+def unpinned(text: str) -> str:
+    """The words alone, for engines that read text rather than phonemes."""
+    return PHONEMES.sub(r"\1", LANGUAGE_PIN.sub(r"\1", text))
+
+
 def kokoro_stop(mark: str) -> str:
     """Kokoro's nearest stop to a sentence terminator from any script."""
     name = unicodedata.name(mark, "")
@@ -112,15 +124,15 @@ def phonemize_kokoro(text: str, tokenizer, lang: str = KOKORO_LANG) -> str:
     unknown = sorted({phone for mark in PHONEMES.finditer(text) for phone in mark[2] if phone not in tokenizer.vocab})
     if unknown:
         raise SystemExit(f"Kokoro cannot say the pinned phonemes {' '.join(unknown)} in: {text}")
-    backend = espeak_backend(lang)
 
-    def speak(value: str) -> str:
+    def speak(value: str, language: str = lang) -> str:
         value = regex.sub(r"\p{Sentence_Terminal}", lambda mark: mark[0] if mark[0] in tokenizer.vocab else kokoro_stop(mark[0]),
                           tokenizer.normalize_text(value))
         lines = [line for line in value.split(os.linesep) if line.strip()]
-        phones = os.linesep.join(backend.phonemize(lines)) if lines else ""
+        phones = os.linesep.join(espeak_backend(language).phonemize(lines)) if lines else ""
         return "".join(phone for phone in phones if phone in tokenizer.vocab).strip()
 
+    text = expand_language_pins(text, speak)
     return place_pins(text, speak, ELIDING_STAND_IN) if PHONEMES.search(text) else speak(text)
 
 
@@ -147,6 +159,7 @@ def load_kokoro(spec: dict, seed: int) -> tuple[callable, dict]:
             phonemes = phonemize_kokoro(text, model.tokenizer, lang)
             samples, rate = model.create(phonemes, voice=spec["voice"], speed=spec["speed"], lang=lang, is_phonemes=True)
             return samples.astype("float32", copy=False), rate, {"phonemes": phonemes}
+        text = expand_language_pins(text, model.tokenizer.phonemize)
         if not PHONEMES.search(text):
             samples, rate = model.create(text, voice=spec["voice"], speed=spec["speed"], lang=lang)
             return samples.astype("float32", copy=False), rate, {}
@@ -318,7 +331,7 @@ def main() -> None:
     for path, raw in texts:
         file_started = time.perf_counter()
         text = " ".join(raw.split())
-        samples, rate, extra = synthesize(text if engine == "kokoro" else PHONEMES.sub(r"\1", text))
+        samples, rate, extra = synthesize(text if engine == "kokoro" else unpinned(text))
         wav = args.out_dir / f"{path.stem}.wav"
         with tempfile.TemporaryDirectory() as tmp:
             raw_wav = Path(tmp) / "raw.wav"
