@@ -14,7 +14,7 @@ instead (use (?i) for case-insensitive); it applies in order and never changes t
 
 Kokoro voices are synthesized one sentence at a time, because the model does not drift over a long text. Every other voice
 is voiced in bounded runs (local/voice/plan_runs.py), one take per run ending in a throwaway sentence, and cut
-into sentences by local/voice/cut_takes.py.
+into sentences by local/voice/cut_takes.py. A take longer than twice its estimate has looped and is re-voiced, at most twice.
 Sentence WAVs are keyed by voice config and spoken text, and takes.json records each sentence's original take id.
 --reuse and reruns follow the canonical take-level reuse rule in methods/voice-explainer-video.md#take-level-reuse.
 words.json holds one row per whitespace word or Han/Kana character of the script, timed by aligning Whisper's transcript of narration.wav to it.
@@ -63,6 +63,8 @@ ESPEAK = Path("/opt/homebrew/opt/espeak-ng")
 PHONEMES_PER_SECOND = 9.0
 MAX_TAKE_SECONDS = 120
 TAKE_RESERVE_SECONDS = 10
+# A take lands near its estimate, while a looping generation runs several times longer.
+RUNAWAY_FACTOR, RUNAWAY_RETRIES = 2.0, 2
 THROWAWAY = "That's all for now."
 # Thresholds are set so the Kokoro audio of the v4 reference film raises nothing (its largest values are in parentheses).
 LEVEL_DEV_DB = 3.0  # a sentence's level from the film median (1.2)
@@ -347,13 +349,25 @@ def voice_takes(name: str, spec: dict, pending: list[dict], work: Path, language
     for row, estimate in zip(pending, estimate_seconds([row["text"] for row in pending], language)):
         units.setdefault(row["alias"], []).append(row)
         seconds[row["alias"]] = seconds.get(row["alias"], 0.0) + estimate
-    takes, take_members = [], {}
+    takes, take_members, planned = [], {}, {}
     for run in plan_runs(seconds, work):
         stem = run[0] if len(run) == 1 else f"{run[0]}-{run[-1]}"
         (work / f"{stem}.txt").write_text(" ".join(r["spoken"] for alias in run for r in units[alias]) + " " + THROWAWAY)
         takes.append(work / f"{stem}.txt")
         take_members[stem] = [r for alias in run for r in units[alias]]
+        planned[stem] = sum(seconds[alias] for alias in run)
     run_tool("voice.py", [*takes, "--out-dir", work, "--voice", name])
+    # A looping generation runs far past its text, and the cutter then cannot place its sentences.
+    for attempt in range(RUNAWAY_RETRIES + 1):
+        durations = {t: sf.info(t.with_suffix(".wav")).duration for t in takes}
+        runaway = {t: d for t, d in durations.items() if d > RUNAWAY_FACTOR * planned[t.stem]}
+        if not runaway:
+            break
+        report = ", ".join(f"{t.stem} {d:.0f} s for {planned[t.stem]:.0f} s planned" for t, d in runaway.items())
+        if attempt == RUNAWAY_RETRIES:
+            raise SystemExit(f"takes still run away after {RUNAWAY_RETRIES} retries: {report}")
+        log(f"re-voicing runaway takes: {report}")
+        run_tool("voice.py", [*runaway, "--out-dir", work, "--voice", name])
     take_ids = {stem: record_take(stem, members) for stem, members in take_members.items()}
     (work / "sentences.json").write_text(json.dumps([{"id": r["id"], "scene": r["alias"], "text": r["spoken"]} for r in pending]))
     cut = work / "cut"

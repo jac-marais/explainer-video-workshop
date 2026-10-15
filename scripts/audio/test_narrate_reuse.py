@@ -358,6 +358,47 @@ class GenerationTests(unittest.TestCase):
             self.assertEqual(manifest["sha256"], film.sha256(Path(manifest["wav"]).read_bytes()))
             self.assertEqual(manifest["receipt_sha256"], film.sha256(Path(manifest["receipt"]).read_bytes()))
 
+    def voice_with_lengths(self, lengths, calls):
+        """A clone voice whose takes last the next of lengths seconds, and a cutter that finds clean cuts."""
+        def tool(script, args, capture=False):
+            texts = [a for a in args if isinstance(a, Path) and a.suffix == ".txt"]
+            if script == "voice.py":
+                calls.append([t.stem for t in texts])
+                for item in texts:
+                    sf.write(item.with_suffix(".wav"), np.full(round(lengths.pop(0) * film.RATE), 0.01, dtype="float32"),
+                             film.RATE, subtype="PCM_16")
+                    item.with_suffix(".json").write_text(json.dumps({"duration_s": 0, "seed": 1}))
+                return ""
+            destination = args[args.index("--out") + 1]
+            destination.mkdir()
+            for row in json.loads(args[args.index("--sentences") + 1].read_text()):
+                sf.write(destination / f"{row['id']}.wav", np.full(2400, 0.01, dtype="float32"), film.RATE, subtype="PCM_16")
+            return ""
+        return tool
+
+    def test_only_a_runaway_take_is_voiced_again(self):
+        calls = []
+        # Each sentence is estimated at 1 s, so S01 plans 2 s and S02-S03 plans 4 s.
+        with tempfile.TemporaryDirectory(dir="/tmp") as directory, \
+                patch.object(film, "run_tool", side_effect=self.voice_with_lengths([9, 4, 2], calls)), \
+                patch.object(film, "estimate_seconds", side_effect=lambda texts, language: [1.0] * len(texts)), \
+                patch.object(film, "plan_runs", return_value=[["S01"], ["S02", "S03"]]), patch.object(film, "log"):
+            audio, takes, _, manifests = film.voice_takes("clone", {"engine": "qwen3"}, rows(), Path(directory))
+            self.assertEqual(calls, [["S01", "S02-S03"], ["S01"]])
+            self.assertEqual(len(audio), 6)
+            for manifest in manifests.values():
+                self.assertEqual(manifest["sha256"], film.sha256(Path(manifest["wav"]).read_bytes()))
+
+    def test_a_take_that_keeps_running_away_stops_the_build(self):
+        calls = []
+        with tempfile.TemporaryDirectory(dir="/tmp") as directory, \
+                patch.object(film, "run_tool", side_effect=self.voice_with_lengths([13] * 3, calls)), \
+                patch.object(film, "estimate_seconds", side_effect=lambda texts, language: [1.0] * len(texts)), \
+                patch.object(film, "plan_runs", return_value=[["S01", "S02", "S03"]]), patch.object(film, "log"), \
+                self.assertRaisesRegex(SystemExit, "S01-S03 13 s for 6 s planned"):
+            film.voice_takes("clone", {"engine": "qwen3"}, rows(), Path(directory))
+        self.assertEqual(calls, [["S01-S03"]] * 3)
+
     def test_kokoro_generations_get_unique_ids_per_sentence_and_rerun(self):
         current = rows(("opening",), 2)
         with tempfile.TemporaryDirectory(dir="/tmp") as directory, patch.object(film, "run_tool", side_effect=self.fake_run_tool):
