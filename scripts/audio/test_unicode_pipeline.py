@@ -115,6 +115,17 @@ class UnicodePipelineTests(unittest.TestCase):
         split = narrate_film.sentences('The gardener smiles and says, "It grows." Then she waters the soil.', "en")
         self.assertEqual([s["text"] for s in split], ['The gardener smiles and says, "It grows."', "Then she waters the soil."])
 
+    def test_quoted_sentences_in_another_language_split(self):
+        # Stanza for these languages merges consecutive quoted English sentences; the quote rule splits them.
+        quotes = '"I see people." "I see laptops." "They are best friends." '
+        for language, tail in [("es", "Esa respuesta enumera objetos."), ("fr", "Cette réponse liste des objets."),
+                               ("hi", "यह उत्तर चीज़ें गिनाता है।"), ("ko", "이 답은 물건만 나열합니다."), ("zh", "这个回答只列出了物品。")]:
+            split = narrate_film.sentences(quotes + tail, language)
+            self.assertEqual([s["text"] for s in split], ['"I see people."', '"I see laptops."', '"They are best friends."', tail], language)
+        # A quote that ends inside a sentence, before a lowercase word, does not split it.
+        split = narrate_film.sentences('She said "Stop!" and walked home. Then it rained.', "en")
+        self.assertEqual([s["text"] for s in split], ['She said "Stop!" and walked home.', "Then it rained."])
+
     def test_numbers_inside_heard_words(self):
         for language, text, pieces in [
                 ("ko", "엘리베이터가 십이 층에 서요.", [("엘리베이터가", 0, 1), ("12층에", 1, 2), ("서요.", 2, 3)]),

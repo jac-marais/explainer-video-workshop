@@ -101,6 +101,8 @@ def sentences(text: str, language: str) -> list[dict]:
 
     A boundary counts only where the text before it ends in a Unicode Sentence_Terminal, then any closing punctuation and spaces.
     A proposed boundary moves past closing punctuation that touches the text before it, so a closing quote stays with its sentence.
+    A terminal, a closing quote, then a space and anything but a lowercase letter always ends a sentence, because a tokenizer
+    for one language can merge quoted sentences in another, such as English sample answers in Spanish or Hindi narration.
     A [pause] mark never splits a sentence. It sets pause_before on the sentence that holds the text after it.
     """
     import regex  # Standard-library tools import this module too, and only the environment has regex.
@@ -116,8 +118,10 @@ def sentences(text: str, language: str) -> list[dict]:
         raise ValueError("scene narration must not be empty")
     end = regex.compile(r"\p{Sentence_Terminal}[\p{SB=Close}\s]*\Z")
     closing = regex.compile(r"[\p{Pe}\p{Pf}]*\s*")
+    quoted = regex.compile(r"\p{Sentence_Terminal}\p{SB=Close}+\s+(?=[^\s\p{Ll}])")
     proposed = (sentence.tokens[0].start_char for sentence in stanza_pipeline(language)(clean).sentences[1:])
     settled = {closing.match(clean, start).end() if not clean[start - 1].isspace() else start for start in proposed}
+    settled |= {m.end() for m in quoted.finditer(clean)}
     starts = [0] + sorted(start for start in settled if start < len(clean) and end.search(clean, 0, start)) + [len(clean)]
     return [{"text": clean[a:b].strip(), "pause_before": any(a <= p < b for p in pauses)} for a, b in zip(starts, starts[1:])]
 
