@@ -108,6 +108,10 @@ def espeak_backend(lang: str):
 def phonemize_kokoro(text: str, tokenizer, lang: str = KOKORO_LANG) -> str:
     """The Kokoro frontend: eSpeak phones that Kokoro can say, including explicit pronunciation pins."""
     import regex
+    # Kokoro silently drops a symbol outside its vocabulary, which garbles the pinned word.
+    unknown = sorted({phone for mark in PHONEMES.finditer(text) for phone in mark[2] if phone not in tokenizer.vocab})
+    if unknown:
+        raise SystemExit(f"Kokoro cannot say the pinned phonemes {' '.join(unknown)} in: {text}")
     backend = espeak_backend(lang)
 
     def speak(value: str) -> str:

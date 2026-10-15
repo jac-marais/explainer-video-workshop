@@ -72,6 +72,12 @@ class VoiceFrontendTests(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertEqual(self.phones(text, lang), phones)
 
+    def test_pins_with_symbols_kokoro_lacks_fail_instead_of_vanishing(self):
+        self.assertNotIn("ɝ", self.tokenizer.vocab)
+        with self.assertRaisesRegex(SystemExit, "cannot say the pinned phonemes ɝ"):
+            self.phones("The [bird](/bˈɝd/) sings.")
+        self.assertIn("bˈɜɹd", self.phones("The [bird](/bˈɜɹd/) sings."))
+
     def test_ambiguous_pin_placement_fails_instead_of_guessing(self):
         with self.assertRaisesRegex(SystemExit, "could not place pinned phonemes"):
             self.phones(self.voice.ELIDING_STAND_IN + " and [cup](/kˈʌp/).")
