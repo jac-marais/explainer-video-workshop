@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Build one language of a prepared HyperFrames film; restart with --from STEP."""
+"""Build one language of a prepared HyperFrames film.
+
+Run the steps from --from through --to. Arguments after a bare -- go to hyperframes render.
+"""
 import argparse
 import json
 from pathlib import Path
@@ -78,6 +81,7 @@ def main():
     parser.add_argument("--key-language", help="the --key-script's language code")
     parser.add_argument("--audio", type=Path, help="defaults to PROJECT/audio")
     parser.add_argument("--from", dest="start", choices=STEPS, default="narrate")
+    parser.add_argument("--to", dest="stop", choices=STEPS, default="check")
     parser.add_argument("--composition", default=".")
     for name in ("key-script", "strings", "spoken", "reuse", "aliases"):
         parser.add_argument(f"--{name}", type=Path)
@@ -92,19 +96,27 @@ def main():
     parser.add_argument("--caption-band")
     parser.add_argument("--size", default="1920x1080")
     parser.add_argument("--fps", type=float, default=30)
-    args = parser.parse_args()
+    parser.add_argument("--mix", type=Path, help="mono mix to mux and check instead of AUDIO/narration.wav")
+    argv = sys.argv[1:]
+    extra = argv[argv.index("--") + 1:] if "--" in argv else []
+    argv = argv[:argv.index("--")] if "--" in argv else argv
+    args = parser.parse_args(argv)
     if args.key_script and not args.key_language:
         parser.error("--key-script needs --key-language")
+    if STEPS.index(args.stop) < STEPS.index(args.start):
+        parser.error("--to must not come before --from")
+    if args.mix is not None and STEPS.index(args.start) < STEPS.index("render"):
+        parser.error("--mix needs --from render or check, because earlier steps change what the mix contains")
     validate_inputs(args)
     audio = (args.audio or args.project / "audio").resolve()
     timing, words = audio / "timing.json", audio / "words.json"
     captions, cues = audio / "captions.json", audio / "cues.json"
-    narration = audio / "narration.wav"
-    if STEPS.index(args.start) <= STEPS.index("render") and args.out.exists():
+    master = args.mix or audio / "narration.wav"
+    if STEPS.index(args.start) <= STEPS.index("render") <= STEPS.index(args.stop) and args.out.exists():
         raise ValueError(f"{args.out} exists; choose a new --out before rerendering")
     if not (args.project / "index.html").is_file():
         raise ValueError("project needs an existing index.html composition")
-    for step in STEPS[STEPS.index(args.start):]:
+    for step in STEPS[STEPS.index(args.start):STEPS.index(args.stop) + 1]:
         print(f"[{step}]", flush=True)
         if step == "narrate":
             command = [SCRIPTS / "run/py", SCRIPTS / "audio/narrate_film.py", args.scenes, "--voice", args.voice,
@@ -141,13 +153,16 @@ def main():
             execute(command)
         elif step == "render":
             duration = json.loads(timing.read_text())["duration"] + args.tail
-            execute([sys.executable, SCRIPTS / "film/render.py", "--hf", args.hf, "--project", args.project,
-                     args.composition, "--out", args.out, "--narration", narration, "--expect-seconds", duration], heavy=True)
+            command = [sys.executable, SCRIPTS / "film/render.py", "--hf", args.hf, "--project", args.project,
+                       args.composition, "--out", args.out, "--narration", master, "--expect-seconds", duration]
+            if extra:
+                command += ["--", *extra]
+            execute(command, heavy=True)
         elif step == "check":
             # check_film.py owns the default caption band, so pass one only when the user sets it.
             band = ["--caption-band", args.caption_band] if args.caption_band else []
             execute([sys.executable, SCRIPTS / "film/check_film.py", args.out, "--timing", timing,
-                     "--captions", captions, "--narration", narration, "--tail", args.tail,
+                     "--captions", captions, "--narration", master, "--tail", args.tail,
                      "--pacing", args.pacing, "--holds", args.holds, "--uncaptioned", args.uncaptioned,
                      *band, "--size", args.size, "--fps", args.fps], heavy=True)
 

@@ -133,6 +133,47 @@ class RunnerTests(unittest.TestCase):
             self.invoke(["--from", "render"])
         self.assertEqual(len(self.invoke(["--from", "check"])), 1)
 
+    def test_to_stops_after_the_named_step(self):
+        calls = self.invoke(["--from", "captions", "--to", "data"])
+        names = [next(Path(str(item)).name for item in call.args[0] if str(item).endswith('.py')) for call in calls]
+        self.assertEqual(names, ["captions.py", "cues.py", "build_data.py"])
+        self.assertEqual(len(self.invoke(["--from", "narrate", "--to", "narrate"])), 1)
+
+    def test_to_before_from_is_refused(self):
+        with patch.object(sys, "argv", self.argv + ["--from", "data", "--to", "cues"]), patch.object(film, "execute") as execute:
+            with self.assertRaises(SystemExit):
+                film.main()
+            execute.assert_not_called()
+
+    def test_existing_output_only_blocks_runs_that_render(self):
+        (self.root / "film.mp4").write_bytes(b"invented")
+        self.assertEqual(len(self.invoke(["--to", "data"])), 4)
+        with self.assertRaisesRegex(ValueError, "choose a new --out"):
+            self.invoke(["--from", "data", "--to", "render"])
+
+    def test_mix_replaces_narration_in_render_and_check(self):
+        mix = self.root / "mix.wav"
+        render, check = [call.args[0] for call in self.invoke(["--from", "render", "--mix", str(mix)])]
+        self.assertEqual(str(render[render.index("--narration") + 1]), str(mix))
+        self.assertEqual(str(check[check.index("--narration") + 1]), str(mix))
+        default = str((self.audio / "narration.wav").resolve())
+        render, check = [call.args[0] for call in self.invoke(["--from", "render"])]
+        self.assertEqual(str(render[render.index("--narration") + 1]), default)
+        self.assertEqual(str(check[check.index("--narration") + 1]), default)
+
+    def test_mix_needs_render_or_check(self):
+        with patch.object(sys, "argv", self.argv + ["--from", "data", "--mix", "mix.wav"]), patch.object(film, "execute") as execute:
+            with self.assertRaises(SystemExit):
+                film.main()
+            execute.assert_not_called()
+
+    def test_arguments_after_double_dash_reach_render_only(self):
+        render, check = [[str(item) for item in call.args[0]] for call in self.invoke(["--from", "render", "--", "--quality", "draft"])]
+        self.assertEqual(render[-3:], ["--", "--quality", "draft"])
+        self.assertNotIn("--quality", check)
+        render = [str(item) for item in self.invoke(["--from", "render"])[0].args[0]]
+        self.assertNotIn("--", render)
+
     def test_execute_wraps_command_without_a_shell(self):
         with patch.object(film.subprocess, "run") as run:
             film.execute(["python3", "file with spaces.py"], heavy=True)
