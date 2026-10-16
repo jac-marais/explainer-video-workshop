@@ -54,7 +54,7 @@ MECHANICAL LANGUAGE BUILD
 
 After the package, voice and pilot gates pass and the composition is ready, run one command per language:
 `scripts/run/make_film.py --language CODE --voice NAME --script SCRIPT.md --scenes SCENES.json --project PROJECT --hf CLI --out OUT.mp4`
-It runs narration, captions, cues, data, render and checks, with heavy work queued under the shared lock. Use separate paths per language. Add `--from STEP` after a repair and choose a new MP4 output when rerendering. The options, restart boundaries and prerequisites are in `scripts/README.md#one-command-per-language`. It does not replace milestone gates, exact-output playback or review. Wrap separate TTS, Whisper, render and media-check commands with `scripts/run/heavy` too; do not wrap the whole pipeline, since its heavy steps acquire the same lock.
+It runs narration, captions, cues, data, render and checks, with heavy work queued under the shared lock. Use separate paths per language. Add `--from STEP` after a repair and choose a new MP4 output when rerendering. The options, restart boundaries and prerequisites are in `scripts/README.md#one-command-per-language`. It does not replace milestone gates, exact-output playback or review. Wrap separate TTS, Whisper, render and media-check commands with `scripts/run/heavy` too; wrapping the whole pipeline holds the lock for all its steps, as `scripts/README.md` describes.
 
 MILESTONES
 

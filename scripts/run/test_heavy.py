@@ -13,6 +13,24 @@ BOOT = "from pathlib import Path; from unittest.mock import patch; import runpy,
 
 
 class HeavyTests(unittest.TestCase):
+    def test_nested_command_reuses_lock_and_priority(self):
+        with tempfile.TemporaryDirectory() as directory:
+            nested = [sys.executable, "-c", BOOT, directory, str(HEAVY), sys.executable, "-c",
+                      "import os; print(os.getpriority(os.PRIO_PROCESS, 0))"]
+            code = f"import subprocess; subprocess.run({nested!r}, check=True)"
+            process = subprocess.Popen([sys.executable, "-c", BOOT, directory, str(HEAVY), sys.executable, "-c", code],
+                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                       start_new_session=True)
+            try:
+                out, err = process.communicate(timeout=5)
+                self.assertEqual(process.returncode, 0, err)
+                self.assertEqual(int(out.strip()), os.getpriority(os.PRIO_PROCESS, 0) + 10)
+                self.assertNotIn("waiting for", err)
+            finally:
+                if process.poll() is None:
+                    os.killpg(process.pid, signal.SIGKILL)
+                process.communicate()
+
     def test_concurrent_commands_and_crash_release(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

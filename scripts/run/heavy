@@ -6,6 +6,14 @@ from pathlib import Path
 import sys
 
 
+def execute(command):
+    try:
+        os.execvp(command[0], command)
+    except OSError as exc:
+        print(f"heavy: {exc}", file=sys.stderr)
+        return 127
+
+
 def main():
     command = sys.argv[1:]
     if command[:1] == ["--"]:
@@ -14,6 +22,8 @@ def main():
         print("usage: scripts/run/heavy COMMAND [ARG ...]")
         return 0 if command else 2
     path = Path.home() / ".cache" / "explainer-video-heavy.lock"
+    if os.environ.get("EXPLAINER_VIDEO_HEAVY_LOCK") == str(path):
+        return execute(command)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a") as lock:
         try:
@@ -24,11 +34,8 @@ def main():
         os.nice(10)
         # The command inherits the lock so a crash releases it without a stale lock file.
         os.set_inheritable(lock.fileno(), True)
-        try:
-            os.execvp(command[0], command)
-        except OSError as exc:
-            print(f"heavy: {exc}", file=sys.stderr)
-            return 127
+        os.environ["EXPLAINER_VIDEO_HEAVY_LOCK"] = str(path)
+        return execute(command)
 
 
 if __name__ == "__main__":
