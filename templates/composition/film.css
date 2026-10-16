@@ -1,0 +1,20 @@
+/* Base layout for every brand. Values come from tokens.css; a scene's own layout goes in index.html. */
+html, body { margin: 0; background: var(--bg); }
+#root { position: relative; overflow: hidden; width: 1920px; height: 1080px; background: var(--bg); color: var(--text);
+  font-family: var(--font-sans); font-size: var(--fs-body); line-height: var(--lh-body); }
+.scene { position: absolute; inset: 0; visibility: hidden; opacity: 0; }
+.beat { visibility: hidden; opacity: 0; }
+.abs { position: absolute; }
+
+.eyebrow { position: absolute; left: var(--margin); top: calc(var(--u) * 3); margin: 0; color: var(--text-2);
+  font-size: var(--fs-label); font-weight: var(--w-label, var(--w-regular)); line-height: 1.2; }
+.headline { position: absolute; left: var(--margin); top: calc(var(--u) * 4.5); margin: 0; font-size: var(--fs-h1);
+  font-weight: var(--w-heading); line-height: var(--lh-display); letter-spacing: var(--ls-display); }
+
+#captions { position: absolute; left: var(--margin); right: var(--margin); bottom: var(--caption-bottom); height: var(--caption-h); }
+.caption { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center;
+  visibility: hidden; opacity: 0; }
+/* captions.py already broke the lines in the caption font, so keep its breaks and do not rewrap. */
+.caption span { white-space: pre-line; padding: 6px 18px; font-size: var(--fs-caption); line-height: var(--lh-caption, 1.35);
+  color: var(--caption-fg, var(--text)); background: var(--caption-bg); border-radius: var(--caption-radius, 0);
+  box-decoration-break: clone; -webkit-box-decoration-break: clone; }

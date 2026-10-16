@@ -1,0 +1,18 @@
+/* MIT Media Lab-inspired signature system; brands/mit-media-lab.md owns every value and rule. */
+
+/* Column-module reveal: seven masked columns, each fading in over 45 % of the reveal, left to right, as --p runs 0 to 1. */
+.modules { --p: 0; mask-repeat: no-repeat; mask-size: calc(100% / 7 + 1px) 100%;
+  mask-position: 0% 0, 16.6667% 0, 33.3333% 0, 50% 0, 66.6667% 0, 83.3333% 0, 100% 0;
+  mask-image:
+    linear-gradient(rgb(0 0 0 / calc(clamp(0, (var(--p) - 0) / 0.45, 1))) 0 0),
+    linear-gradient(rgb(0 0 0 / calc(clamp(0, (var(--p) - 0.091667) / 0.45, 1))) 0 0),
+    linear-gradient(rgb(0 0 0 / calc(clamp(0, (var(--p) - 0.183333) / 0.45, 1))) 0 0),
+    linear-gradient(rgb(0 0 0 / calc(clamp(0, (var(--p) - 0.275) / 0.45, 1))) 0 0),
+    linear-gradient(rgb(0 0 0 / calc(clamp(0, (var(--p) - 0.366667) / 0.45, 1))) 0 0),
+    linear-gradient(rgb(0 0 0 / calc(clamp(0, (var(--p) - 0.458333) / 0.45, 1))) 0 0),
+    linear-gradient(rgb(0 0 0 / calc(clamp(0, (var(--p) - 0.55) / 0.45, 1))) 0 0); }
+
+/* The one 7x7 mark. Its CSS position is the intro spot; the module moves it with transforms from its top-right corner. */
+.ml-mark { position: absolute; right: var(--margin); top: calc(var(--u) * 11); width: calc(var(--cell-lg) * 7);
+  height: calc(var(--cell-lg) * 7); transform-origin: 100% 0; }
+.ml-mark i { position: absolute; width: var(--cell-lg); height: var(--cell-lg); background: var(--text); transform: scale(0); }

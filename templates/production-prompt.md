@@ -88,6 +88,7 @@ Independent bounded source or asset checks named by the prepared package may run
 
 M3 - Build all scenes
 
+- For HyperFrames, build in a copy of `templates/composition/`, made for the M2 pilot when there is one; its `README.md` says how.
 - Implement each prepared shot and scene with the approved audio/timing contract. Read audio-bound times from `cues.json` and `captions.json` through `scripts/film/build_data.py`, never a hard-coded second; follow M1's sentence-cut timing rule. After a re-voice, rerun M1's captions and cues commands and rebuild.
 - Keep one comprehension job per scene. Preserve source-backed labels, formulas, units, captions, and uncertainty from the claim map. Remove decorative motion that competes with the learning target.
 - Animate only the planned beats, under the beat rule in step 4 of `methods/prepare-explainer-video.md`. When a check finds a quiet stretch, add a beat to the plan for it before building it.

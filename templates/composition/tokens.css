@@ -1,0 +1,41 @@
+/* Neutral placeholder so the starter renders before a brand is chosen. Replace this whole file with the
+   brand's Tokens block, unchanged; its @font-face rules load the faces from fonts/. */
+:root {
+  --bg: #ffffff;
+  --layer: #ffffff;
+  --line: #1a1a1a;
+  --text: #1a1a1a;
+  --text-2: #595959;
+  --text-on-emph: #ffffff;
+  --emph: #1f5fd6;
+  --emph-fill: #1a1a1a;
+  --font-sans: sans-serif;
+  --font-mono: monospace;
+  --w-regular: 400;
+  --w-heading: 600;
+  --w-label: 500;
+  --fs-display: 112px;
+  --fs-h1: 80px;
+  --fs-h2: 48px;
+  --fs-body: 36px;
+  --fs-label: 30px;
+  --fs-caption: 36px;
+  --lh-display: 0.95;
+  --lh-body: 1.25;
+  --ls-display: -0.02em;
+  --u: 30px;
+  --margin: 120px;
+  --caption-bottom: 60px;
+  --caption-h: 120px;
+  --radius: 0px;
+  --stroke: 2px;
+  --caption-bg: #000000;
+  --caption-fg: #ffffff;
+  --ease-standard: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-entrance: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-exit: cubic-bezier(0.55, 0, 1, 0.45);
+  --dur-fast: 200ms;
+  --dur-base: 360ms;
+  --dur-slow: 640ms;
+  --stagger: 80ms;
+}

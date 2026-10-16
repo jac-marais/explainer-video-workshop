@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="film.css">
+  <style>
+    /* Scene layout. Every value comes from a token or the 30 px unit. */
+    .job { top: calc(var(--u) * 11); width: calc(var(--u) * 12); height: calc(var(--u) * 6); box-sizing: border-box;
+      display: flex; align-items: center; justify-content: center; border: var(--stroke) solid var(--line);
+      border-radius: var(--radius); font-size: var(--fs-h2); }
+    .bar { top: calc(var(--u) * 19); width: calc(var(--u) * 12); height: var(--u); background: var(--emph-fill); }
+    #s01-total { left: calc(var(--margin) + var(--u) * 37); top: calc(var(--u) * 21.5); font-size: var(--fs-h2); }
+  </style>
+  <script src="vendor/gsap.min.js"></script>
+</head>
+<body>
+  <!-- build_data.py rewrites the first data-duration in this file, so the root keeps it first. -->
+  <div id="root" data-composition-id="film" data-start="0" data-duration="0" data-width="1920" data-height="1080">
+    <section id="s01" class="scene">
+      <p class="eyebrow beat">Example</p>
+      <h1 class="headline beat">Three small jobs</h1>
+      <div class="abs job beat" style="left: calc(var(--margin))">Job 1</div>
+      <div class="abs job beat" style="left: calc(var(--margin) + var(--u) * 14)">Job 2</div>
+      <div class="abs job beat" style="left: calc(var(--margin) + var(--u) * 28)">Job 3</div>
+      <div class="abs bar beat" style="left: calc(var(--margin))"></div>
+      <div class="abs bar beat" style="left: calc(var(--margin) + var(--u) * 14)"></div>
+      <div class="abs bar beat" style="left: calc(var(--margin) + var(--u) * 28)"></div>
+      <div id="s01-total" class="abs beat">3 minutes</div>
+    </section>
+    <audio id="narration" class="clip" src="audio/narration.wav" data-start="0" data-track-index="9"></audio>
+  </div>
+  <script src="data.js"></script>
+  <script src="film.js"></script>
+  <script>
+    const film = startFilm();
+    const { tl, cue, seconds, px, ease, reveal, enterScene, exitScene } = film;
+    // The lint reads this key from this file, and it must equal the root's data-composition-id.
+    window.__timelines = window.__timelines || {};
+    window.__timelines["film"] = tl;
+    const D = { stagger: seconds("--stagger"), slow: seconds("--dur-slow") };
+    const u = px("--u");
+
+    // Scene 1. Each beat starts on the words its Visual line quotes in the script.
+    enterScene("s01");
+    reveal("#s01 .eyebrow, #s01 .headline", cue("s01|Three small jobs"));
+    gsap.utils.toArray("#s01 .job").forEach((el, i) => reveal(el, cue("s01|Three small jobs") + (i + 1) * D.stagger));
+    gsap.utils.toArray("#s01 .bar").forEach((el, i) => reveal(el, cue("s01|takes a minute") + i * D.stagger));
+    gsap.utils.toArray("#s01 .bar").forEach((el, i) =>
+      tl.to(el, { x: -2 * u * i, y: 3 * u, duration: D.slow, ease: ease("--ease-standard") }, cue("s01|Add them together")));
+    reveal("#s01-total", cue("s01|busy for three minutes"));
+    exitScene("s01");
+  </script>
+</body>
+</html>
