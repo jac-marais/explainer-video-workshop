@@ -21,6 +21,8 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts/audio"))
+
 PROFILE = Path(__file__).resolve().parents[2] / "local/voice"
 RATE = 24000
 LOUDNORM = "I=-16:TP=-1.5:LRA=11"
@@ -103,11 +105,11 @@ def kokoro_stop(mark: str) -> str:
 
 @functools.cache
 def espeak_backend(lang: str):
-    """One eSpeak backend per language, because building one loads eSpeak and takes about a second."""
+    """One custom backend per language, sharing its eSpeak library with the legacy frontend."""
     import regex
-    from phonemizer.backend import EspeakBackend
+    from espeak_backend import CachedEspeakBackend
 
-    class Backend(EspeakBackend):
+    class Backend(CachedEspeakBackend):
         # Here eSpeak's line still separates phonemes with "_", and the text's own punctuation is set aside.
         def _postprocess_line(self, line, num, separator, strip):
             line = re.sub(r"[^\s_]+", lambda symbol: ESPEAK_SYMBOLS.get(symbol[0], symbol[0]), line)
@@ -115,6 +117,20 @@ def espeak_backend(lang: str):
             return regex.sub(r"\p{P}", "", line), switched
 
     return Backend(lang, preserve_punctuation=True, with_stress=True, language_switch="remove-flags")
+
+
+def cache_kokoro_tokenizer(tokenizer):
+    """Keep Kokoro's legacy phonemes while reusing its backend for each language."""
+    from espeak_backend import tokenizer_backend
+
+    def phonemize(text, lang=KOKORO_LANG, norm=True):
+        if norm:
+            text = tokenizer.normalize_text(text)
+        lines = [line for line in text.split(os.linesep) if line.strip()]
+        phones = os.linesep.join(tokenizer_backend(lang).phonemize(lines)) if lines else ""
+        return "".join(phone for phone in phones if phone in tokenizer.vocab).strip()
+
+    tokenizer.phonemize = phonemize
 
 
 def phonemize_kokoro(text: str, tokenizer, lang: str = KOKORO_LANG) -> str:
@@ -152,6 +168,7 @@ def load_kokoro(spec: dict, seed: int, refs: dict[str, Path]) -> tuple[callable,
     if frontend not in (None, KOKORO_FRONTEND):
         raise SystemExit(f"Unknown Kokoro frontend {frontend}; set {KOKORO_FRONTEND} or leave it out")
     model = Kokoro(str(model_path), str(voices_path), espeak_config=EspeakConfig(str(lib_path), str(data_path)))
+    cache_kokoro_tokenizer(model.tokenizer)
     lang = spec.get("lang", KOKORO_LANG)
 
     def synthesize(text: str) -> tuple[np.ndarray, int, dict]:

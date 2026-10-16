@@ -21,9 +21,17 @@ class VoiceFrontendTests(unittest.TestCase):
         module.loader.exec_module(cls.voice)
         prefix = Path("/opt/homebrew/opt/espeak-ng")
         cls.tokenizer = Tokenizer(EspeakConfig(str(prefix / "lib/libespeak-ng.dylib"), str(prefix / "share/espeak-ng-data")))
+        cls.voice.cache_kokoro_tokenizer(cls.tokenizer)
 
     def phones(self, text, lang="en-us"):
         return self.voice.phonemize_kokoro(text, self.tokenizer, lang)
+
+    def test_legacy_tokenizer_keeps_normalization_and_empty_lines(self):
+        for norm in (False, True):
+            with self.subTest(norm=norm):
+                self.assertEqual(self.tokenizer.phonemize(" \nThe red cup is full.\n\n", norm=norm),
+                                 "ðə ɹˈɛd kˈʌp ɪz fˈʊl.")
+                self.assertEqual(self.tokenizer.phonemize(" \n\n", norm=norm), "")
 
     def test_terminators_kokoro_lacks_become_its_nearest_stop(self):
         for lang, text, stops in [("en-us", "Is it full? Yes! It is.", "Is it full? Yes! It is."),

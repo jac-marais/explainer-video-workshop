@@ -280,17 +280,18 @@ def read_audio(path: Path) -> np.ndarray:
 
 @functools.cache
 def espeak(language: str):
-    """eSpeak's first choice of voice for a language, built once because building one takes about a second."""
-    from phonemizer.backend import EspeakBackend
+    """eSpeak's first choice of voice, with one library wrapper per requested language."""
+    from espeak_backend import CachedEspeakBackend, espeak_wrapper
     from phonemizer.backend.espeak.wrapper import EspeakWrapper
     EspeakWrapper.set_library(str(ESPEAK / "lib/libespeak-ng.dylib"))
     EspeakWrapper.set_data_path(str(ESPEAK / "share/espeak-ng-data"))
     # eSpeak ranks its voices for the language, and the phonemizer reads only its own voices, not MBROLA's.
-    supported = EspeakBackend.supported_languages()
-    voice = next((voice.language for voice in EspeakWrapper().available_voices(language) if voice.language in supported), None)
+    wrapper = espeak_wrapper(language)
+    supported = {voice.language for voice in wrapper.available_voices()}
+    voice = next((voice.language for voice in wrapper.available_voices(language) if voice.language in supported), None)
     if not voice:
         raise SystemExit(f"eSpeak has no voice for {language!r}")
-    return EspeakBackend(voice, language_switch="remove-flags")
+    return CachedEspeakBackend(voice, cache_language=language, language_switch="remove-flags")
 
 
 def estimate_seconds(texts: list[str], language: str) -> list[float]:
