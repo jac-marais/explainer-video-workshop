@@ -1,5 +1,6 @@
 """Exercise narration reuse and provenance without loading or running a speech model."""
 import argparse
+import contextlib
 import io
 import json
 from pathlib import Path
@@ -341,7 +342,7 @@ class SourceLoadingTests(unittest.TestCase):
 
 
 class GenerationTests(unittest.TestCase):
-    def fake_run_tool(self, script, args, capture=False):
+    def fake_run_tool(self, script, args, capture=False, soft_exit=None):
         if script == "voice.py":
             for item in args:
                 if isinstance(item, Path) and item.suffix == ".txt":
@@ -350,7 +351,7 @@ class GenerationTests(unittest.TestCase):
             return ""
         if script == "cut_takes.py":
             destination = args[args.index("--out") + 1]
-            destination.mkdir()
+            destination.mkdir(exist_ok=True)
             sentence_file = args[args.index("--sentences") + 1]
             for row in json.loads(sentence_file.read_text()):
                 sf.write(destination / f"{row['id']}.wav", np.full(2400, 0.01, dtype="float32"), film.RATE, subtype="PCM_16")
@@ -375,7 +376,7 @@ class GenerationTests(unittest.TestCase):
 
     def voice_with_lengths(self, lengths, calls):
         """A clone voice whose takes last the next of lengths seconds, and a cutter that finds clean cuts."""
-        def tool(script, args, capture=False):
+        def tool(script, args, capture=False, soft_exit=None):
             texts = [a for a in args if isinstance(a, Path) and a.suffix == ".txt"]
             if script == "voice.py":
                 calls.append([t.stem for t in texts])
@@ -385,7 +386,7 @@ class GenerationTests(unittest.TestCase):
                     item.with_suffix(".json").write_text(json.dumps({"duration_s": 0, "seed": 1}))
                 return ""
             destination = args[args.index("--out") + 1]
-            destination.mkdir()
+            destination.mkdir(exist_ok=True)
             for row in json.loads(args[args.index("--sentences") + 1].read_text()):
                 sf.write(destination / f"{row['id']}.wav", np.full(2400, 0.01, dtype="float32"), film.RATE, subtype="PCM_16")
             return ""
@@ -403,6 +404,36 @@ class GenerationTests(unittest.TestCase):
             self.assertEqual(len(audio), 6)
             for manifest in manifests.values():
                 self.assertEqual(manifest["sha256"], film.sha256(Path(manifest["wav"]).read_bytes()))
+
+    def test_a_take_the_cutter_cannot_cut_is_voiced_again(self):
+        calls, cuts = [], []
+        voice = self.voice_with_lengths([2, 4, 2], calls)
+
+        def tool(script, args, capture=False, soft_exit=None):
+            if script == "cut_takes.py":
+                self.assertEqual(soft_exit, film.UNCUTTABLE_EXIT)
+                cuts.append(args[0].stem)
+                if cuts == ["S01"]:
+                    return None
+            return voice(script, args, capture)
+        with tempfile.TemporaryDirectory(dir="/tmp") as directory, patch.object(film, "run_tool", side_effect=tool), \
+                patch.object(film, "estimate_seconds", side_effect=lambda texts, language: [1.0] * len(texts)), \
+                patch.object(film, "plan_runs", return_value=[["S01"], ["S02", "S03"]]), patch.object(film, "log"):
+            audio, _, _, manifests = film.voice_takes("clone", {"engine": "qwen3"}, rows(), Path(directory))
+            self.assertEqual(calls, [["S01", "S02-S03"], ["S01"]])
+            self.assertEqual(cuts, ["S01", "S02-S03", "S01"])
+            self.assertEqual(len(audio), 6)
+            for manifest in manifests.values():
+                self.assertEqual(manifest["sha256"], film.sha256(Path(manifest["wav"]).read_bytes()))
+
+    def test_only_the_cutters_uncuttable_exit_is_soft(self):
+        with tempfile.TemporaryDirectory(dir="/tmp") as directory, patch.object(film, "VOICE_DIR", Path(directory)):
+            (Path(directory) / "tool.py").write_text("import sys\nprint('done')\nsys.exit(int(sys.argv[1]))\n")
+            self.assertEqual(film.run_tool("tool.py", [0], capture=True, soft_exit=3), "done\n")
+            with contextlib.redirect_stderr(io.StringIO()):
+                self.assertIsNone(film.run_tool("tool.py", [3], capture=True, soft_exit=3))
+            with self.assertRaisesRegex(SystemExit, "exit 1"):
+                film.run_tool("tool.py", [1], capture=True, soft_exit=3)
 
     def test_a_take_that_keeps_running_away_stops_the_build(self):
         calls = []
@@ -434,7 +465,7 @@ class GenerationTests(unittest.TestCase):
                     args = argparse.Namespace(scenes=scene_file, out=output, spoken=None, voice="selected", reuse=None, strict=False, language="en")
                     expected_cache = {}
 
-                    def fake_audio_tools(script, argv, capture=False):
+                    def fake_audio_tools(script, argv, capture=False, soft_exit=None):
                         if script == "voice.py":
                             for item in argv:
                                 if isinstance(item, Path) and item.suffix == ".txt":
@@ -446,7 +477,7 @@ class GenerationTests(unittest.TestCase):
                             return ""
                         if script == "cut_takes.py":
                             destination = argv[argv.index("--out") + 1]
-                            destination.mkdir()
+                            destination.mkdir(exist_ok=True)
                             for index, row in enumerate(current):
                                 path = destination / f"{row['id']}.wav"
                                 sf.write(path, tone(-30 + index * 8), film.RATE, subtype="PCM_16")

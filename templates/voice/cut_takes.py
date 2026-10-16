@@ -8,7 +8,8 @@ Consecutive boundaries with equal bounds share one search window and take its lo
 boundary in time order, each grown to its whole pause and cut at the middle. With too few stretches, the remaining cuts
 bisect the widest interval left in the window, and every cut in a shared window is unclean.
 A lone boundary without a quiet stretch of at least MIN_GAP cuts at the quietest averaged point and is logged as unclean.
-Cuts must strictly increase, or the take stops with its sentence ids before any of its sentence WAVs are written.
+Cuts must strictly increase, or the take stops with its sentence ids before any of its sentence WAVs are written, and
+the cutter exits with UNCUTTABLE_EXIT.
 
 Nothing is trimmed and nothing is faded: each sentence runs from cut to cut, the first from the take's start, so the
 written sentences rejoin into the take exactly. Film assembly follows methods/voice-explainer-video.md, including its
@@ -32,6 +33,12 @@ QUIET_DB = 12  # quiet means within this many dB of the floor
 MIN_GAP = 0.06  # a stop consonant's closure lasts about this long, so shorter dips are never cut
 BEFORE = 0.1
 AFTER = 0.4
+UNCUTTABLE_EXIT = 3  # a take whose cuts cannot strictly increase, which narrate_film.py voices again
+
+def uncuttable(message):
+    print(message, file=sys.stderr)
+    raise SystemExit(UNCUTTABLE_EXIT)
+
 
 def sentence_bounds(sents, words, duration):
     """Return (left end, right start, matched) for each sentence boundary.
@@ -106,7 +113,7 @@ def main():
             lo = max(0, int((min(end, start) - BEFORE) / WINDOW))
             hi = min(len(smooth), int((max(end, start) + AFTER) / WINDOW) + 1)
             if lo >= hi:
-                raise SystemExit(invalid)
+                uncuttable(invalid)
             runs, i = [], lo
             while i < hi:
                 j = i
@@ -129,7 +136,7 @@ def main():
                 a, b = max(((max(a, lo * n - 1), min(b, hi * n)) for a, b in zip(anchors, anchors[1:])),
                            key=lambda pair: pair[1] - pair[0])
                 if b - a <= 1:
-                    raise SystemExit(invalid)
+                    uncuttable(invalid)
                 cuts[(a + b) // 2] = 0.0
             for edge, gap in sorted(cuts.items()):
                 edges.append(edge)
@@ -139,7 +146,7 @@ def main():
                 k += 1
         edges.append(len(y))
         if any(a >= b for a, b in zip(edges, edges[1:])):
-            raise SystemExit(invalid)
+            uncuttable(invalid)
         for k, s in enumerate(sents):
             if s["id"]:
                 sf.write(args.out / f"{s['id']}.wav", y[edges[k]:edges[k + 1]], rate, subtype="PCM_16")

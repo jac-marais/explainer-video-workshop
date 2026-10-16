@@ -15,7 +15,8 @@ and it never changes the captioned text.
 
 Kokoro voices are synthesized one sentence at a time, because the model does not drift over a long text. Every other voice
 is voiced in bounded runs (local/voice/plan_runs.py), one take per run ending in a throwaway sentence, and cut
-into sentences by local/voice/cut_takes.py. A take longer than twice its estimate has looped and is re-voiced, at most twice.
+into sentences by local/voice/cut_takes.py. A take longer than twice its estimate, or one the cutter cannot cut in order,
+has looped and is re-voiced, at most twice.
 Sentence WAVs are keyed by voice config and spoken text, and takes.json records each sentence's original take id.
 --reuse and reruns follow the canonical take-level reuse rule in methods/voice-explainer-video.md#take-level-reuse.
 words.json holds one row per whitespace word or Han/Kana character of the script, timed by aligning Whisper's transcript of narration.wav to it.
@@ -64,8 +65,9 @@ ESPEAK = Path("/opt/homebrew/opt/espeak-ng")
 PHONEMES_PER_SECOND = 9.0
 MAX_TAKE_SECONDS = 120
 TAKE_RESERVE_SECONDS = 10
-# A take lands near its estimate, while a looping generation runs several times longer.
+# A take lands near its estimate, while a looping generation often runs several times longer.
 RUNAWAY_FACTOR, RUNAWAY_RETRIES = 2.0, 2
+UNCUTTABLE_EXIT = 3  # cut_takes.py's exit code for a take whose sentences it cannot cut in order
 THROWAWAY = "That's all for now."
 # Thresholds are set so the Kokoro audio of the v4 reference film raises nothing (its largest values are in parentheses).
 LEVEL_DEV_DB = 3.0  # a sentence's level from the film median (1.2)
@@ -249,9 +251,13 @@ def decide_reuse(rows: list[dict], engine: str, sources: list[ReuseSource]) -> R
     return result
 
 
-def run_tool(script: str, args: list[str], capture: bool = False) -> str:
+def run_tool(script: str, args: list[str], capture: bool = False, soft_exit: int | None = None) -> str | None:
+    """Run a voice tool and return its captured output, or None when it exits with soft_exit."""
     result = subprocess.run([sys.executable, str(VOICE_DIR / script), *map(str, args)], text=True,
                             stdout=subprocess.PIPE if capture else None, stderr=None if not capture else subprocess.PIPE)
+    if soft_exit is not None and result.returncode == soft_exit:
+        print(result.stderr or "", end="", file=sys.stderr)
+        return None
     if result.returncode:
         raise SystemExit(f"{script} failed (exit {result.returncode})\n{(result.stderr or '')[-2000:]}")
     if capture and result.stderr:
@@ -369,23 +375,32 @@ def voice_takes(name: str, spec: dict, pending: list[dict], work: Path, language
         take_members[stem] = [r for alias in run for r in units[alias]]
         planned[stem] = sum(seconds[alias] for alias in run)
     run_tool("voice.py", [*takes, "--out-dir", work, "--voice", name])
-    # A looping generation runs far past its text, and the cutter then cannot place its sentences.
+    (work / "sentences.json").write_text(json.dumps([{"id": r["id"], "scene": r["alias"], "text": r["spoken"]} for r in pending]))
+    cut, lines, todo = work / "cut", [], takes
+    # A looping generation runs past its text, often far past it, and the cutter then cannot place its sentences in order.
     for attempt in range(RUNAWAY_RETRIES + 1):
-        durations = {t: sf.info(t.with_suffix(".wav")).duration for t in takes}
-        runaway = {t: d for t, d in durations.items() if d > RUNAWAY_FACTOR * planned[t.stem]}
+        runaway = {}
+        for t in todo:
+            seconds_voiced = sf.info(t.with_suffix(".wav")).duration
+            if seconds_voiced > RUNAWAY_FACTOR * planned[t.stem]:
+                runaway[t] = f"{seconds_voiced:.0f} s for {planned[t.stem]:.0f} s planned"
+                continue
+            out = run_tool("cut_takes.py", [t.with_suffix(".wav"), "--sentences", work / "sentences.json", "--out", cut,
+                                            "--throwaway", THROWAWAY, "--language", language],
+                           capture=True, soft_exit=UNCUTTABLE_EXIT)
+            if out is None:
+                runaway[t] = "cannot be cut in order"
+            else:
+                lines += [json.loads(line) for line in out.splitlines() if line.startswith("{")]
         if not runaway:
             break
-        report = ", ".join(f"{t.stem} {d:.0f} s for {planned[t.stem]:.0f} s planned" for t, d in runaway.items())
+        report = ", ".join(f"{t.stem} {why}" for t, why in runaway.items())
         if attempt == RUNAWAY_RETRIES:
             raise SystemExit(f"takes still run away after {RUNAWAY_RETRIES} retries: {report}")
         log(f"re-voicing runaway takes: {report}")
         run_tool("voice.py", [*runaway, "--out-dir", work, "--voice", name])
+        todo = list(runaway)
     take_ids = {stem: record_take(stem, members) for stem, members in take_members.items()}
-    (work / "sentences.json").write_text(json.dumps([{"id": r["id"], "scene": r["alias"], "text": r["spoken"]} for r in pending]))
-    cut = work / "cut"
-    out = run_tool("cut_takes.py", [*(t.with_suffix(".wav") for t in takes), "--sentences", work / "sentences.json", "--out", cut,
-                                    "--throwaway", THROWAWAY, "--language", language], capture=True)
-    lines = [json.loads(line) for line in out.splitlines() if line.startswith("{")]
     unclean = [{"check": "unclean_cut", "take": take_ids[r["take"]], "after": r["after"], "gap_s": r["gap_s"]}
                for r in lines if r.get("clean") is False]
     return {row["id"]: read_audio(cut / f"{row['id']}.wav") for row in pending}, origins, unclean, manifests

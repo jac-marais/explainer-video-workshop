@@ -214,10 +214,11 @@ class CutTests(unittest.TestCase):
                             patch.object(cut, 'sentence_bounds', return_value=bounds), \
                             patch.object(cut, 'WINDOW', window), patch.object(cut, 'BEFORE', before), \
                             patch.object(cut, 'AFTER', after), patch.object(cut, 'MIN_GAP', 2.0):
-                        with self.assertRaises(SystemExit) as stopped:
+                        with self.assertRaises(SystemExit) as stopped, contextlib.redirect_stderr(io.StringIO()) as said:
                             cut.main()
+                    self.assertEqual(stopped.exception.code, film.UNCUTTABLE_EXIT)
                     for name in ['S01.wav', 's0', 's1', 's2']:
-                        self.assertIn(name, str(stopped.exception))
+                        self.assertIn(name, said.getvalue())
                     self.assertEqual(list((root / 'cut').glob('*.wav')), [])
 
 
