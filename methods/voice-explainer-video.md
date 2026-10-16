@@ -18,7 +18,7 @@ The workshop ships no one's voice. The operator's voice setup lives in `local/vo
 ## First use
 
 1. Read `local/voice/README.md`.
-2. If it is missing, copy `templates/voice/` to `local/voice/`. Its default is Kokoro `af_heart`, the voice that runs used before this method existed. If it exists, copy across any script from `templates/voice/` that it lacks.
+2. If it is missing, copy `templates/voice/` to `local/voice/`. Its default is Kokoro `af_heart`, the voice that runs used before this method existed. If it exists, copy across any script from `templates/voice/` that it lacks or that differs, because `scripts/audio/narrate_film.py` runs the local copies; keep the local `README.md`, `voice.json` and recordings.
 3. Ask the user once: **"Narration uses a stock voice (Kokoro, `af_heart`). Would you like to clone your own voice instead? It needs an Apple Silicon Mac and a one-minute recording."**
 4. If they say yes, follow "Clone a voice". Record the answer in `local/voice/README.md` either way, so nobody asks again.
 
