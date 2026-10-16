@@ -9,6 +9,20 @@ Fill every bracketed field from the prepared package or external controller befo
 ```text
 You are executing a prepared explainer-video production run.
 
+MILESTONE MAP (the PARALLEL WORK RULE owns the split)
+
+M0  preflight and resume
+ │  script gate: claim map and script review pass
+ ├──────────────────────────────┐
+M1  narration, Whisper, timing  storyboard, design critique, shared style
+ ├──────────────────────────────┘
+M2  hard voiced pilot, for a film of 3 minutes or more
+M3  build all scenes
+M4  selective inspection and repair
+M5  full render
+M6  full playback, listening, and final review
+M7  exact handoff
+
 PREPARED PACKAGE
 Package directory: [path]
 Required records: [the package files from step 8 of methods/prepare-explainer-video.md, copied when this prompt is filled so later changes to that list do not alter this run]
@@ -30,9 +44,9 @@ The external controller enforces time, money, credentials, network, and publicat
 PRODUCTION CONTRACT
 1. Read the prepared package and reconcile run-state.md with the filesystem before changing anything. A missing, empty, corrupt, or mismatched artifact is invalid even if the state file says it passed. Never reuse an old MP4 as the result of a failed or changed render.
 2. Preserve the claim map and source boundaries. If an essential source is unreadable, a required asset lacks a rights note, or a promoted claim has no readable locator, stop and report the blocker. Narrowing the claim or asset set requires recording the change and invalidating affected script, scene, audio, timing, and review artifacts.
-3. Use the prepared renderer route when its dependencies and license permit it. Do not lock the run to a named model. Choose available providers and tools that satisfy the package, record their versions/roles, and stop if the route cannot meet the acceptance contract.
+3. Use the prepared renderer route when its dependencies and license permit it. Do not lock the run to a named model. Graphical work, meaning the storyboard and the M3 build, goes best with the strongest model for it, which is Opus 5.5 at the time of writing, so use it when you have access. Give the script review in step 3 of `methods/prepare-explainer-video.md` a strong model too, and give mechanical work, such as M1's checks and M4, to a cheaper one. Choose available providers and tools that satisfy the package, record their versions/roles, and stop if the route cannot meet the acceptance contract.
 4. Treat the approved audio bytes as timing truth once they exist. A re-record, trim, speed change, pause edit, or script change invalidates timing, captions, audio-bound visual cues, the pilot, and the pre-render receipt. Rebuild the affected artifacts before proceeding.
-5. Checkpoints are agent gates by default, not human approvals; proceed when the gate evidence is present. A gate named in the Taste gates field is answered by the user, asynchronously. The script gate comes before voicing, and sends the script with its term and source check against the text and the cold listener's result. The voice gate comes before the picture build, and sends a voiced read of the full script or its hardest two minutes, made the way the final will be (one take, the cut rule, the chosen voice). The stills gate comes before the full build, and sends two options at delivery size, including the tightest frames. The user picks, you keep the alternative, and you may not accept your own deviation from the contract. While a user gate is open, continue work that it does not affect. Ask the user otherwise only before a purchase, a publication or upload, contacting a creator or brand owner, another irreversible external write, or a private preference that the prepared package does not resolve.
+5. Checkpoints are agent gates by default, not human approvals; proceed when the gate evidence is present. A gate named in the Taste gates field is answered by the user, asynchronously. The script gate comes before voicing, and sends the script with its term and source check against the text and the script review's result. The voice gate comes before the picture build, and sends a voiced read of the full script or its hardest two minutes, made the way the final will be (one take, the cut rule, the chosen voice). The stills gate comes before the full build, and sends two options at delivery size, including the tightest frames. The user picks, you keep the alternative, and you may not accept your own deviation from the contract. While a user gate is open, continue work that it does not affect. Ask the user otherwise only before a purchase, a publication or upload, contacting a creator or brand owner, another irreversible external write, or a private preference that the prepared package does not resolve.
 6. Use storyboard.html as the composition reference when building the pilot and the scenes. Where it differs from the scene plan or approved audio, follow those and leave the storyboard unchanged.
 7. Keep the run lean. Start each film in a fresh session from the prepared package and run-state.md. The lead reads check reports and verdicts, and leaves mechanical work to a script (`scripts/README.md` lists the tools). Mark every milestone with `scripts/run/runlog.py mark RUN_STATE.md PHASE SESSION...`. Keep the script and film inside the length ceiling. Reports and hand-backs use absolute paths and stay short. Do not commit or push unless asked. If a hand-back is refused, report once by text and stop. Only one session edits the workshop at a time.
 
@@ -47,6 +61,7 @@ MILESTONES
 M0 - Preflight and resume
 
 - Read the brief, claim map, script, scene plan, assets manifest, route, and state. Inspect any existing project and preserve its meaningful files.
+- Read the workshop files that this prompt and the route in `AGENTS.md` name, and the files they link for each step. Leave the research in `library/` unread unless a step needs it.
 - Verify source readability, asset rights notes, required dependencies, output dimensions, FPS, language, caption requirement, and the current next action.
 - Run `sh scripts/run/setup_check.sh [HYPERFRAMES_BIN]`, which downloads nothing, and resolve every FAIL it prints before building, as "Setup" in `README.md` describes. Pass the route's HyperFrames CLI, or that check prints SKIP.
 - Apply the chosen route's traps in `methods/renderer-traps.md` before accepting its checks. For HyperFrames, that is its "HyperFrames preflight traps" section, and a lint-disabled or `0-of-0` audit is not a pass.
@@ -73,9 +88,10 @@ Checkpoint: timing names the exact approved audio receipt, or the run stops with
 
 M2 - Hard voiced pilot and shared style
 
+- For a film under the pilot threshold in step 7 of `methods/prepare-explainer-video.md`, build only the shared style here and go to M3.
 - Choose the pilot shot from the prepared scene plan, and judge it by the pilot selection rule and the pilot gate in step 7 of `methods/prepare-explainer-video.md`.
 - If `local/brand.md` names guidelines, build the shared style from them per `methods/brand-explainer-video.md`.
-- Build the shared style and this shot with its real or representative audio. Produce still frames and a contiguous 2-4 second voiced sample; inspect neighboring frames at delivery size.
+- Build the shared style as the design plan in `anthropic/frontend-design/SKILL.md`, and build this shot with its real or representative audio. Produce still frames and a contiguous 2-4 second voiced sample; inspect neighboring frames at delivery size.
 - Use every check that the chosen route offers. Examples are the M0 preflight for HyperFrames, Studio/stills for Remotion, a low-quality render for Manim, and the scene graph and errors for Motion Canvas.
 - Repair only bounded pilot defects. Record each cycle and stop if the configured repair limit is reached. A passing pilot is evidence for this scene; it is not full-film proof.
 - The stills gate, when named, opens here, before M3.
@@ -84,13 +100,15 @@ Checkpoint: the pilot passes its gate, or the run stops with the remaining defec
 
 PARALLEL WORK RULE
 
-Independent bounded source or asset checks named by the prepared package may run in parallel before M3. Each worker records source IDs, exact locators, rights notes, and proposed changes; one sequential convergence step updates the canonical claim map or asset manifest before dependent work consumes it. After M2 passes, independent scene construction may proceed in parallel when each worker uses the locked style tokens, claim IDs, timing IDs, asset paths, and renderer versions. Keep shared dependencies sequential: source/claim changes, script order, audio production, timing, global style, captions, scene transitions, final mix, full render, and final review. If a shared dependency changes, invalidate every affected branch before merging it.
+Once the script passes its gate, voicing (M1) runs beside the picture work that needs no audio, such as `storyboard.html` and its design critique when the package lacks them, and the shared style. The picture branch is the slow one, so start it first. The branches meet at the pilot and the build, which take every audio-bound time from `cues.json`. A script change after the split invalidates both branches, so the script review finishes before it. A named voice gate holds the build, not the picture work before it.
+
+Independent bounded source or asset checks named by the prepared package may run in parallel before M3. Each worker records source IDs, exact locators, rights notes, and proposed changes; one sequential convergence step updates the canonical claim map or asset manifest before dependent work consumes it. After M2 passes, independent scene construction may proceed in parallel when each worker uses the locked style tokens, claim IDs, timing IDs, asset paths, and renderer versions. Keep each shared dependency in one worker, in order: source/claim changes, script order, audio production, timing, global style, captions, scene transitions, final mix, full render, and final review. If a shared dependency changes, invalidate every affected branch before merging it.
 
 M3 - Build all scenes
 
 - For HyperFrames, build in a copy of `templates/composition/`, made for the M2 pilot when there is one; its `README.md` says how.
 - Implement each prepared shot and scene with the approved audio/timing contract. Read audio-bound times from `cues.json` and `captions.json` through `scripts/film/build_data.py`, never a hard-coded second; follow M1's sentence-cut timing rule. After a re-voice, rerun M1's captions and cues commands and rebuild.
-- Keep one comprehension job per scene. Preserve source-backed labels, formulas, units, captions, and uncertainty from the claim map. Remove decorative motion that competes with the learning target.
+- Build each scene under the design principles in `anthropic/frontend-design/SKILL.md`. Keep one comprehension job per scene. Preserve source-backed labels, formulas, units, captions, and uncertainty from the claim map. Remove decorative motion that competes with the learning target.
 - Animate only the planned beats, under the beat rule in step 4 of `methods/prepare-explainer-video.md`. When a check finds a quiet stretch, add a beat to the plan for it before building it.
 - Give the picture above the captions a planned beat at least every 5 s outside declared holds, because `scripts/film/check_film.py` fails a still of 6 s. A fast film must also pass the motion gate in step 8 of `methods/prepare-explainer-video.md`. A beat counts only when it moves the picture's mean luma by about 0.26 levels, so lighting one small gray label is too faint. Light a whole row, outline a box, or bring in an element.
 - Render cheap stills or selected frames for changed layout, text, or asset questions. For motion changes, render the changed scene and its boundary overlap; do not spend a full render on a known local defect.

@@ -73,6 +73,7 @@ outputs/                    new user work (git-ignored)
 local/                      operator's brand profile, voice, and pronunciation verdicts (git-ignored)
 .agents/skills/             preparation and brand skills
 .claude/skills/             link to .agents/skills for Claude Code
+anthropic/                  Anthropic skills copied with their Apache-2.0 license, then adapted
 ```
 
 Only the workshop itself is committed: routing, methods, templates, scorecards, the library, the style gallery, and the skills. Everything an agent produces while working stays local and git-ignored, under `outputs/` and `local/`.

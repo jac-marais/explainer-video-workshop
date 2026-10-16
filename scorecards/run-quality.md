@@ -41,9 +41,9 @@ Mark `critical failure = yes` when any of these is true:
 - a source disagreement is hidden or a reconstruction is labeled as an exact creator prompt/run;
 - the script estimate is presented as measured audio, or approved audio changed without timing/caption invalidation;
 - global word/WPM arithmetic passes while any scene window cannot cover its speech plus declared breathing and learner pauses, or scene windows do not sum to the target within declared tolerance;
-- the narration has no cold-listener test from step 3 of `methods/prepare-explainer-video.md`, or a problem that the test found is unrepaired;
+- the narration has no script review from step 3 of `methods/prepare-explainer-video.md`, or a finding of that review is unrepaired;
 - the package has no timing plan, or a timing, pilot, pre-render, or final-review receipt is stale against its inputs;
-- the preparation package has no hardest/representative pilot plan, or a production-evidence claim has no voiced pilot when the requested local stack could run it;
+- the preparation package has no hardest/representative pilot plan, or a production-evidence claim for a film at or over the pilot threshold in step 7 of `methods/prepare-explainer-video.md` has no voiced pilot when the requested local stack could run it;
 - a claimed pilot has render errors, stale output, clipped/illegible text, misleading motion, or timing that does not follow the audio;
 - an asset has no rights/use note, or a private credential is written into a source artifact;
 - a viable preparation package lacks a filled `production-prompt.md` matching its current route, limits, and acceptance contract;
