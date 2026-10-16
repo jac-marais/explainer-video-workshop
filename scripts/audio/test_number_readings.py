@@ -10,7 +10,7 @@ from pathlib import Path
 import tempfile
 import json
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import narrate_film as film
 from text_tokens import norm
@@ -100,19 +100,38 @@ class CutTests(unittest.TestCase):
                 (root / 'sentences.json').write_text(json.dumps([
                     {'id': 'a', 'scene': 'S01', 'text': '花'},
                     {'id': 'b', 'scene': 'S01', 'text': 'Goodbye.'}]))
-                whisper = SimpleNamespace(transcribe=lambda *a, **kw: None)
-                args = ['cut_takes.py', str(root / 'S01.wav'), '--sentences', str(root / 'sentences.json'),
-                        '--out', str(root / 'cut'), '--language', 'zh']
-                stdout = io.StringIO()
-                with patch.dict(sys.modules, {'mlx_whisper': whisper}), patch.object(sys, 'argv', args), \
-                        patch.object(whisper, 'transcribe', return_value={'segments': [{'words': [
-                            {'word': '花', 'start': .1, 'end': .3}]}]}) as transcribe, \
-                        contextlib.redirect_stdout(stdout):
-                    cut.main()
-                self.assertEqual(transcribe.call_args.kwargs['language'], 'zh')
-                logs = [json.loads(line) for line in stdout.getvalue().splitlines()]
-                self.assertEqual(logs[0]['unclean_cuts'], ['a'])
-                self.assertFalse(next(row for row in logs if 'clean' in row)['clean'])
+                # Only a take in another language hears its unmatched English sentence again, in English.
+                for language, heard in [('zh', ['zh', 'en']), ('en', ['en'])]:
+                    whisper = SimpleNamespace(transcribe=lambda *a, **kw: None)
+                    args = ['cut_takes.py', str(root / 'S01.wav'), '--sentences', str(root / 'sentences.json'),
+                            '--out', str(root / 'cut'), '--language', language]
+                    stdout = io.StringIO()
+                    with self.subTest(language=language), patch.dict(sys.modules, {'mlx_whisper': whisper}), \
+                            patch.object(sys, 'argv', args), \
+                            patch.object(whisper, 'transcribe', return_value={'segments': [{'words': [
+                                {'word': '花', 'start': .1, 'end': .3}]}]}) as transcribe, \
+                            contextlib.redirect_stdout(stdout):
+                        cut.main()
+                        self.assertEqual([call.kwargs['language'] for call in transcribe.call_args_list], heard)
+                        logs = [json.loads(line) for line in stdout.getvalue().splitlines()]
+                        self.assertEqual(logs[0]['unclean_cuts'], ['a'])
+                        self.assertFalse(next(row for row in logs if 'clean' in row)['clean'])
+
+    def test_unmatched_english_is_heard_again_in_english(self):
+        for cut in self.modules():
+            quotes = [{'text': '꽃이 핀다.'}, {'text': 'I see a cup.'}, {'text': 'It is red.'}, {'text': '끝이다.'}]
+            words = [{'word': w, 'start': a, 'end': b} for w, a, b in
+                     [('꽃이', 0, .5), ('핀다.', .5, 1), ('아이', 1.5, 2), ('씨', 3, 3.5), ('끝이다.', 5, 6)]]
+            english = [{'word': w, 'start': a, 'end': b} for w, a, b in
+                       [('I', 1.2, 1.3), ('see', 1.3, 1.5), ('a', 1.5, 1.6), ('cup.', 1.6, 2), ('It', 3, 3.2), ('is', 3.2, 3.4),
+                        ('red.', 3.4, 3.6)]]
+            self.assertEqual(cut.sentence_bounds(quotes, words, 6), [(1, 5, False)] * 3)
+            heard = cut.rehear(quotes, words, cut.sentence_bounds(quotes, words, 6), lambda a, b: english)
+            self.assertEqual(cut.sentence_bounds(quotes, heard, 6), [(1, 1.2, True), (2, 3, True), (3.6, 5, True)])
+            korean = [{'text': '꽃이 핀다.'}, {'text': '잎이 난다.'}, {'text': '끝이다.'}]
+            hear = Mock()
+            self.assertEqual(cut.rehear(korean, words, cut.sentence_bounds(korean, words, 6), hear), words)
+            hear.assert_not_called()
 
     def test_missing_middle_edges_and_all(self):
         for cut in self.modules():

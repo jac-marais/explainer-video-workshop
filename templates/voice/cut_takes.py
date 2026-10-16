@@ -3,6 +3,8 @@
 Whisper only says roughly where pauses are. Quiet is judged on loudness averaged over 50 ms against the take's own
 floor, so one near-silent frame cannot pass for a pause.
 Matching uses shared Unicode letters, marks and numbers; --language selects Whisper (default en).
+In a take in another language, the stretch around an unmatched sentence in Latin letters, such as an English quote, is
+heard again in English, because Whisper often writes English speech in the take language's own script.
 Unmatched sentences use nearest matched words on each side (or take edges), and their cuts are unclean.
 Consecutive boundaries with equal bounds share one search window and take its longest distinct quiet stretches, one per
 boundary in time order, each grown to its whole pause and cut at the middle. With too few stretches, the remaining cuts
@@ -19,7 +21,7 @@ SENTENCES is an ordered JSON list of the film's sentences, each with at least "i
 A take is named for the scene it covers (S01.wav) or its first and last scene (S01-S06.wav).
 With --throwaway, each take ends with that extra sentence, which is cut off and not written.
 It logs one JSON line per cut, one per sentence written, and one per take with its floor and unclean cuts."""
-import argparse, difflib, json, sys
+import argparse, difflib, json, sys, tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts/audio"))
@@ -38,6 +40,27 @@ UNCUTTABLE_EXIT = 3  # a take whose cuts cannot strictly increase, which narrate
 def uncuttable(message):
     print(message, file=sys.stderr)
     raise SystemExit(UNCUTTABLE_EXIT)
+
+
+def latin(text):
+    """Whether most of a text's letters and numbers are ASCII, as in an English quote."""
+    chars = letters(text)
+    return sum(c.isascii() for c in chars) * 2 > len(chars)
+
+
+def rehear(sents, words, bounds, hear):
+    """Replace the words between the matched neighbours of unmatched Latin-script sentences with hear(start, end)'s.
+
+    Every word between a boundary's bounds is unmatched, so nothing matched is lost.
+    """
+    windows = {}
+    for k, (end, start, matched) in enumerate(bounds):
+        if not matched and end < start:
+            windows.setdefault((end, start), set()).update({k, k + 1})
+    for (end, start), touching in sorted(windows.items()):
+        if any(latin(sents[i]["text"]) for i in touching):
+            words = [w for w in words if w["start"] < end or w["end"] > start] + hear(end, start)
+    return sorted(words, key=lambda w: w["start"])
 
 
 def sentence_bounds(sents, words, duration):
@@ -95,6 +118,18 @@ def main():
         words = [w for seg in mlx_whisper.transcribe(str(path), path_or_hf_repo=WHISPER, language=args.language, word_timestamps=True,
                                                       condition_on_previous_text=False)["segments"] for w in seg["words"]]
         bounds = sentence_bounds(sents, words, len(y) / rate)
+
+        def hear(start, end):
+            with tempfile.TemporaryDirectory() as directory:
+                clip = Path(directory) / "clip.wav"
+                sf.write(clip, y[int(start * rate):int(end * rate)], rate)
+                heard = mlx_whisper.transcribe(str(clip), path_or_hf_repo=WHISPER, language="en", word_timestamps=True,
+                                               condition_on_previous_text=False)
+            return [{**w, "start": w["start"] + start, "end": w["end"] + start} for seg in heard["segments"] for w in seg["words"]]
+
+        if args.language != "en":
+            words = rehear(sents, words, bounds, hear)
+            bounds = sentence_bounds(sents, words, len(y) / rate)
         n = int(rate * WINDOW)
         power = np.mean(y[: len(y) // n * n].reshape(-1, n) ** 2, axis=1)
         # Average power, not dB, so one near-silent frame cannot pass for a quiet stretch.
