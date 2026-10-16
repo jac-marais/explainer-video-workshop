@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check that storyboard.py places shots on the right phrases and fails on a cue the narrator never says."""
+"""Check that storyboard.py places shots on the right phrases and fails on a cue the narrator never says or a clipped sentence."""
 import subprocess, sys, tempfile, unittest
 from pathlib import Path
 
@@ -35,12 +35,16 @@ On "the water rises", vapour lifts off the waves.
 """
 
 
-def run(script, out_name="board.html"):
+def run(script, out_name="board.html", key=None):
     with tempfile.TemporaryDirectory() as d:
         src = Path(d) / "script.md"
         src.write_text(script)
         out = Path(d) / out_name
-        r = subprocess.run([sys.executable, TOOL, src, "--language", "en", "--out", out], capture_output=True, text=True)
+        extra = []
+        if key is not None:
+            (Path(d) / "key.md").write_text(key)
+            extra = ["--key-script", Path(d) / "key.md", "--key-language", "en"]
+        r = subprocess.run([sys.executable, TOOL, src, "--language", "en", "--out", out, *extra], capture_output=True, text=True)
         return r, out.read_text() if out.exists() else ""
 
 
@@ -69,6 +73,21 @@ class StoryboardTest(unittest.TestCase):
         r, _ = run(SCRIPT.replace("**Narration.**", "Narration"))
         self.assertEqual(r.returncode, 1)
         self.assertIn("scene 2: no **Narration** part", r.stderr)
+
+    def test_a_sentence_under_the_word_floor_fails_unless_quoted(self):
+        r, _ = run(SCRIPT.replace("to the sea.", "to the sea. Then it rains."))
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("s01-04: 3 words, under the 5-word floor: Then it rains.", r.stderr)
+        r, _ = run(SCRIPT.replace("to the sea.", 'to the sea. "Look up."'))
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_a_translation_is_held_to_its_key_scripts_floor(self):
+        short = SCRIPT.replace("Rain falls on the hills.", "Rain falls.")
+        r, _ = run(short, key=SCRIPT)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        r, _ = run(SCRIPT, key=short)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("s01-01: 2 words, under the 5-word floor: Rain falls.", r.stderr)
 
 
 if __name__ == "__main__":

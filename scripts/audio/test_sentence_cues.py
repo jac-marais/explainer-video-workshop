@@ -36,7 +36,8 @@ class SentenceCueTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             keys = []
-            for lang, text in (("en", "A seed rests. Two leaves grow."), ("fr", "Une graine repose. Deux feuilles poussent.")):
+            for lang, text in (("en", "A small seed rests in the soil. Two green leaves grow toward the sun."),
+                               ("fr", "Une petite graine repose dans la terre. Deux feuilles vertes poussent vers le soleil.")):
                 project = root / lang
                 project.mkdir()
                 source = project / "script.md"

@@ -9,7 +9,9 @@ import sys
 
 SCRIPTS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS / "film"))
+sys.path.insert(0, str(SCRIPTS / "audio"))
 from build_data import scenes, cue_keys, check_sentence_counts, sentence_ref, sentence_time
+from text_tokens import short_sentences
 
 STEPS = ("narrate", "captions", "cues", "data", "render", "check")
 
@@ -38,9 +40,6 @@ def validate_inputs(args):
     source = json.loads(args.scenes.read_text())
     parts = [[text] if isinstance(text, str) else text for text in (scene["narration"] for scene in source)]
     key = list(scenes(args.key_script)) if args.key_script else []
-    # Sentence counts matter only to sentence cues, so translations of a film cued by quoted words may split differently.
-    if not any(sentence_ref(name) for _, _, names in script + key for name in names):
-        key = []
     # One process splits every text, because loading Stanza takes seconds.
     split = split_sentences([[args.language, text] for _, text, _ in script]
                             + [[args.language, part] for scene in parts for part in scene]
@@ -54,11 +53,20 @@ def validate_inputs(args):
     actual = {scene["id"]: [sentence for _ in scene_parts for sentence in next(rest)] for scene, scene_parts in zip(source, parts)}
     if len(actual) != len(source) or actual != expected:
         raise ValueError("scenes JSON must match the script's scene IDs, sentences and narration")
-    if key:
+    key_split = {f"s{num:02d}": sentences for (num, _, _), sentences in zip(key, rest)}
+    # Sentence counts matter only to sentence cues, so translations of a film cued by quoted words may split differently.
+    if key and any(sentence_ref(name) for _, _, names in script + key for name in names):
         check_sentence_counts({num: len(expected[f"s{num:02d}"]) for num, _, _ in script},
-                              {num: len(sentences) for (num, _, _), sentences in zip(key, rest)})
+                              {num: len(key_split[f"s{num:02d}"]) for num, _, _ in key})
     if args.key_script:
         cue_keys(args.script, args.key_script)
+    # A restart after narrate keeps its voiced words, so only a run that voices them must pass the floor.
+    if args.start == "narrate":
+        # A translation follows its key script's sentences, so the floor holds for the script the writer wrote.
+        short = short_sentences(key_split if key else expected)
+        if short:
+            raise ValueError("rewrite the narration sentences under the word floor in step 3 of "
+                             "methods/prepare-explainer-video.md: " + "; ".join(short))
 
 
 def main():

@@ -126,6 +126,18 @@ class UnicodePipelineTests(unittest.TestCase):
         split = narrate_film.sentences('She said "Stop!" and walked home. Then it rained.', "en")
         self.assertEqual([s["text"] for s in split], ['She said "Stop!" and walked home.', "Then it rained."])
 
+    def test_sentences_under_the_word_floor(self):
+        from text_tokens import MIN_WORDS, short_sentences
+        self.assertEqual(MIN_WORDS, 5)
+        texts = ["Ready?", "Too slow?", "The kettle boils, so she pours the tea.", "Then she waits a minute.", "“Look up.”",
+                 '"Wait," she says.', "小花在阳光下开了。", "小花开了。"]
+        self.assertEqual(short_sentences({"s02": texts}), [
+            "s02-01: 1 word, under the 5-word floor: Ready?",
+            "s02-02: 2 words, under the 5-word floor: Too slow?",
+            's02-06: 3 words, under the 5-word floor: "Wait," she says.',
+            "s02-08: 4 words, under the 5-word floor: 小花开了。"])
+        self.assertEqual(short_sentences({"s01": ["I'm D-E-T ready now."]}), ["s01-01: 4 words, under the 5-word floor: I'm D-E-T ready now."])
+
     def test_numbers_inside_heard_words(self):
         for language, text, pieces in [
                 ("ko", "엘리베이터가 십이 층에 서요.", [("엘리베이터가", 0, 1), ("12층에", 1, 2), ("서요.", 2, 3)]),

@@ -18,9 +18,9 @@ class RunnerTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.script = self.root / "script.md"
-        self.script.write_text('## Scene 1: Garden\n**Narration**\nA seed rests.\n**Visual**\n- On s01-01, show a seed.\n')
+        self.script.write_text('## Scene 1: Garden\n**Narration**\nA small seed rests in the soil.\n**Visual**\n- On s01-01, show a seed.\n')
         self.scenes = self.root / "scenes.json"
-        self.scenes.write_text(json.dumps([{"id": "s01", "narration": "A seed rests.", "title": "Garden", "visual": "A seed", "claim_ids": []}]))
+        self.scenes.write_text(json.dumps([{"id": "s01", "narration": "A small seed rests in the soil.", "title": "Garden", "visual": "A seed", "claim_ids": []}]))
         (self.root / "index.html").write_text('<div data-duration="1"></div>')
         self.audio = self.root / "audio"
         self.audio.mkdir()
@@ -72,17 +72,38 @@ class RunnerTests(unittest.TestCase):
 
     def test_key_script_needs_its_language_and_equal_sentence_counts(self):
         key = self.root / "key.md"
-        key.write_text('## Scene 1: Garden\n**Narration**\nA seed rests. A leaf grows.\n**Visual**\n- On s01-01, show a seed.\n')
+        key.write_text('## Scene 1: Garden\n**Narration**\nA small seed rests in the soil. A green leaf grows toward the sun.\n**Visual**\n- On s01-01, show a seed.\n')
         with self.assertRaises(SystemExit):
             self.invoke(["--key-script", str(key)])
         with self.assertRaisesRegex(ValueError, "scene 1: 1 sentences, but the key script has 2"):
             self.invoke(["--key-script", str(key), "--key-language", "en"])
 
     def test_quoted_cue_translations_may_split_differently(self):
-        self.script.write_text('## Scene 1: Garden\n**Narration**\nA seed rests.\n**Visual**\n- On "seed", show a seed.\n')
+        self.script.write_text('## Scene 1: Garden\n**Narration**\nA small seed rests in the soil.\n**Visual**\n- On "seed", show a seed.\n')
         key = self.root / "key.md"
-        key.write_text('## Scene 1: Garden\n**Narration**\nA seed rests. A leaf grows.\n**Visual**\n- On "seed", show a seed.\n')
+        key.write_text('## Scene 1: Garden\n**Narration**\nA small seed rests in the soil. A green leaf grows toward the sun.\n**Visual**\n- On "seed", show a seed.\n')
         self.assertEqual(len(self.invoke(["--key-script", str(key), "--key-language", "en"])), 6)
+
+    def test_a_sentence_under_the_word_floor_stops_before_voicing(self):
+        self.script.write_text('## Scene 1: Garden\n**Narration**\nA seed rests.\n**Visual**\n- On s01-01, show a seed.\n')
+        self.scenes.write_text('[{"id":"s01", "narration":"A seed rests."}]')
+        with patch.object(sys, "argv", self.argv), patch.object(film, "execute") as execute:
+            with self.assertRaisesRegex(ValueError, "s01-01: 3 words, under the 5-word floor: A seed rests."):
+                film.main()
+            execute.assert_not_called()
+        # A picture-only restart keeps the words already voiced.
+        self.assertEqual(len(self.invoke(["--from", "render"])), 2)
+
+    def test_a_translation_is_held_to_its_key_scripts_floor(self):
+        self.script.write_text('## Scene 1: Garden\n**Narration**\nUne graine dort.\n**Visual**\n- On s01-01, show a seed.\n')
+        self.scenes.write_text('[{"id":"s01", "narration":"Une graine dort."}]')
+        key = self.root / "key.md"
+        key.write_text('## Scene 1: Garden\n**Narration**\nA small seed rests in the soil.\n**Visual**\n- On s01-01, show a seed.\n')
+        args = ["--key-script", str(key), "--key-language", "en"]
+        self.assertEqual(len(self.invoke(args)), 6)
+        key.write_text('## Scene 1: Garden\n**Narration**\nA seed rests.\n**Visual**\n- On s01-01, show a seed.\n')
+        with self.assertRaisesRegex(ValueError, "s01-01: 3 words, under the 5-word floor: A seed rests."):
+            self.invoke(args)
 
     def test_every_restart_runs_only_suffix(self):
         for index, step in enumerate(film.STEPS):

@@ -4,6 +4,7 @@ Matching uses NFKC/casefold and keeps letters, combining marks and numbers.
 Han and Kana use character tokens; other scripts use whitespace-delimited words.
 Display tokens retain authored spelling, punctuation, spacing boundaries and spans.
 Sentences and syntax come from Stanza's models for the language, loaded offline from Stanza's per-user cache.
+short_sentences() counts these tokens against the narration word floor that storyboard.py and make_film.py enforce.
 
   text_tokens.py < [[LANGUAGE, TEXT], ...]   prints each text's sentences as JSON, for tools outside the environment
 """
@@ -54,6 +55,21 @@ def tokenize(text: str) -> list[Token]:
 
 def normalized_tokens(text: str) -> list[str]:
     return [value for token in tokenize(text) if (value := norm(token))]
+
+
+MIN_WORDS = 5
+OPENING_QUOTES, CLOSING_QUOTES = "\"'“‘«„「『", "\"'”’»“」』"
+
+
+def short_sentences(scenes: dict[str, list[str]]) -> list[str]:
+    """An error for each narration sentence under MIN_WORDS tokens, keyed by scene ID such as s03.
+
+    A sentence wholly inside quotation marks passes, because its source fixed its words.
+    """
+    return [f"{sid}-{i:02d}: {count} word{'' if count == 1 else 's'}, under the {MIN_WORDS}-word floor: {text}"
+            for sid, texts in scenes.items() for i, text in enumerate(texts, 1)
+            if (count := len(normalized_tokens(text))) < MIN_WORDS
+            and not (text.startswith(tuple(OPENING_QUOTES)) and text.endswith(tuple(CLOSING_QUOTES)))]
 
 
 def join_tokens(tokens: list[str]) -> str:

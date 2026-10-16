@@ -18,7 +18,7 @@ All five narration, cue, caption, film-data and storyboard tools share `audio/te
 
 ## storyboard/
 
-- `storyboard.py` builds `storyboard.html` from a script. The narration is on the left, and hovering a phrase shows the shots and key frames that start on it. It supports both quoted and sentence cues and fails when the referenced words or sentence are absent. Sentence fractions select an approximate token position for the hover preview, not measured audio time. `--language` names the script's language, and `--key-script` with `--key-language` checks translated sentence counts. `test_storyboard.py` checks it on a small sample script.
+- `storyboard.py` builds `storyboard.html` from a script. The narration is on the left, and hovering a phrase shows the shots and key frames that start on it. It supports both quoted and sentence cues and fails when the referenced words or sentence are absent, or when a sentence is under the word floor in [step 3 of the prepare method](../methods/prepare-explainer-video.md#3-draft-the-narrative-and-honest-time-estimate), which it checks in the `--key-script` when one is given. Sentence fractions select an approximate token position for the hover preview, not measured audio time. `--language` names the script's language, and `--key-script` with `--key-language` checks translated sentence counts. `test_storyboard.py` checks it on a small sample script.
 
 ## film/
 
@@ -34,7 +34,7 @@ All five narration, cue, caption, film-data and storyboard tools share `audio/te
 - `runlog.py` prices sessions and appends timed phase rows to `run-state.md`.
 
 - `heavy COMMAND ARG...` serializes expensive work across projects and terminals with one advisory lock at `~/.cache/explainer-video-heavy.lock`. It reports waiting and adds 10 to the command's nice value. The command inherits the lock; exit, failure or a signal releases it. The file remains and must not be deleted while commands are active. All participating commands must use this wrapper under the same OS account.
-- `make_film.py` runs one language through `narrate`, `captions`, `cues`, `data`, `render`, `check`. Sentence splitting, narration (including TTS and Whisper), captions, rendering and final checks go through `heavy`. It checks that the scenes JSON matches the script before spending work, stops on command failure or audio flags, and never overwrites an MP4. It needs an existing HyperFrames composition, an installed CLI and a configured voice; it does not build the visual design or perform the human playback review.
+- `make_film.py` runs one language through `narrate`, `captions`, `cues`, `data`, `render`, `check`. Sentence splitting, narration (including TTS and Whisper), captions, rendering and final checks go through `heavy`. It checks that the scenes JSON matches the script before spending work, and a run that starts at `narrate` also checks the storyboard's word floor, in the `--key-script` when one is given. It stops on command failure or audio flags, and never overwrites an MP4. It needs an existing HyperFrames composition, an installed CLI and a configured voice; it does not build the visual design or perform the human playback review.
 
 ## Sentence cues and translations
 

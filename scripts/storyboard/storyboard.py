@@ -15,14 +15,15 @@ in a shot, `![what it shows](path)`, become its key frames; give the path relati
 The page shows the narration on the left. Hovering a phrase shows the shots that start on it, clicking pins it, and
 the arrow keys step through. A header switch, off by default and remembered by the browser, makes a click also read its
 sentence aloud in a browser speech voice, which on macOS is a `say` voice (Samantha by default), at 1x to 3x. --css adds a stylesheet after the defaults, so a brand can override the variables in
-:root. The run exits 1 when a scene has no Narration part or a cue isn't in its scene's narration.
+:root. The run exits 1 when a scene has no Narration part, a cue isn't in its scene's narration, or a sentence is under the
+word floor in step 3 of methods/prepare-explainer-video.md; with --key-script, the floor checks the key script instead.
 """
 import argparse, html, os, re, sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "audio"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "film"))
-from text_tokens import norm, tokenize, normalized_tokens, sentences  # noqa: E402
+from text_tokens import norm, tokenize, normalized_tokens, sentences, short_sentences  # noqa: E402
 from cues import CUE, SCENE, VISUAL, cue_text, sentence_ref  # noqa: E402
 from build_data import scenes, check_sentence_counts  # noqa: E402
 
@@ -81,12 +82,15 @@ def find(words, quote, start):
 
 
 def build(script, css, language, key_script=None, key_language=None):
+    errors, left, panels = [], [], []
     if key_script:
+        key = {num: sentences(text, key_language) for num, text, _ in scenes(key_script)}
         check_sentence_counts({num: len(sentences(text, language)) for num, text, _ in scenes(script)},
-                              {num: len(sentences(text, key_language)) for num, text, _ in scenes(key_script)})
+                              {num: len(said) for num, said in key.items()})
+        # A translation follows its key script's sentences, so the floor holds for the script the writer wrote.
+        errors += short_sentences({f"s{num:02d}": [s["text"] for s in said] for num, said in key.items()})
     text = script.read_text()
     title = (re.search(r"^# (.+)$", text, re.M) or [None, script.stem])[1]
-    errors, left, panels = [], [], []
     for m in SCENE.finditer(text):
         num, body = int(m.group(1)), m.group(0)
         heading = body.splitlines()[0].split(":", 1)[1].strip()
@@ -97,7 +101,10 @@ def build(script, css, language, key_script=None, key_language=None):
         narration, *visual = VISUAL.split(parts[1], 1)
         narration, visual = narration.strip(), "".join(visual)
         narration = re.sub(r"\[pause\]", " ", narration, flags=re.I)
-        words, said = words_of(narration), None
+        words = words_of(narration)
+        said = sentences(narration, language) if words else []
+        if not key_script:
+            errors += short_sentences({f"s{num:02d}": [s["text"] for s in said]})
         groups, cursor = [], 0  # each group: [start word index, [shots]]
         for shot in shots_of(visual):
             quote = CUE.search(shot)
@@ -105,7 +112,6 @@ def build(script, css, language, key_script=None, key_language=None):
             ref = sentence_ref(name) if name else None
             at = find(words, name, cursor) if name and not ref else None
             if ref:
-                said = said or sentences(narration, language)
                 ids = [f"s{num:02d}-{i:02d}" for i in range(1, len(said) + 1)]
                 if ref[0] not in ids:
                     errors.append(f"scene {num}: missing sentence {ref[0]}")
