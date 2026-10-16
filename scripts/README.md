@@ -61,4 +61,4 @@ Add `--from STEP` to run that step and every later step. After a voice or narrat
 
 ## Tests
 
-Run `scripts/run/py -m unittest discover -s scripts/DIR` for each of `audio`, `film`, `storyboard` and `run`, with `scripts/run/heavy` in front for `audio` and `film`, because they load Stanza's models. The audio tests do not load speech models. The run tests use tiny commands and mocked production tools, and the lock test needs permission to lower process priority. No test voices or renders a film or accesses the network.
+Run `scripts/run/py -m unittest discover -s scripts/DIR` for each of `audio`, `film`, `storyboard` and `run`, with `scripts/run/heavy` in front for `audio`, `film` and `storyboard`, because they load Stanza's English model. A test checks the workshop's code, not the computer, so it needs no model beyond Setup's English Stanza model and eSpeak, and no file under `local/`; it mocks Stanza for another language's rule. The audio tests do not load speech models. The run tests use tiny commands and mocked production tools, and the lock test needs permission to lower process priority. No test voices or renders a film or accesses the network.

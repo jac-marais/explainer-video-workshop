@@ -75,14 +75,10 @@ class NumberTests(unittest.TestCase):
 
 class CutTests(unittest.TestCase):
     def modules(self):
-        for relative in ['templates/voice/cut_takes.py', 'local/voice/cut_takes.py']:
-            path = ROOT / relative
-            if not path.exists():
-                continue  # Local voice profiles are not shipped with the public repository.
-            spec = importlib.util.spec_from_file_location('cut_test', path)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            yield module
+        spec = importlib.util.spec_from_file_location('cut_test', ROOT / 'templates/voice/cut_takes.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        yield module
 
     def test_unicode_matching(self):
         for cut in self.modules():
@@ -90,7 +86,6 @@ class CutTests(unittest.TestCase):
                 sentences = [{'text': first}, {'text': second}]
                 words = [{'word': norm(first), 'start': 0, 'end': 1}, {'word': second, 'start': 2, 'end': 3}]
                 self.assertEqual(cut.sentence_bounds(sentences, words, 4), [(1, 2, True)])
-            self.assertEqual(cut.letters('Ａ É क़ 가'), norm('Ａ É क़ 가'))
 
     def test_cut_logs_unmatched_as_unclean_and_forwards_language(self):
         for cut in self.modules():

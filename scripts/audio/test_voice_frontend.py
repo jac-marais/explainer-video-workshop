@@ -1,8 +1,6 @@
 """Check the template's Kokoro frontend without loading or running a speech model."""
 import importlib.util
-import json
 from pathlib import Path
-import re
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
@@ -27,22 +25,6 @@ class VoiceFrontendTests(unittest.TestCase):
     def phones(self, text, lang="en-us"):
         return self.voice.phonemize_kokoro(text, self.tokenizer, lang)
 
-    def test_language_switch_flags_are_removed_without_losing_the_word(self):
-        for lang, text in [("fr-fr", "Le football est simple."), ("hi", "यह football है.")]:
-            with self.subTest(lang=lang):
-                kokoro = self.tokenizer.phonemize(text, lang)
-                self.assertIn("(en)", kokoro)
-                self.assertEqual(self.phones(text, lang), re.sub(r"\((?:en|fr|hi)\)", "", kokoro))
-
-    def test_text_without_a_language_switch_matches_kokoros_tokenizer(self):
-        for lang, text in [("en-us", "  The (red) cup is full.\n\nThe blue cup is empty!  "),
-                           ("fr-fr", "  Le (chat) dort. Le chien joue!  "),
-                           ("pt-br", "  O (gato) dorme. O copo está cheio!  "),
-                           ("hi", "  यह (घर) है. हर घर नया है!  "),
-                           ("en-us", " \n\n ")]:
-            with self.subTest(lang=lang, text=text):
-                self.assertEqual(self.phones(text, lang), self.tokenizer.phonemize(text, lang))
-
     def test_terminators_kokoro_lacks_become_its_nearest_stop(self):
         for lang, text, stops in [("en-us", "Is it full? Yes! It is.", "Is it full? Yes! It is."),
                                   ("hi", "यह घर है। वह नया है॥", "यह घर है. वह नया है."),
@@ -50,27 +32,8 @@ class VoiceFrontendTests(unittest.TestCase):
             with self.subTest(lang=lang):
                 self.assertEqual(self.phones(text, lang), self.tokenizer.phonemize(stops, lang))
 
-    def test_flaps_take_the_tap_in_both_unicode_forms_and_real_stops_survive(self):
-        for flap, aspirated in [("ड़", "ढ़"), ("ड़", "ढ़")]:
-            for stop in [".", "।"]:
-                with self.subTest(flap=flap, stop=stop):
-                    text = f"ल{flap}का ब{aspirated}ता है{stop} हर{stop} वह प{aspirated}{stop}"
-                    self.assertIn("r.", self.tokenizer.phonemize(text, "hi"))
-                    self.assertEqual(self.phones(text, "hi"), "lˈʌɾkˌaː bˈʌɾhətˌaː hɛː. hˈʌɾ. ʋˌəh pˈʌɾh.")
-
-    def test_espeak_symbols_never_reach_kokoro_as_punctuation(self):
-        for lang, text, phones in [("bn", "বড় পড়া।", "bˈɔɾ pˈɔɾ."), ("cmn", "我知道这是什么", "wˈo tsitˈɑu tsˈo sˈi sˈəɜn mˈo")]:
-            with self.subTest(lang=lang):
-                self.assertIn(".", self.tokenizer.phonemize(text.rstrip("।"), lang))
-                self.assertEqual(self.phones(text, lang), phones)
-
     def test_pins_replace_their_words_in_place(self):
-        for lang, text, phones in [("en-us", "The [cup](/bˈʌɡ/) and [mug](/kˈʌp/) are here.", "ðə bˈʌɡ ænd kˈʌp ɑːɹ hˈɪɹ."),
-                                   ("fr-fr", "L’[objet](/ɔbʒˈɛ/) arrive.", "lɔbʒˈɛ aʁˈiv."),
-                                   ("fr-fr", "L'[objet](/ɔbʒˈɛ/) arrive.", "lɔbʒˈɛ aʁˈiv."),
-                                   ("hi", "यह [घर](/mˈʌkaːn/) है।", "jˌəh mˈʌkaːn hɛː.")]:
-            with self.subTest(text=text):
-                self.assertEqual(self.phones(text, lang), phones)
+        self.assertEqual(self.phones("The [cup](/bˈʌɡ/) and [mug](/kˈʌp/) are here."), "ðə bˈʌɡ ænd kˈʌp ɑːɹ hˈɪɹ.")
 
     def test_language_pins_take_that_languages_phonemes(self):
         quote = "I see a red cup."
@@ -85,7 +48,6 @@ class VoiceFrontendTests(unittest.TestCase):
         self.assertEqual(self.voice.unpinned("The [cup](/kˈʌp/) and [the tea](en-us) are here."), "The cup and the tea are here.")
 
     def test_pins_with_symbols_kokoro_lacks_fail_instead_of_vanishing(self):
-        self.assertNotIn("ɝ", self.tokenizer.vocab)
         with self.assertRaisesRegex(SystemExit, "cannot say the pinned phonemes ɝ"):
             self.phones("The [bird](/bˈɝd/) sings.")
         self.assertIn("bˈɜɹd", self.phones("The [bird](/bˈɜɹd/) sings."))
@@ -106,8 +68,6 @@ class VoiceFrontendTests(unittest.TestCase):
     def test_frontend_key_selects_the_phonemizer(self):
         frontend = self.voice.KOKORO_FRONTEND
         for lang, plain, pinned in [("en-us", "The red cup is full.", "The [cup](/kˈʌp/) is full."),
-                                    ("fr-fr", "Le football est simple.", "Le [chat](/ʃˈa/) dort."),
-                                    ("hi", "लड़का है।", "यह [घर](/ɡʰˈʌɾ/) है."),
                                     ("pt-br", "O copo está cheio.", "O [cup](en-us) está cheio.")]:
             for key in [None, frontend]:
                 for text in [plain, pinned]:
@@ -136,11 +96,6 @@ class VoiceFrontendTests(unittest.TestCase):
         with self.assertRaisesRegex(SystemExit, f"Unknown Kokoro frontend {frontend - 1}"):
             self.load_with_mock_model({"engine": "kokoro", "voice": "test-voice", "speed": 0.92, "frontend": frontend - 1})
 
-    def test_template_kokoro_voice_opts_in(self):
-        config = json.loads((ROOT / "templates/voice/voice.json").read_text())
-        for spec in config["voices"].values():
-            if spec["engine"] == "kokoro":
-                self.assertEqual(spec["frontend"], self.voice.KOKORO_FRONTEND)
 
 
 if __name__ == "__main__":

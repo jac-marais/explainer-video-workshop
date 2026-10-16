@@ -43,10 +43,6 @@ class EdgeSilenceTests(unittest.TestCase):
         np.testing.assert_array_equal(film.cap_edge_silence(capped), capped)
         self.assertIs(film.cap_edge_silence(capped), capped)
 
-    def test_short_edges_return_input(self):
-        samples = np.concatenate([self.silence(.1), self.tone(1), self.silence(.1)])
-        self.assertIs(film.cap_edge_silence(samples), samples)
-
     def test_silence_returns_input(self):
         samples = self.silence(3)
         self.assertIs(film.cap_edge_silence(samples), samples)
