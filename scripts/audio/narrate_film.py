@@ -683,7 +683,8 @@ def asr_differences(sents: list[dict], asr: list[dict], language: str = "en") ->
     return found
 
 
-def level_flags(sents: list[dict], scenes: list[str], samples: np.ndarray, rate: int) -> tuple[list[dict], dict]:
+def level_flags(sents: list[dict], scenes: list[str], samples: np.ndarray, rate: int,
+                run_on: set[str] = frozenset()) -> tuple[list[dict], dict]:
     power = frame_power(samples, rate)
     smooth = 10 * np.log10(np.convolve(power, np.ones(SMOOTH) / SMOOTH, mode="same") + 1e-18)
     floor = float(np.percentile(smooth[power > 0], FLOOR_PCT))
@@ -694,24 +695,27 @@ def level_flags(sents: list[dict], scenes: list[str], samples: np.ndarray, rate:
         levels.append(sentence_level_db(frames))
         tails.append(float(10 * np.log10(power[max(a, b - round(TAIL_S / FRAME_S)):b].mean() + 1e-18)))
     median = statistics.median(levels)
+    # A run-on sentence's audio carries straight into the next one, so its last 60 ms is mid-speech, not an end.
+    ends = {s["id"]: tail for s, tail in zip(sents, tails) if s["id"] not in run_on}
     flags = []
     for s, level, tail in zip(sents, levels, tails):
         if abs(level - median) > LEVEL_DEV_DB:
             flags.append({"check": "loudness_outlier", "sentence": s["id"], "db_from_median": round(level - median, 1)})
-        if tail > floor + TAIL_ABOVE_FLOOR_DB:
+        if s["id"] in ends and tail > floor + TAIL_ABOVE_FLOOR_DB:
             flags.append({"check": "word_cut_short", "sentence": s["id"], "tail_db_above_floor": round(tail - floor, 1)})
     for i in range(len(sents) - 1):
         if scenes[i] != scenes[i + 1] and abs(levels[i + 1] - levels[i]) > SCENE_JUMP_DB:
             flags.append({"check": "scene_jump", "between": [sents[i]["id"], sents[i + 1]["id"]], "db": round(levels[i + 1] - levels[i], 1)})
     return flags, {"median_sentence_db": round(median, 1), "max_dev_db": round(max(abs(v - median) for v in levels), 1),
-                   "noise_floor_db": round(floor, 1), "max_tail_above_floor_db": round(max(tails) - floor, 1)}
+                   "noise_floor_db": round(floor, 1), "max_tail_above_floor_db": round(max(ends.values(), default=floor) - floor, 1)}
 
 
 def audio_checks(timing: dict, wav: Path, asr: list[dict], unclean: list[dict], language: str = "en") -> tuple[list[dict], dict]:
     samples, rate = sf.read(wav, dtype="float32")
     sents = timing["sentences"]
     flags = list(unclean)
-    level, stats = level_flags(sents, [s["scene_id"] for s in sents], samples, rate)
+    run_on = set(timing.get("pauses", {}).get("none_after", []))
+    level, stats = level_flags(sents, [s["scene_id"] for s in sents], samples, rate, run_on)
     flags += level
     flags += asr_differences(sents, asr, language)
     loud = measure_loudness(wav)

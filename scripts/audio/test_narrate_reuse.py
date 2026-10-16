@@ -94,6 +94,21 @@ class TakeGainTests(unittest.TestCase):
         self.assertEqual([flag for flag in flags if flag["check"] == "scene_jump"],
                          [{"check": "scene_jump", "between": ["1", "2"], "db": 6}])
 
+    def test_run_on_sentences_are_not_flagged_as_cut_short(self):
+        sentences = [{"id": "first", "scene_id": "opening", "text": "Hello.", "start": 0.1, "end": 0.3},
+                     {"id": "second", "scene_id": "opening", "text": "Again.", "start": 0.3, "end": 0.5}]
+        with tempfile.TemporaryDirectory(dir="/tmp") as directory:
+            wav = Path(directory) / "narration.wav"
+            sf.write(wav, np.concatenate([tone(-70, 10), tone(-24), tone(-24), tone(-70, 10)]), film.RATE)
+            for none_after, cut in [([], ["first", "second"]), (["first"], ["second"])]:
+                with self.subTest(none_after=none_after), \
+                        patch.object(film, "measure_loudness", return_value={"input_i": -16, "input_tp": -1.5}), \
+                        patch.object(film, "asr_differences", return_value=[]):
+                    timing = {"sentences": sentences, "duration": 0.6, "pauses": {"none_after": none_after}}
+                    flags, stats = film.audio_checks(timing, wav, [], [])
+                    self.assertEqual([flag["sentence"] for flag in flags if flag["check"] == "word_cut_short"], cut)
+                    self.assertGreater(stats["max_tail_above_floor_db"], film.TAIL_ABOVE_FLOOR_DB)
+
     def test_audio_checks_copy_recorded_gain_stats_for_check_only(self):
         timing = {"sentences": [{"id": "first", "scene_id": "opening", "text": "Hello.", "start": 0.1, "end": 0.3}],
                   "duration": 0.4, "take_gain_db": {"original": 4.5}, "take_target_sentence_db": -24,
