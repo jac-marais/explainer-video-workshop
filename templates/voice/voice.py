@@ -21,7 +21,7 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
-HERE = Path(__file__).resolve().parent
+PROFILE = Path(__file__).resolve().parents[2] / "local/voice"
 RATE = 24000
 LOUDNORM = "I=-16:TP=-1.5:LRA=11"
 KOKORO_LANG = "en-us"  # Default for voice entries without lang.
@@ -56,10 +56,10 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def load_config() -> dict:
-    path = HERE / "voice.json"
+def load_config(profile: Path) -> dict:
+    path = profile / "voice.json"
     if not path.is_file():
-        raise SystemExit(f"Missing voice config: {path}")
+        raise SystemExit(f"Missing voice config: {path}; see \"First use\" in methods/voice-explainer-video.md")
     config = json.loads(path.read_text())
     if config.get("default") not in config.get("voices", {}):
         raise SystemExit(f"{path}: default voice is not listed under voices")
@@ -136,7 +136,7 @@ def phonemize_kokoro(text: str, tokenizer, lang: str = KOKORO_LANG) -> str:
     return place_pins(text, speak, ELIDING_STAND_IN) if PHONEMES.search(text) else speak(text)
 
 
-def load_kokoro(spec: dict, seed: int) -> tuple[callable, dict]:
+def load_kokoro(spec: dict, seed: int, refs: dict[str, Path]) -> tuple[callable, dict]:
     from kokoro_onnx import EspeakConfig, Kokoro
 
     cache = Path(os.environ.get("KOKORO_TTS_CACHE", Path.home() / ".cache/hyperframes/tts"))
@@ -182,8 +182,8 @@ def require_mlx() -> None:
         raise SystemExit("MLX voices need an Apple Silicon Mac")
 
 
-def reference_paths(spec: dict) -> dict[str, Path]:
-    paths = {key: HERE / spec[key] for key in ("ref_audio", "ref_text") if key in spec}
+def reference_paths(spec: dict, profile: Path) -> dict[str, Path]:
+    paths = {key: profile / spec[key] for key in ("ref_audio", "ref_text") if key in spec}
     missing = [str(path) for path in paths.values() if not path.is_file()]
     if missing:
         raise SystemExit("Missing reference files: " + ", ".join(missing))
@@ -210,9 +210,8 @@ def mlx_identity(spec: dict, snapshot: Path, refs: dict[str, Path], settings: di
     }
 
 
-def load_qwen3(spec: dict, seed: int, max_words: int = QWEN3_CHUNK_WORDS) -> tuple[callable, dict]:
+def load_qwen3(spec: dict, seed: int, refs: dict[str, Path], max_words: int = QWEN3_CHUNK_WORDS) -> tuple[callable, dict]:
     require_mlx()
-    refs = reference_paths(spec)
     import mlx.core as mx
     from mlx_audio.tts.utils import load
     from mlx_audio.utils import load_audio
@@ -244,9 +243,8 @@ def load_qwen3(spec: dict, seed: int, max_words: int = QWEN3_CHUNK_WORDS) -> tup
     return synthesize, mlx_identity(spec, snapshot, refs, settings)
 
 
-def load_chatterbox(spec: dict, seed: int) -> tuple[callable, dict]:
+def load_chatterbox(spec: dict, seed: int, refs: dict[str, Path]) -> tuple[callable, dict]:
     require_mlx()
-    refs = reference_paths(spec)
     import mlx.core as mx
     from mlx_audio.tts.utils import load
 
@@ -300,9 +298,11 @@ def main() -> None:
     parser.add_argument("--max-words", type=int, default=QWEN3_CHUNK_WORDS,
                         help=f"Qwen3 voices only: split longer text into separate takes (default: {QWEN3_CHUNK_WORDS})")
     parser.add_argument("--list", action="store_true", help="List voices and exit")
+    parser.add_argument("--profile", type=Path, default=PROFILE,
+                        help="Folder with voice.json and its reference recordings (default: local/voice)")
     args = parser.parse_args()
 
-    config = load_config()
+    config = load_config(args.profile)
     voices = config["voices"]
     if args.list:
         for name, spec in voices.items():
@@ -322,7 +322,7 @@ def main() -> None:
     started = time.perf_counter()
     seed = args.seed if args.seed is not None else secrets.randbelow(2**31)
     options = {"max_words": args.max_words} if LOADERS[engine] is load_qwen3 else {}
-    synthesize, identity = LOADERS[engine](spec, seed, **options)
+    synthesize, identity = LOADERS[engine](spec, seed, reference_paths(spec, args.profile), **options)
     load_s = time.perf_counter() - started
     identity["packages"].update({"soundfile": version("soundfile"), "numpy": version("numpy")})
     identity["packages"]["ffmpeg"] = subprocess.run(["ffmpeg", "-version"], capture_output=True, text=True).stdout.split("\n")[0]

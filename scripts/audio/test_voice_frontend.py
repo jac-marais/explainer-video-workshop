@@ -62,7 +62,7 @@ class VoiceFrontendTests(unittest.TestCase):
         with patch("kokoro_onnx.Kokoro", return_value=model), \
                 patch.object(self.voice.Path, "exists", return_value=True), \
                 patch.object(self.voice, "sha256_file", return_value="model-digest"):
-            synthesize, identity = self.voice.load_kokoro(spec, seed=0)
+            synthesize, identity = self.voice.load_kokoro(spec, seed=0, refs={})
         return synthesize, identity, model
 
     def test_frontend_key_selects_the_phonemizer(self):

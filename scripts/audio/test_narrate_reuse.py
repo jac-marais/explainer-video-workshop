@@ -375,7 +375,7 @@ class GenerationTests(unittest.TestCase):
                 self.assertEqual(manifest["sha256"], film.sha256(Path(manifest["wav"]).read_bytes()))
 
     def test_only_the_cutters_uncuttable_exit_is_soft(self):
-        with tempfile.TemporaryDirectory(dir="/tmp") as directory, patch.object(film, "VOICE_DIR", Path(directory)):
+        with tempfile.TemporaryDirectory(dir="/tmp") as directory, patch.object(film, "TOOLS_DIR", Path(directory)):
             (Path(directory) / "tool.py").write_text("import sys\nprint('done')\nsys.exit(int(sys.argv[1]))\n")
             self.assertEqual(film.run_tool("tool.py", [0], capture=True, soft_exit=3), "done\n")
             with contextlib.redirect_stderr(io.StringIO()):

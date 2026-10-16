@@ -32,8 +32,8 @@ check $? "uv: $(command -v uv)" "uv is not on PATH"
 if command -v uv >/dev/null; then
   tmp="$(mktemp)"
   # UV_OFFLINE makes uv sync the shared environment from its cache and never download.
-  UV_OFFLINE=1 "$WS/scripts/run/py" "$WS/local/voice/voice.py" --list >"$tmp" 2>&1
-  check $? "scripts/run/py runs local/voice/voice.py offline" "scripts/run/py cannot run voice.py offline (cache cold?): $(tail -1 "$tmp")"
+  UV_OFFLINE=1 "$WS/scripts/run/py" "$WS/templates/voice/voice.py" --list >"$tmp" 2>&1
+  check $? "scripts/run/py runs templates/voice/voice.py offline" "scripts/run/py cannot run voice.py offline (cache cold?): $(tail -1 "$tmp")"
   rm -f "$tmp"
 fi
 if [ -f "$WS/local/voice/voice.json" ]; then

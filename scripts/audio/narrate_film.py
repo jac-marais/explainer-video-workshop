@@ -14,8 +14,8 @@ instead (use (?i) for case-insensitive); it applies in order, a later rule leave
 and it never changes the captioned text.
 
 Kokoro voices are synthesized one sentence at a time, because the model does not drift over a long text. Every other voice
-is voiced in bounded runs (local/voice/plan_runs.py), one take per run ending in a throwaway sentence, and cut
-into sentences by local/voice/cut_takes.py. A take longer than twice its estimate, or one the cutter cannot cut in order,
+is voiced in bounded runs (templates/voice/plan_runs.py), one take per run ending in a throwaway sentence, and cut
+into sentences by templates/voice/cut_takes.py. A take longer than twice its estimate, or one the cutter cannot cut in order,
 has looped and is re-voiced, at most twice.
 Sentence WAVs are keyed by voice config and spoken text, and takes.json records each sentence's original take id.
 --reuse and reruns follow the canonical take-level reuse rule in methods/voice-explainer-video.md#take-level-reuse.
@@ -55,6 +55,7 @@ import numpy as np
 import soundfile as sf
 
 WS = Path(__file__).resolve().parents[2]
+TOOLS_DIR = WS / "templates/voice"
 VOICE_DIR = WS / "local/voice"
 WHISPER = "mlx-community/whisper-large-v3-turbo"
 RATE = 24000
@@ -253,7 +254,7 @@ def decide_reuse(rows: list[dict], engine: str, sources: list[ReuseSource]) -> R
 
 def run_tool(script: str, args: list[str], capture: bool = False, soft_exit: int | None = None) -> str | None:
     """Run a voice tool and return its captured output, or None when it exits with soft_exit."""
-    result = subprocess.run([sys.executable, str(VOICE_DIR / script), *map(str, args)], text=True,
+    result = subprocess.run([sys.executable, str(TOOLS_DIR / script), *map(str, args)], text=True,
                             stdout=subprocess.PIPE if capture else None, stderr=None if not capture else subprocess.PIPE)
     if soft_exit is not None and result.returncode == soft_exit:
         print(result.stderr or "", end="", file=sys.stderr)
@@ -263,6 +264,11 @@ def run_tool(script: str, args: list[str], capture: bool = False, soft_exit: int
     if capture and result.stderr:
         print(result.stderr, end="", file=sys.stderr)
     return result.stdout or ""
+
+
+def run_voice(name: str, texts: list[Path], work: Path) -> None:
+    # voice.py must read the same profile that voice_identity hashes into the cache key.
+    run_tool("voice.py", [*texts, "--out-dir", work, "--voice", name, "--profile", VOICE_DIR])
 
 
 def read_audio(path: Path) -> np.ndarray:
@@ -357,7 +363,7 @@ def voice_takes(name: str, spec: dict, pending: list[dict], work: Path, language
     if spec["engine"] == "kokoro":
         for row in pending:
             (work / f"{row['id']}.txt").write_text(row["spoken"])
-        run_tool("voice.py", [*(work / f"{row['id']}.txt" for row in pending), "--out-dir", work, "--voice", name])
+        run_voice(name, [work / f"{row['id']}.txt" for row in pending], work)
         for row in pending:
             record_take(row["id"], [row])
         return {row["id"]: read_audio(work / f"{row['id']}.wav") for row in pending}, origins, [], manifests
@@ -374,7 +380,7 @@ def voice_takes(name: str, spec: dict, pending: list[dict], work: Path, language
         takes.append(work / f"{stem}.txt")
         take_members[stem] = [r for alias in run for r in units[alias]]
         planned[stem] = sum(seconds[alias] for alias in run)
-    run_tool("voice.py", [*takes, "--out-dir", work, "--voice", name])
+    run_voice(name, takes, work)
     (work / "sentences.json").write_text(json.dumps([{"id": r["id"], "scene": r["alias"], "text": r["spoken"]} for r in pending]))
     cut, lines, todo = work / "cut", [], takes
     # A looping generation runs past its text, often far past it, and the cutter then cannot place its sentences in order.
@@ -398,7 +404,7 @@ def voice_takes(name: str, spec: dict, pending: list[dict], work: Path, language
         if attempt == RUNAWAY_RETRIES:
             raise SystemExit(f"takes still run away after {RUNAWAY_RETRIES} retries: {report}")
         log(f"re-voicing runaway takes: {report}")
-        run_tool("voice.py", [*runaway, "--out-dir", work, "--voice", name])
+        run_voice(name, list(runaway), work)
         todo = list(runaway)
     take_ids = {stem: record_take(stem, members) for stem, members in take_members.items()}
     unclean = [{"check": "unclean_cut", "take": take_ids[r["take"]], "after": r["after"], "gap_s": r["gap_s"]}
