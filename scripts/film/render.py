@@ -6,9 +6,10 @@
   render.py --skip-render INPUT.mp4 -o OUT.mp4 [same options]
 
 COMPOSITION is passed to `hyperframes render DIR -c COMPOSITION`; use `.` for DIR/index.html.
-The render runs on host Chrome with the GPU and one worker unless the extra args set --workers (see the
-bottom-band trap in methods/renderer-traps.md), with telemetry, update checks and auto-install off and
-the Gemini/Google keys unset. OUT is never overwritten: if it exists, the run stops before rendering
+The render runs on host Chrome with the GPU and one worker unless the extra args set --workers, and with
+HF_DE_VERIFY=0 unless the environment sets it; it fails if the log shows a whole-film fallback to screenshot
+capture (see both bottom-band traps in methods/renderer-traps.md). Telemetry, update checks and auto-install
+are off and the Gemini/Google keys unset. OUT is never overwritten: if it exists, the run stops before rendering
 and names the next free OUT.vN.mp4. Work happens in a temporary folder beside OUT.
 
 --narration replaces the render's audio with the approved master as dual-mono stereo AAC (video is
@@ -96,7 +97,19 @@ def main():
             # With more than one worker, host Chrome can drop the bottom 87 px of frames.
             if not any(x in ("-w", "--workers") or x.startswith(("-w=", "--workers=")) for x in extra):
                 extra = ["--workers", "1"] + extra
-            sh(hf + ["render", a.project.resolve(), "-c", a.composition, "-o", raw, "--browser-gpu"] + extra, env=env, cwd=a.project)
+            # Screenshot capture also drops the bottom 87 px, and a failed drawElement self-verify switches the whole film to it.
+            env.setdefault("HF_DE_VERIFY", "0")
+            cmd = hf + ["render", a.project.resolve(), "-c", a.composition, "-o", raw, "--browser-gpu"] + extra
+            print("+", " ".join(map(str, cmd)), flush=True)
+            proc = subprocess.Popen(cmd, env=env, cwd=a.project, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            fallback = False
+            for line in proc.stdout:
+                print(line, end="", flush=True)
+                fallback = fallback or "re-rendering via screenshot" in line
+            if proc.wait():
+                raise SystemExit(f"failed: {cmd[0]}")
+            if fallback:
+                raise SystemExit("the render fell back to screenshot capture, which blanks the bottom 87 px; see methods/renderer-traps.md")
 
         final = work / "final.mp4"
         cmd = ["ffmpeg", "-v", "error", "-nostdin", "-i", raw]
