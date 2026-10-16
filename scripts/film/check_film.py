@@ -18,6 +18,9 @@ band and the band changes within one frame of its start and end, except --uncapt
 contact sheet per scene with a frame 0.1 s before each sentence ends, plus OUT_DIR/check_film.json
 with every measurement.
 
+--caption-band uses encoded pixels: scale every coordinate with resolution; the 4K starter band is
+240,1740,3360,240. Brand zones come from templates/composition/README.md#caption-layout.
+
 Tags cannot show which matrix the pixels were encoded with; check a known brand colour for that.
 Needs ffmpeg/ffprobe and the standard library; --sheet also needs Pillow.
 """
@@ -241,7 +244,7 @@ def main():
     ap.add_argument("--fps", type=float, default=30)
     ap.add_argument("--max-still", type=float, default=6.0, help="longest allowed frozen picture outside holds, s")
     ap.add_argument("--max-black", type=float, default=0.5, help="longest allowed blank black picture outside holds, s")
-    ap.add_argument("--caption-band", default="360,860,1200,170", help="x,y,w,h of the burnt-in caption area")
+    ap.add_argument("--caption-band", default="120,870,1680,120", help="x,y,w,h in encoded pixels; default covers the starter caption zone at 1080p; scale all four values for other resolutions (4K: 240,1740,3360,240)")
     ap.add_argument("--uncaptioned", default="", help="cue ids the film shows without burnt-in captions, such as title cards, id,id")
     ap.add_argument("--pacing", choices=("measured", "fast"), default="measured", help="the brief's pacing; fast makes a failed motion gate a failure")
     a = ap.parse_args()

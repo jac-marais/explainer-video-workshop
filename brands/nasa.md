@@ -89,8 +89,9 @@ Hierarchy: a heavy black masthead rule, then a Medium eyebrow (`Step 1`), then a
 
 - Canvas 1920×1080. Base unit `--u` = 30 px; positions and sizes are multiples of 30 px. 8 columns of 240 px, outer margin `--margin` 120 px. **Workshop**: the manual's grids are for print pages (pp. 5.14–5.20); this preset keeps their principle (one grid for every scene, for continuity, p. 5.14) and uses a video grid.
 - Masthead: every scene head hangs from a 6 px black rule (`--head-rule`) that spans the margins at y = 75 px (title card: y = 120 px). Eyebrow under the rule, headline at y = 135 px. **Adapted** from p. 5.19 ("typography hangs from top of page", "several horizontal reference lines"); the rule's weight and position are workshop choices.
-- Caption zone: the bottom band from y = 900 to 1020 px (`--caption-bottom` 60 px, `--caption-h` 120 px), inset by the margins. No content enters it.
-- Content sits between y ≈ 270 and 870 px, flush left to the margin, read left to right. Leave the right side empty rather than stretching content to fill it.
+- Caption zone: y = 870 to 990 px (`--caption-bottom` 90 px, `--caption-h` 120 px), inset by the margins; apply the shared [caption layout](../templates/composition/README.md#caption-layout).
+- Title and end-card grid guides stop at the content limit; the masthead rule and tabbed diagram cards keep their stated sizes.
+- Content sits between y ≈ 270 and 840 px, flush left to the margin, read left to right. Leave the right side empty rather than stretching content to fill it.
 
 ## Visual language
 
@@ -152,7 +153,7 @@ Measured and exact, like a mission briefing read by an engineer. Second person, 
   --fs-display: 108px; --fs-h1: 72px; --fs-h2: 48px; --fs-body: 36px; --fs-label: 30px; --fs-code: 32px; --fs-caption: 36px;
   --lh-display: 1.1; --lh-body: 1.4; --ls-display: -0.02em; --ls-label: 0em; --label-case: none;
   --w-display: var(--w-light); --w-heading: var(--w-strong);
-  --u: 30px; --cols: 8; --col: 240px; --margin: 120px; --gutter: 30px; --caption-bottom: 60px; --caption-h: 120px;
+  --u: 30px; --cols: 8; --col: 240px; --margin: 120px; --gutter: 30px; --caption-bottom: 90px; --caption-h: 120px;
   --radius: 0px; --stroke: 2px; --head-rule: 6px; --caption-bg: rgba(245, 243, 238, 0.94);
   --reveal: wipe;
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1); --ease-entrance: cubic-bezier(0.2, 0, 0.2, 1);

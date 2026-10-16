@@ -14,6 +14,13 @@ The user's choices where the guidelines leave the answer open. Each entry is one
 
 - `[e.g. Typeface: brand face, not the fallback (2026-01-01)]`
 
+## Layout tokens
+
+- **Caption zone:** `[--caption-bottom and --caption-h from the chosen preset, or measured values under the shared contract]`
+- **Content bounds:** `[head, content grid, title and end-card bounds from the chosen preset]`
+
+Use the shared [caption layout](composition/README.md#caption-layout); brand values belong here or in the linked preset, and the composition derives its content limit in `film.css`.
+
 ## Assets and licenses
 
 - `[font or asset: local path; license for video, for web, or unconfirmed]`

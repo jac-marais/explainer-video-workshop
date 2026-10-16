@@ -87,11 +87,12 @@ Hierarchy comes from size and weight, never color: a small semibold gray eyebrow
 ## Layout
 
 - Canvas 1920×1080. Base unit `--u` = 30 px; positions and sizes are multiples of 30 px. Side margins 120 px. (All **workshop**; no Uber grid was readable.)
-- Caption zone: the bottom band from y = 900 to 1020 px, inset by the margins. No content enters it.
-- Scene head at the top left (eyebrow y = 90 px, headline y = 135 px). Content sits between y ≈ 270 and 870 px, left-aligned, read left to right. Center a single row of content on y ≈ 540 px.
+- Caption zone: y = 870 to 990 px (`--caption-bottom` 90 px, `--caption-h` 120 px), inset by the margins; apply the shared [caption layout](../templates/composition/README.md#caption-layout).
+- Scene head at the top left (eyebrow y = 90 px, headline y = 135 px). Content sits between y ≈ 270 and 840 px, left-aligned, read left to right. Center a single row of content on y ≈ 540 px.
 - Panels are gray fills with an 8 px radius and no border. Sequences are rows of equal gray cards joined by straight black lines, with no arrowheads.
 - A start-to-end statement (topic to video) is one row at H1 size: filled circle + word, a straight line, filled square + word. Markers are 36 px, vertically centered on the word, and the line keeps at least one unit (30 px) of space from each word and marker. Nothing touches.
 - Leave space, but do not leave a single small element alone in a large empty area: scale it up to H1 or move it to the optical center.
+- Center the end-card text group within the area above the content limit; its black field stays full-bleed behind captions.
 - The end card is full-bleed black with white type.
 
 ## Visual language
@@ -194,7 +195,7 @@ The reference video used local Kokoro `af_heart` at speed 0.92 (workshop choice)
   --col: 240px;
   --margin: 120px;
   --gutter: 30px;
-  --caption-bottom: 60px;
+  --caption-bottom: 90px;
   --caption-h: 120px;
   /* surface */
   --radius: 8px;

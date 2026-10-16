@@ -38,7 +38,13 @@ In the scene script, call `startFilm()` once, register its `tl` under the root's
 
 A lookup with a missing key throws and lists that scene's keys, so a renamed quote fails `hyperframes check` instead of drawing at second 0. Never write a second for an audio-bound event. Plan the beats under the beat rule in step 4 of `methods/prepare-explainer-video.md`.
 
-The captions come from `FILM.captions`, in the band that `--caption-bottom` and `--caption-h` place. They switch on and off hard, because `check_film.py` looks for the change at each caption edge. Pass the brand's caption font and size to `captions.py`, so its line breaks fit.
+## Caption layout
+
+This section owns the caption geometry contract for every brand and the neutral starter; each preset's Layout and Tokens sections supply its values. In the 1920×1080 canvas, `film.css` derives `--caption-top = 1080px - --caption-bottom - --caption-h` and `--content-bottom = --caption-top - --u`. The complete zone must end at or before `--caption-limit` (990 px), with a margin before the renderer's blank strip. The [renderer traps](../../methods/renderer-traps.md) explain that strip.
+
+Keep all foreground content above `--content-bottom`, including grids, panel fills, title and end-card groups, marks, shadows and the furthest point of entrance motion. Canvas backgrounds and transitions may fill the frame behind captions. The band clips painted overflow as a final guard; clipping text is a layout failure. Measure the complete caption span, including padding, against the zone, and keep it to two lines. `film.js` rejects an unsafe band or a span that does not fit when the film starts.
+
+The captions come from `FILM.captions` and switch on and off hard, because `check_film.py` looks for the change at each caption edge. Pass the brand's caption font and size to `captions.py`, so its line breaks fit. The `--caption-pad` token supplies padding when a brand defines it. `check_film.py --help` owns the default inspection crop and its resolution scaling; use the preset's entire zone for a different brand crop.
 
 ## Brand modules
 
@@ -51,6 +57,8 @@ A module registers `window.FilmBrands["<brand>"] = (film) => { ... }` and loads 
 - `mark.intro("s01")` assembles it at the film start and moves it to the corner.
 - `const at = mark.change("s01", "s02")` morphs it at the center between the scenes and returns the time it settles in the corner, when the next scene's content may start.
 - `mark.hide(at)` fades it out.
+
+The preset's Layout section owns the mark positions and bounds.
 
 `change` throws when the pause before the next scene is too short for the morph. Write `[pause]` before each later scene's first sentence. The estimate's scene gap can pass where measured narration's does not, so only the measured `data.js` proves it.
 

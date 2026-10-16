@@ -58,6 +58,7 @@ The user decides anything the guidelines leave open: substitute fonts, weight ex
 
 ### 4. Apply as tokens, not as scattered values
 
+- Use the shared [caption layout](../templates/composition/README.md#caption-layout) and the preset's Layout and Tokens values; audit the space above it, including panel fills, grids, title and end-card groups, and motion bounds.
 - Define each palette role once as a CSS variable (or the route's equivalent). Examples: `--bg`, `--fg`, `--fg2`, `--muted`, `--line`, `--accent`, `--mono`.
 - Load fonts from local files with `@font-face` inside the project, and symlink them into the build output. Don't rely on system or container font packages, which fall back silently. Before capture, check that each face loaded.
 - Stretch a limited palette with alpha only when the brand allows it, and label the result a derived value.

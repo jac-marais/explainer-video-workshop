@@ -97,8 +97,9 @@ Hierarchy: lead block + eyebrow (`STEP 1`), then a heavy wide headline, then con
 
 - Canvas 1920×1080. Base unit `--u` = 30 px; positions and sizes are multiples of it (workshop; the same grid as the other workshop presets so scenes stay comparable).
 - 8 columns of 240 px, outer margin `--margin` 120 px (workshop).
-- Caption zone: y = 900 to 1020 px (`--caption-bottom` 60 px, `--caption-h` 120 px), inset by the margins. No content enters it.
+- Caption zone: y = 870 to 990 px (`--caption-bottom` 90 px, `--caption-h` 120 px), inset by the margins; apply the shared [caption layout](../templates/composition/README.md#caption-layout).
 - Scene head at the top left: the lead block (36 px square) at x = 120, y = 90; the eyebrow 18 px to its right; the headline below at y = 135. The title scene holds the head 60 px lower and the lead block travels up to the common position as the first scene leaves.
+- Content, including the end-card title and world grid, stays between y ≈ 270 and 840 px. Two 240 px cells plus a 30 px gutter occupy 510 px; place that grid at y = 300 to 810 px. The traveling world column is a background transition behind captions.
 - Content reads left to right, because travel is left to right. Asymmetric, left-aligned. The end card puts the title at the left and a 2 × 2 world grid at the right (three gradient cells; the lead block grows into the fourth).
 
 ## Visual language
@@ -209,7 +210,7 @@ Direct, warm and a little cheeky; second person; present tense. Short sentences,
   --col: 240px;
   --margin: 120px;
   --gutter: 30px;
-  --caption-bottom: 60px;
+  --caption-bottom: 90px;
   --caption-h: 120px;
   /* surface */
   --radius: 0px;

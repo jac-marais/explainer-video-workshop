@@ -96,8 +96,9 @@ Hierarchy: a small grey sentence-case eyebrow ("Step 1") over a bold, tightly tr
 ## Layout
 
 - Canvas 1920×1080. Base unit `--u` = 30 px; positions and sizes are multiples of 30 px (half units only for optical centring). 8 columns of 240 px, outer margin `--margin` 120 px. All **workshop** (the sources give no video grid); the grid is for placement only and is never drawn (`--guide-w: 0px`).
-- Caption zone: the bottom band from y = 900 to 1020 px (`--caption-bottom` 60 px, `--caption-h` 120 px), inset by the margins. No content enters it.
-- Title and end card are **centered**: a welcoming front door. Content scenes put a small eyebrow at y = 90 px and the headline at y = 135 px, top left, with content between y ≈ 270 and 870 px.
+- Caption zone: y = 870 to 990 px (`--caption-bottom` 90 px, `--caption-h` 120 px), inset by the margins; apply the shared [caption layout](../templates/composition/README.md#caption-layout).
+- Title and end card are **centered**: a welcoming front door. Content scenes put a small eyebrow at y = 90 px and the headline at y = 135 px, top left, with content between y ≈ 270 and 840 px.
+- Center title and end-card groups within the area above `--content-bottom`; include card shadows and entrance overshoot in that bound.
 - Generous space: few objects per scene, at least one unit of air between cards, and empty canvas left empty rather than filled.
 
 ## Visual language
@@ -203,7 +204,7 @@ This block defines every custom property of the IBM-inspired preset (same names)
   --col: 240px;
   --margin: 120px;
   --gutter: 30px;
-  --caption-bottom: 60px;
+  --caption-bottom: 90px;
   --caption-h: 120px;
   /* surface and shape: rounded, soft, no grid lines */
   --radius: 24px;

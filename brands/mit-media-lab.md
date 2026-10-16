@@ -90,8 +90,9 @@ Hierarchy comes from size and weight: a small grey label (`Step 1`) over a large
 - Canvas 1920×1080. Base unit `--u` = 30 px; positions are multiples of 30 px. Outer margin 120 px left and right (workshop).
 - **7×7 module.** Marks are 7×7 grids of square cells, `--cell` = 16 px (112 px square) in the corner. The large mark uses `--cell-lg` = 60 px (420 px square); it is the same element, scaled. The Media Lab's own monogram was built on a 7×7, 49-unit grid, and Pentagram used the same grid to generate a family of group glyphs (source). This preset keeps the method and invents its own shapes (workshop).
 - **Mark positions.** Corner: right edge on the margin, top at y = 90 px, level with the eyebrow; it scales from its top-right corner. Intro: large, right edge on the margin, top at y = 330 px, beside the title. Transition: large, centered horizontally, top at y = 270 px, on an empty frame. Below about 100 px a 7×7 mark stops reading as a shape, so keep the corner mark at 16 px cells or larger.
-- Scene head at the top left: eyebrow at y = 90 px, headline at y = 135 px. Content between y ≈ 270 and 870 px, left-aligned.
-- Caption zone: the bottom band from y = 900 to 1020 px, inset by the margins. Captions sit in a black bar; no content enters the band.
+- Scene head at the top left: eyebrow at y = 90 px, headline at y = 135 px. Content between y ≈ 270 and 840 px, left-aligned.
+- Caption zone: y = 870 to 990 px (`--caption-bottom` 90 px, `--caption-h` 120 px), inset by the margins; apply the shared [caption layout](../templates/composition/README.md#caption-layout). Captions sit in a black bar.
+- The large intro mark ends at y = 750 px and the transition mark at y = 690 px; both fit above the content limit. Keep end-card text within that same limit.
 - Asymmetric and left-aligned. Do not center titles. Leave white space empty.
 
 ## Visual language
@@ -206,7 +207,7 @@ Precise, curious and plain, like a lab explaining its method: second person, pre
   --col: 240px;
   --margin: 120px;
   --gutter: 30px;
-  --caption-bottom: 60px;
+  --caption-bottom: 90px;
   --caption-h: 120px;
   --cell: 16px;           /* corner mark cell (7 cells = 112px) */
   --cell-lg: 60px;        /* intro and transition mark cell (7 cells = 420px) */

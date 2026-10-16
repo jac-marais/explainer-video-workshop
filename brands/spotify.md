@@ -105,9 +105,10 @@ The frame stays fixed while the color changes. This is the workshop's reading of
 - Canvas 1920×1080. Base unit `--u` = 30 px; positions and sizes are multiples of 30 px.
 - 8 columns of 240 px over the canvas (`--col`), used for placing boxes; no visible grid.
 - Outer margin `--margin` 120 px left and right.
-- Caption zone: the bottom band from y = 900 to 1020 px (`--caption-bottom` 60 px, `--caption-h` 120 px), inset by the margins. No content enters it.
-- Scene head at the top left: eyebrow at y = 90 px, headline at y = 135 px. Content sits between y ≈ 270 and 870 px, left-aligned to the margin.
+- Caption zone: y = 870 to 990 px (`--caption-bottom` 90 px, `--caption-h` 120 px), inset by the margins; apply the shared [caption layout](../templates/composition/README.md#caption-layout).
+- Scene head at the top left: eyebrow at y = 90 px, headline at y = 135 px. Content sits between y ≈ 270 and 840 px, left-aligned to the margin.
 - Field scenes paint the full canvas, edge to edge. Content on them keeps the same frame as on dark scenes.
+- The usable content height is 570 px; a two-row card grid with a 30 px gutter allows at most 270 px per row before its entrance overshoot is included.
 - Left-aligned and asymmetric. Leave space empty rather than stretching content.
 
 ## Visual language
@@ -220,7 +221,7 @@ This block defines every custom property of `ibm.md` under the same names, plus 
   --col: 240px;
   --margin: 120px;
   --gutter: 30px;
-  --caption-bottom: 60px;
+  --caption-bottom: 90px;
   --caption-h: 120px;
   /* surface */
   --radius: 18px;

@@ -69,8 +69,8 @@ Rules: always left-aligned, sentence case (source). Hierarchy comes from size an
 - Canvas 1920×1080, base unit `--u` 24 px; positions are multiples of a quarter unit (workshop).
 - Outer margin `--margin` 144 px on the left; 12 columns of 136 px are defined for reference (`--cols`, `--col`), not used by the reference video (workshop).
 - Scene head top left: eyebrow label at 4u (96 px), H1 at 6u (144 px). Content sits between about 9u and 28u, left-aligned to the margin, reading left to right. Leave the right side empty rather than stretching.
-- Title and end card: eyebrow at 9u, XL lines from 12u.
-- Caption zone: bottom band, `--caption-bottom` 48 px, `--caption-h` 136 px, inset by the margins. No content enters it.
+- Title and end card: eyebrow at 9u, XL lines from 12u; keep the complete group above `--content-bottom` (824 px). Three XL lines at the stated 0.9 line-height end at 693 px; add no fourth line or lower sign-off without measuring the group.
+- Caption zone: y = 848 to 984 px (`--caption-bottom` 96 px, `--caption-h` 136 px), inset by the margins; apply the shared [caption layout](../templates/composition/README.md#caption-layout).
 
 ## Visual language
 
@@ -162,7 +162,7 @@ Adapted from the portal's voice guidance (passionate, welcoming, plain-spoken; f
   --margin: 144px;
   --cols: 12;
   --col: 136px;
-  --caption-bottom: 48px;
+  --caption-bottom: 96px;
   --caption-h: 136px;
   --caption-pad: 8px 20px;
   /* geometry */

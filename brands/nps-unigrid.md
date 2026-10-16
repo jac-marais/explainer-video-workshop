@@ -109,11 +109,11 @@ Hierarchy: the band title is bold sans, white on black; everything below the ban
 The Unigrid is a print grid; this preset maps it onto 16:9 as follows.
 
 - **Print facts (source):** the building block is a 4 × 8¼ inch panel defined by fold lines; sheets are one or two panels wide ("A" or "B" formats) and up to six panels long; the black band runs across the top.
-- **16:9 adaptation (adapted):** treat the 1920×1080 frame as an unfolded **four-panel sheet seen sideways**. Scale is 112.5 px per inch, so one panel is 450 px wide (4 in). Four panels are 1800 px, leaving 60 px (`--fold-0`) at each side. The band takes the top 180 px (`--band-h`, 1.6 in at this scale; the real band depth is **unverified**). The panel area below is 900 px tall, a 1:2 panel against the print 1:2.06; the 8¼ in height is shortened by about 3 % to fit. Fold lines sit at x = 60, 510, 960, 1410 and 1858 px and are drawn as faint guides on the cover only.
+- **16:9 adaptation (adapted):** treat the 1920×1080 frame as an unfolded **four-panel sheet seen sideways**. Scale is 112.5 px per inch, so one panel is 450 px wide (4 in). Four panels are 1800 px, leaving 60 px (`--fold-0`) at each side. The band takes the top 180 px (`--band-h`, 1.6 in at this scale; the real band depth is **unverified**). The usable panel area runs from the band to `--content-bottom`: y = 180 to 840 px, 660 px tall (1:1.47 against the print 1:2.06). This is a cropped video adaptation, not a proportional print sheet. Fold lines sit at x = 60, 510, 960, 1410 and 1860 px and end at the content limit; they are faint guides on the cover only.
 - **Content grid (workshop):** inside the panels, positions snap to a 30 px unit `--u`, with a 120 px reading margin `--margin` on both sides; `--col` 240 px remains for box widths. Content need not respect fold lines (later Unigrids "unify images, text, and maps", source), but text must never sit across a visible fold guide.
 - **Band contents:** scene title at the left margin, vertically centered; the eyebrow (`STEP 1`) right-aligned at the right margin in `--band-text-2`. The band stays on screen for the whole film; only its words change, so every scene reads as the same brochure.
-- **Caption zone:** the bottom band from y = 900 to 1020 px (`--caption-bottom` 60 px, `--caption-h` 120 px), inset by the margins. No content enters it. Captions sit on a small black band of their own.
-- Content sits between y ≈ 240 and 870 px, left-aligned, read left to right like a brochure panel.
+- Caption zone: y = 870 to 990 px (`--caption-bottom` 90 px, `--caption-h` 120 px), inset by the margins; apply the shared [caption layout](../templates/composition/README.md#caption-layout). Captions sit on a small black band of their own.
+- Content, including the end card, sits between y ≈ 240 and 840 px, left-aligned, read left to right like a brochure panel. Scale maps and panel fills into this usable area; do not extend them to the frame bottom or behind captions.
 
 ## Visual language
 
@@ -181,7 +181,7 @@ Informative and welcoming, like the text panel of a public brochure: plain words
   --fs-display: 96px; --fs-h1: 72px; --fs-h2: 48px; --fs-body: 36px; --fs-label: 30px; --fs-code: 32px; --fs-caption: 36px;
   --lh-display: 1.05; --lh-body: 1.4; --ls-display: -0.015em; --ls-label: 0.06em; --label-case: uppercase; --w-label: 600;
   --w-display: var(--w-bold); --w-heading: var(--w-bold);
-  --u: 30px; --cols: 8; --col: 240px; --margin: 120px; --gutter: 30px; --caption-bottom: 60px; --caption-h: 120px;
+  --u: 30px; --cols: 8; --col: 240px; --margin: 120px; --gutter: 30px; --caption-bottom: 90px; --caption-h: 120px;
   --band-h: 180px; --panel: 450px; --fold-0: 60px;
   --radius: 0px; --stroke: 3px; --caption-bg: rgba(0, 0, 0, 0.88); --caption-fg: #ffffff;
   --slide-scale: 0.5;

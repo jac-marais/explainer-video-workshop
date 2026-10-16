@@ -89,7 +89,7 @@ def main():
     parser.add_argument("--caption-font", action="append", default=[], metavar="FILE[#INDEX]")
     for name in ("caption-font-size", "caption-font-weight", "caption-line-width"):
         parser.add_argument(f"--{name}", type=float)
-    parser.add_argument("--caption-band", default="360,860,1200,170")
+    parser.add_argument("--caption-band")
     parser.add_argument("--size", default="1920x1080")
     parser.add_argument("--fps", type=float, default=30)
     args = parser.parse_args()
@@ -144,10 +144,12 @@ def main():
             execute([sys.executable, SCRIPTS / "film/render.py", "--hf", args.hf, "--project", args.project,
                      args.composition, "--out", args.out, "--narration", narration, "--expect-seconds", duration], heavy=True)
         elif step == "check":
+            # check_film.py owns the default caption band, so pass one only when the user sets it.
+            band = ["--caption-band", args.caption_band] if args.caption_band else []
             execute([sys.executable, SCRIPTS / "film/check_film.py", args.out, "--timing", timing,
                      "--captions", captions, "--narration", narration, "--tail", args.tail,
                      "--pacing", args.pacing, "--holds", args.holds, "--uncaptioned", args.uncaptioned,
-                     "--caption-band", args.caption_band, "--size", args.size, "--fps", args.fps], heavy=True)
+                     *band, "--size", args.size, "--fps", args.fps], heavy=True)
 
 
 if __name__ == "__main__":

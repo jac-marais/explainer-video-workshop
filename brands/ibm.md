@@ -92,8 +92,9 @@ The video grid adapts IBM's "2x Grid for video".
 - Canvas 1920×1080. Base unit `--u` = 30 px; every position and size is a multiple of 30 px (a half unit, 15 px, only for optical centring). Source: the 2x Grid page gives a 7.5 px mini unit, 30 px increments and 8 columns for 1920×1080.
 - 8 columns of 240 px over the full canvas (source: 8 columns; adapted: no gutters, which the page allows as optional).
 - Outer margin `--margin` 120 px (half a column) on left and right (**workshop**: the source page gives no video margin).
-- Caption zone: the bottom band from y = 900 to 1020 px (`--caption-bottom` 60 px, `--caption-h` 120 px), inset by the margins. No content enters it.
-- Scene head at the top left: eyebrow at y = 90 px, headline at y = 135 px. Content sits between y ≈ 270 and 870 px, left-aligned to the margin; it reads left to right.
+- Caption zone: y = 870 to 990 px (`--caption-bottom` 90 px, `--caption-h` 120 px), inset by the margins; apply the shared [caption layout](../templates/composition/README.md#caption-layout).
+- Scene head at the top left: eyebrow at y = 90 px, headline at y = 135 px. Content sits between y ≈ 270 and 840 px, left-aligned to the margin; it reads left to right.
+- The usable content height is 570 px (19 base units); size title and end-card groups within the same grid.
 - Asymmetric and left-aligned. Do not center titles. Leave the right side empty rather than stretching content to fill it.
 
 ## Visual language
@@ -153,7 +154,7 @@ Plain, confident, second person ("you"), present tense. Short declarative senten
   --fs-display: 108px; --fs-h1: 72px; --fs-h2: 48px; --fs-body: 36px; --fs-label: 30px; --fs-code: 32px; --fs-caption: 36px;
   --lh-display: 1.1; --lh-body: 1.4; --ls-display: -0.01em; --ls-label: 0.04em; --label-case: uppercase;
   --w-display: var(--w-light); --w-heading: var(--w-regular);
-  --u: 30px; --cols: 8; --col: 240px; --margin: 120px; --gutter: 30px; --caption-bottom: 60px; --caption-h: 120px;
+  --u: 30px; --cols: 8; --col: 240px; --margin: 120px; --gutter: 30px; --caption-bottom: 90px; --caption-h: 120px;
   --radius: 0px; --stroke: 3px; --caption-bg: rgba(22, 22, 22, 0.92);
   --ease-standard: cubic-bezier(0.2, 0, 0.38, 0.9); --ease-entrance: cubic-bezier(0, 0, 0.38, 0.9);
   --ease-exit: cubic-bezier(0.2, 0, 1, 0.9); --ease-expressive: cubic-bezier(0, 0, 0.3, 1);

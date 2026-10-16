@@ -89,10 +89,24 @@ window.startFilm = ({ brand } = {}) => {
     tl.set(line, { autoAlpha: 1 }, c.start);
     tl.set(line, { autoAlpha: 0 }, c.end);
   }
+  const zone = band.getBoundingClientRect();
+  const frame = root.getBoundingClientRect();
+  if (zone.top < frame.top || zone.bottom > frame.top + px("--caption-limit") || zone.height <= 0) {
+    throw new Error("caption zone is unsafe; follow templates/composition/README.md#caption-layout");
+  }
   tl.set({}, {}, FILM.duration);
 
   for (const face of document.fonts) {
     face.load().catch(() => console.error(`font "${face.family}" ${face.weight} did not load; check fonts/ against tokens.css`));
   }
+  // A fallback font can wrap a caption differently, so measure the backing only once the real fonts are in.
+  document.fonts.ready.then(() => {
+    for (const span of band.querySelectorAll("span")) {
+      const box = span.getBoundingClientRect();
+      if (box.top < zone.top || box.bottom > zone.bottom || box.left < zone.left || box.right > zone.right) {
+        console.error(`caption "${span.textContent}" does not fit its zone; shorten or rebreak it`);
+      }
+    }
+  });
   return film;
 };
