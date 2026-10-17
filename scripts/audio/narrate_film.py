@@ -860,6 +860,12 @@ def narrate(args: argparse.Namespace) -> None:
               "sentence_peak_dbfs": SENTENCE_PEAK_DBFS if sentence_target is not None else None,
               "pauses": {"lead_in": LEAD_IN, "between_sentences": SENTENCE_PAUSE, "between_scenes": SCENE_PAUSE,
                          "explicit": EXPLICIT_PAUSE, "tail": TAIL, "none_after": sorted(run_on)}}
+    if sys.platform == "linux" and spec["engine"] == "kokoro":
+        from linux_levels import correct_file
+        timing["linux_level_correction"] = correct_file(
+            out / "narration.wav", sentence_rows, frame_power=frame_power,
+            sentence_level_db=sentence_level_db, frame_s=FRAME_S,
+            level_dev_db=LEVEL_DEV_DB, scene_jump_db=SCENE_JUMP_DB, scratch_dir=out)
     (out / "timing.json").write_text(json.dumps(timing, indent=2) + "\n")
 
     asr, model_path = transcribe(out / "narration.wav", args.language)

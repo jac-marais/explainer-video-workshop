@@ -2,11 +2,13 @@
 import argparse
 import contextlib
 import io
+import itertools
 import json
 from pathlib import Path
 import tempfile
+from types import ModuleType
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import numpy as np
 import soundfile as sf
@@ -403,15 +405,48 @@ class GenerationTests(unittest.TestCase):
             self.assertEqual(first[2], [])
 
     def test_disk_gain_preserves_raw_sentence_bytes_across_external_reuse_and_reruns(self):
-        for engine in ("qwen3", "kokoro"):
+        for platform, engine in itertools.product(("linux", "darwin"), ("qwen3", "kokoro")):
             for reuse_mode in ("own", "external"):
-                with self.subTest(engine=engine, reuse_mode=reuse_mode), tempfile.TemporaryDirectory(dir="/tmp") as directory:
+                with self.subTest(platform=platform, engine=engine, reuse_mode=reuse_mode), tempfile.TemporaryDirectory(dir="/tmp") as directory:
                     root, current = Path(directory), rows(count=1)
                     scene_file, output = root / "scenes.json", root / "first"
                     scene_file.write_text(json.dumps([{"id": r["scene_id"], "title": "Scene", "visual": "Visual", "claim_ids": [],
                                                       "narration": r["text"]} for r in current]))
                     args = argparse.Namespace(scenes=scene_file, out=output, spoken=None, voice="selected", reuse=None, strict=False, language="en")
                     expected_cache = {}
+                    stages = []
+                    enabled = platform == "linux" and engine == "kokoro"
+                    correction = {"plan": []}
+                    expected_stages = ["normalize", "correct", "asr"] if enabled else ["normalize", "asr"]
+
+                    def corrected(final, sentence_rows, **settings):
+                        stages.append("correct")
+                        self.assertEqual(final, args.out / "narration.wav")
+                        self.assertTrue(final.is_file())
+                        self.assertEqual([row["id"] for row in sentence_rows], [row["id"] for row in current])
+                        self.assertEqual([row["text"] for row in sentence_rows], [row["text"] for row in current])
+                        self.assertEqual(settings, {"frame_power": film.frame_power,
+                                                    "sentence_level_db": film.sentence_level_db,
+                                                    "frame_s": film.FRAME_S, "level_dev_db": film.LEVEL_DEV_DB,
+                                                    "scene_jump_db": film.SCENE_JUMP_DB, "scratch_dir": args.out})
+                        return correction
+
+                    helper = ModuleType("linux_levels")
+                    helper.correct_file = Mock(side_effect=corrected)
+
+                    def transcribed(final, language="en"):
+                        self.assertEqual(stages[-len(expected_stages) + 1:], expected_stages[:-1])
+                        self.assertEqual(final, args.out / "narration.wav")
+                        stages.append("asr")
+                        return [], "local-model"
+
+                    def verify_dispatch(timing, count):
+                        self.assertEqual(stages, expected_stages * count)
+                        self.assertEqual(helper.correct_file.call_count, count if enabled else 0)
+                        if enabled:
+                            self.assertEqual(timing["linux_level_correction"], correction)
+                        else:
+                            self.assertNotIn("linux_level_correction", timing)
 
                     def fake_audio_tools(script, argv, capture=False, soft_exit=None):
                         if script == "voice.py":
@@ -437,20 +472,24 @@ class GenerationTests(unittest.TestCase):
                         return [[{"text": s["text"], "start": s["start"], "end": s["end"]}] for s in sentences], []
 
                     def normalized(raw, final, **kwargs):
+                        stages.append("normalize")
                         final.write_bytes(raw.read_bytes())
                         return -0.65 if kwargs["preserve_take_levels"] else None
 
-                    with patch.object(film, "voice_identity", return_value=({"engine": engine}, "voice-identity")), \
+                    with patch.object(film.sys, "platform", platform), \
+                            patch.dict(film.sys.modules, {"linux_levels": helper}), \
+                            patch.object(film, "voice_identity", return_value=({"engine": engine}, "voice-identity")), \
                             patch.object(film, "run_tool", side_effect=fake_audio_tools) as voice_tools, \
                             patch.object(film, "plan_runs", return_value=[["S01"], ["S02"], ["S03"]]), \
                             patch.object(film, "normalize", side_effect=normalized) as normalizer, \
-                            patch.object(film, "transcribe", return_value=([], "local-model")), \
+                            patch.object(film, "transcribe", side_effect=transcribed), \
                             patch.object(film, "align_words", side_effect=aligned), \
                             patch.object(film, "audio_checks", side_effect=lambda timing, wav, asr, unclean, language="en": (unclean, {})), \
                             patch.object(film, "log"), patch("sys.stdout", new=io.StringIO()):
                         film.narrate(args)
                         self.assertEqual(normalizer.call_args.kwargs, {"preserve_take_levels": engine != "kokoro"})
                         first_timing = json.loads((output / "timing.json").read_text())
+                        verify_dispatch(first_timing, 1)
                         first_checks = json.loads((output / "audio-checks.json").read_text())
                         origins = json.loads((output / "takes.json").read_text())
                         assembled_bytes = (output / "narration-raw.wav").read_bytes()
@@ -487,9 +526,10 @@ class GenerationTests(unittest.TestCase):
                             self.assertEqual(first_checks["stats"]["sentence_gain_db"], gains)
                         if reuse_mode == "external":
                             args.reuse, args.out = output, root / "second"
-                        for _ in range(2):
+                        for count in (2, 3):
                             film.narrate(args)
                             timing = json.loads((args.out / "timing.json").read_text())
+                            verify_dispatch(timing, count)
                             checks = json.loads((args.out / "audio-checks.json").read_text())
                             self.assertEqual(timing, first_timing)
                             self.assertEqual(checks["flags"], first_checks["flags"])
