@@ -34,6 +34,8 @@ class CpuSpeechTests(unittest.TestCase):
         self.assertFalse(engine.transcribe.call_args.kwargs["condition_on_previous_text"])
         self.assertEqual(engine.transcribe.call_args.kwargs["temperature"], (0.0, 0.2, 0.4, 0.6, 0.8, 1.0))
         self.assertEqual(engine.transcribe.call_args.kwargs["beam_size"], 1)
+        self.assertEqual(engine.transcribe.call_args.kwargs["best_of"], 1)
+        self.assertEqual(engine.transcribe.call_args.kwargs["max_new_tokens"], 224)
         self.assertFalse(engine.transcribe.call_args.kwargs["vad_filter"])
 
     def test_decoder_reads_final_pcm_format_at_whisper_rate(self):
@@ -155,6 +157,80 @@ class CpuSpeechTests(unittest.TestCase):
                 cut = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(cut)
                 self.assertEqual(cut.WHISPER, expected)
+
+
+class WhisperFallbackTests(unittest.TestCase):
+    def options(self, **changes):
+        from dataclasses import fields
+        from inspect import signature
+        from faster_whisper import WhisperModel
+        from faster_whisper.transcribe import TranscriptionOptions
+
+        defaults = signature(WhisperModel.transcribe).parameters
+        values = {field.name: defaults[field.name].default
+                  for field in fields(TranscriptionOptions) if field.name != "temperatures"}
+        values.update(temperatures=list(linux_whisper.TEMPERATURES), beam_size=1, best_of=1, max_new_tokens=224)
+        values.update(changes)
+        return TranscriptionOptions(**values)
+
+    def test_first_success_preserves_options_other_arguments_and_return_object(self):
+        import copy
+        from dataclasses import asdict
+        options = self.options()
+        before = copy.deepcopy(asdict(options))
+        result = (SimpleNamespace(no_speech_prob=.1), -.2, 0., 1.)
+        original = Mock(return_value=result)
+        engine = SimpleNamespace(generate_with_fallback=original)
+        untouched = SimpleNamespace(generate_with_fallback=original)
+        encoder, prompt, tokenizer = object(), [1, 2], object()
+        linux_whisper.install_reference_fallback(engine)
+        self.assertIs(engine.generate_with_fallback(encoder, prompt, tokenizer, options), result)
+        self.assertEqual(asdict(options), before)
+        self.assertIs(untouched.generate_with_fallback, original)
+        self.assertEqual(original.call_count, 1)
+        passed = original.call_args.args
+        self.assertIs(passed[0], encoder)
+        self.assertIs(passed[1], prompt)
+        self.assertIs(passed[2], tokenizer)
+        self.assertIsNot(passed[3], options)
+        actual = asdict(passed[3]); actual["temperatures"] = before["temperatures"]
+        self.assertEqual(actual, before)
+        self.assertEqual(passed[3].temperatures, [0.])
+
+    def test_all_fail_returns_last_attempt_instead_of_highest_score(self):
+        options = self.options()
+        attempts = [(SimpleNamespace(no_speech_prob=.1), -.1-index, temperature, 3.)
+                    for index, temperature in enumerate(options.temperatures)]
+        original = Mock(side_effect=attempts)
+        engine = SimpleNamespace(generate_with_fallback=original)
+        linux_whisper.install_reference_fallback(engine)
+        self.assertIs(engine.generate_with_fallback(object(), [], object(), options), attempts[-1])
+        self.assertEqual([call.args[3].temperatures for call in original.call_args_list],
+                         [[temperature] for temperature in options.temperatures])
+        self.assertEqual(options.temperatures, list(linux_whisper.TEMPERATURES))
+
+    def test_high_no_speech_stops_independently_of_log_probability(self):
+        for logprob in (-10., 0.):
+            with self.subTest(logprob=logprob):
+                result = (SimpleNamespace(no_speech_prob=.9), logprob, 0., 3.)
+                original = Mock(return_value=result)
+                engine = SimpleNamespace(generate_with_fallback=original)
+                linux_whisper.install_reference_fallback(engine)
+                self.assertIs(engine.generate_with_fallback(object(), [], object(), self.options()), result)
+                self.assertEqual(original.call_count, 1)
+
+    def test_disabled_thresholds_and_logprob_retry(self):
+        first = (SimpleNamespace(no_speech_prob=.1), -2., 0., 1.)
+        second = (SimpleNamespace(no_speech_prob=.1), -.1, .2, 1.)
+        original = Mock(side_effect=[first, second])
+        engine = SimpleNamespace(generate_with_fallback=original)
+        linux_whisper.install_reference_fallback(engine)
+        self.assertIs(engine.generate_with_fallback(object(), [], object(), self.options()), second)
+        self.assertEqual(original.call_count, 2)
+        original.reset_mock(side_effect=True); original.return_value = first
+        self.assertIs(engine.generate_with_fallback(object(), [], object(), self.options(
+            compression_ratio_threshold=None, log_prob_threshold=None, no_speech_threshold=None)), first)
+        self.assertEqual(original.call_count, 1)
 
 
 class RepetitionWindowTests(unittest.TestCase):
