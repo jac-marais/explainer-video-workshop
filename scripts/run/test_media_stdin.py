@@ -1,5 +1,6 @@
 """Media subprocesses must leave the caller's command input alone."""
 from contextlib import redirect_stdout
+import ast
 import io
 import importlib.util
 from pathlib import Path
@@ -32,6 +33,29 @@ class MediaStdinTests(unittest.TestCase):
         with patch.object(module.subprocess, "run", return_value=SimpleNamespace(stdout="aac")) as run:
             module.aac_args()
             self.assertEqual(run.call_args.kwargs["stdin"], subprocess.DEVNULL)
+
+    def test_direct_media_calls_close_stdin(self):
+        # Also cover helpers outside scripts/, without loading their voice engines.
+        root = SCRIPTS.parent
+        for folder in (root / "scripts", root / "templates/voice"):
+            for path in folder.rglob("*.py"):
+                if path.name.startswith("test_"):
+                    continue
+                for node in ast.walk(ast.parse(path.read_text())):
+                    if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+                        continue
+                    if node.func.attr not in ("run", "Popen", "check_output", "check_call") or not node.args:
+                        continue
+                    command = node.args[0]
+                    if not isinstance(command, (ast.List, ast.Tuple)) or not command.elts:
+                        continue
+                    first = command.elts[0]
+                    if not isinstance(first, ast.Constant) or first.value not in ("ffmpeg", "ffprobe"):
+                        continue
+                    with self.subTest(path=str(path.relative_to(root)), line=node.lineno):
+                        stdin = next((kw.value for kw in node.keywords if kw.arg == "stdin"), None)
+                        self.assertIsNotNone(stdin)
+                        self.assertEqual(ast.unparse(stdin), "subprocess.DEVNULL")
 
     def test_motion_probe_and_decoder_close_stdin(self):
         module = load("film/measure_motion.py")

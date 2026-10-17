@@ -282,7 +282,7 @@ LOADERS = {"kokoro": load_kokoro, "qwen3": load_qwen3, "qwen3-preset": load_qwen
 
 def ffmpeg_loudnorm(raw: Path, final: Path) -> None:
     def run(args: list[str]) -> str:
-        return subprocess.run(["ffmpeg", "-hide_banner", "-nostats", *args], capture_output=True, text=True, check=True).stderr
+        return subprocess.run(["ffmpeg", "-hide_banner", "-nostats", *args], stdin=subprocess.DEVNULL, capture_output=True, text=True, check=True).stderr
 
     log = run(["-i", str(raw), "-af", f"loudnorm={LOUDNORM}:print_format=json", "-f", "null", "-"])
     m, _ = json.JSONDecoder().raw_decode(log[log.rfind("{"):])
@@ -342,7 +342,7 @@ def main() -> None:
     synthesize, identity = LOADERS[engine](spec, seed, reference_paths(spec, args.profile), **options)
     load_s = time.perf_counter() - started
     identity["packages"].update({"soundfile": version("soundfile"), "numpy": version("numpy")})
-    identity["packages"]["ffmpeg"] = subprocess.run(["ffmpeg", "-version"], capture_output=True, text=True).stdout.split("\n")[0]
+    identity["packages"]["ffmpeg"] = subprocess.run(["ffmpeg", "-version"], stdin=subprocess.DEVNULL, capture_output=True, text=True).stdout.split("\n")[0]
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     for path, raw in texts:
