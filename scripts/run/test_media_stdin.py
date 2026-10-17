@@ -2,9 +2,13 @@
 from contextlib import redirect_stdout
 import ast
 import io
+import json
+import os
 import importlib.util
 from pathlib import Path
 import subprocess
+import shutil
+import tempfile
 import sys
 from types import SimpleNamespace
 import unittest
@@ -56,6 +60,36 @@ class MediaStdinTests(unittest.TestCase):
                         stdin = next((kw.value for kw in node.keywords if kw.arg == "stdin"), None)
                         self.assertIsNotNone(stdin)
                         self.assertEqual(ast.unparse(stdin), "subprocess.DEVNULL")
+
+    @unittest.skipUnless(shutil.which("bash"), "requires bash")
+    def test_brand_frame_extraction_leaves_command_input_unread(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            script = root / "make-frames.sh"
+            shutil.copyfile(SCRIPTS.parent / "brands/make-frames.sh", script)
+            (root / "sample.mp4").touch()
+            binaries = root / "bin"
+            binaries.mkdir()
+            records = root / "calls.jsonl"
+            stub = (f"#!{sys.executable}\n"
+                    "import json, os, sys\n"
+                    "from pathlib import Path\n"
+                    "with open(os.environ['MEDIA_CALL_RECORDS'], 'a') as output:\n"
+                    "    output.write(json.dumps({'tool': Path(sys.argv[0]).name, "
+                    "'stdin': os.read(0, 1).hex()}) + '\\n')\n"
+                    "if Path(sys.argv[0]).name == 'ffprobe': print('20')\n")
+            for name in ("ffprobe", "ffmpeg"):
+                path = binaries / name
+                path.write_text(stub)
+                path.chmod(0o755)
+            result = subprocess.run(["bash", str(script)], input=b"reserved command input\n",
+                                    capture_output=True, timeout=30,
+                                    env={**os.environ, "PATH": str(binaries) + os.pathsep + os.environ["PATH"],
+                                         "MEDIA_CALL_RECORDS": str(records)})
+            self.assertEqual(result.returncode, 0, result.stderr.decode())
+            calls = [json.loads(line) for line in records.read_text().splitlines()]
+            self.assertEqual([call["tool"] for call in calls], ["ffprobe"] + ["ffmpeg"] * 16)
+            self.assertTrue(all(call["stdin"] == "" for call in calls), calls)
 
     def test_motion_probe_and_decoder_close_stdin(self):
         module = load("film/measure_motion.py")
