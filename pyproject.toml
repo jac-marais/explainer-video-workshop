@@ -4,6 +4,10 @@ version = "0"
 requires-python = "==3.12.*"
 dependencies = [
   "kokoro-onnx==0.4.7",
+  # Keep the audio decoder API used by faster-whisper compatible.
+  "av==16.1.0; sys_platform == 'linux'",
+  "faster-whisper==1.2.1; sys_platform == 'linux'",
+  "qwen-tts==0.1.1; sys_platform == 'linux'",
   "mlx-audio==0.5.5; sys_platform == 'darwin'",
   "mlx-whisper==0.4.3; sys_platform == 'darwin'",
   "numpy==2.5.3",
@@ -18,7 +22,13 @@ dependencies = [
 
 [tool.uv]
 package = false
-# Narration runs on Apple Silicon; Linux supports rendering voiced projects.
+# Preserve the existing MLX dependency versions when resolving the CPU backend.
+constraint-dependencies = [
+  "huggingface-hub==2.2.0; sys_platform == 'darwin'",
+  "tokenizers==0.23.3; sys_platform == 'darwin'",
+  "transformers==5.19.0; sys_platform == 'darwin'",
+]
+# Native speech backends are selected by platform.
 environments = [
   "sys_platform == 'darwin' and platform_machine == 'arm64'",
   "sys_platform == 'linux' and platform_machine == 'x86_64'",
