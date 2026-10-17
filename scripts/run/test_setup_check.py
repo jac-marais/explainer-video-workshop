@@ -2,6 +2,7 @@
 import os
 from pathlib import Path
 import subprocess
+import shutil
 import tempfile
 import unittest
 
@@ -29,7 +30,10 @@ class SetupCheckTests(unittest.TestCase):
                 path = binaries / name
                 path.write_text('#!/bin/sh\n' + body + '\n')
                 path.chmod(0o755)
-            env = {**os.environ, 'HOME': str(root), 'PATH': str(binaries) + ':' + os.defpath}
+            # Isolate discovery from any browser installed on the test host.
+            for name in ('sh', 'dirname', 'grep', 'head', 'ls', 'mktemp', 'tail', 'rm'):
+                (binaries / name).symlink_to(shutil.which(name))
+            env = {**os.environ, 'HOME': str(root), 'PATH': str(binaries)}
             env.pop('HYPERFRAMES_BROWSER_PATH', None)
             def check():
                 return subprocess.run(['sh', str(CHECK)], env=env, capture_output=True, text=True)
