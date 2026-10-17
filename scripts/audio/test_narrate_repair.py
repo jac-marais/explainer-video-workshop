@@ -62,6 +62,7 @@ class RepairTests(unittest.TestCase):
         self.loader = Mock(return_value=self.samples)
         self.modules = patch.dict(sys.modules, {
             "mlx_whisper": SimpleNamespace(transcribe=self.whisper),
+            "linux_whisper": SimpleNamespace(transcribe=self.whisper, SAMPLE_RATE=16000, load_audio=self.loader),
             "mlx_whisper.audio": SimpleNamespace(SAMPLE_RATE=16000, load_audio=self.loader),
             "huggingface_hub": SimpleNamespace(snapshot_download=Mock(return_value="cached-model")),
         })

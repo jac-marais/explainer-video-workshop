@@ -101,7 +101,7 @@ class CutTests(unittest.TestCase):
                     args = ['cut_takes.py', str(root / 'S01.wav'), '--sentences', str(root / 'sentences.json'),
                             '--out', str(root / 'cut'), '--language', language]
                     stdout = io.StringIO()
-                    with self.subTest(language=language), patch.dict(sys.modules, {'mlx_whisper': whisper}), \
+                    with self.subTest(language=language), patch.dict(sys.modules, {'mlx_whisper': whisper, 'linux_whisper': whisper}), \
                             patch.object(sys, 'argv', args), \
                             patch.object(whisper, 'transcribe', return_value={'segments': [{'words': [
                                 {'word': '花', 'start': .1, 'end': .3}]}]}) as transcribe, \
@@ -163,7 +163,7 @@ class CutTests(unittest.TestCase):
                     args = ['cut_takes.py', str(root / 'S01.wav'), '--sentences', str(root / 'sentences.json'),
                             '--out', str(root / 'cut')]
                     stdout = io.StringIO()
-                    with patch.dict(sys.modules, {'mlx_whisper': whisper}), patch.object(sys, 'argv', args), \
+                    with patch.dict(sys.modules, {'mlx_whisper': whisper, 'linux_whisper': whisper}), patch.object(sys, 'argv', args), \
                             contextlib.redirect_stdout(stdout):
                         cut.main()
                     frames = [sf.info(root / 'cut' / f"{s['id']}.wav").frames for s in sentences]
@@ -194,7 +194,7 @@ class CutTests(unittest.TestCase):
                     args = ['cut_takes.py', str(root / 'S01.wav'), '--sentences', str(root / 'sentences.json'),
                             '--out', str(root / 'cut')]
                     stdout = io.StringIO()
-                    with patch.dict(sys.modules, {'mlx_whisper': whisper}), patch.object(sys, 'argv', args), \
+                    with patch.dict(sys.modules, {'mlx_whisper': whisper, 'linux_whisper': whisper}), patch.object(sys, 'argv', args), \
                             patch.object(cut, 'MIN_GAP', min_gap), contextlib.redirect_stdout(stdout):
                         cut.main()
                     frames = [sf.info(root / 'cut' / f"{s['id']}.wav").frames for s in sentences]
@@ -224,7 +224,7 @@ class CutTests(unittest.TestCase):
                     # One sample-wide search window cannot hold two interior cuts.
                     window = 1 / rate if bounds[0][2] is False else cut.WINDOW
                     before, after = (0, 0) if window < cut.WINDOW else (cut.BEFORE, cut.AFTER)
-                    with patch.dict(sys.modules, {'mlx_whisper': whisper}), patch.object(sys, 'argv', args), \
+                    with patch.dict(sys.modules, {'mlx_whisper': whisper, 'linux_whisper': whisper}), patch.object(sys, 'argv', args), \
                             patch.object(cut, 'sentence_bounds', return_value=bounds), \
                             patch.object(cut, 'WINDOW', window), patch.object(cut, 'BEFORE', before), \
                             patch.object(cut, 'AFTER', after), patch.object(cut, 'MIN_GAP', 2.0):

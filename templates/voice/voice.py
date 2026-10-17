@@ -161,6 +161,9 @@ def load_kokoro(spec: dict, seed: int, refs: dict[str, Path]) -> tuple[callable,
     prefix = Path("/opt/homebrew/opt/espeak-ng")
     lib_path = prefix / "lib/libespeak-ng.dylib"
     data_path = prefix / "share/espeak-ng-data"
+    if sys.platform == "linux":
+        from linux_speech import espeak_paths
+        lib_path, data_path = espeak_paths()
     missing = [str(path) for path in (model_path, voices_path, lib_path, data_path) if not path.exists()]
     if missing:
         raise SystemExit("Missing local speech assets: " + ", ".join(missing))
@@ -228,6 +231,9 @@ def mlx_identity(spec: dict, snapshot: Path, refs: dict[str, Path], settings: di
 
 
 def load_qwen3(spec: dict, seed: int, refs: dict[str, Path], max_words: int = QWEN3_CHUNK_WORDS) -> tuple[callable, dict]:
+    if sys.platform == "linux":
+        from linux_speech import load_qwen3 as load_cpu
+        return load_cpu(spec, seed, refs, max_words)
     require_mlx()
     import mlx.core as mx
     from mlx_audio.tts.utils import load

@@ -75,7 +75,7 @@ done
 [ -d "$ESPEAK/share/espeak-ng-data" ]; check $? "espeak-ng data" "espeak-ng data missing: $ESPEAK/share/espeak-ng-data"
 
 else
-  echo "SKIP  Voice generation and alignment require an Apple Silicon Mac; Linux renders existing audio."
+  echo "SKIP  Linux renders existing audio without voice models; see README Linux CPU narration for voicing setup."
 fi
 
 echo "== text"

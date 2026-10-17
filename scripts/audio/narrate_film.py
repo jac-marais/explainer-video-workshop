@@ -58,6 +58,8 @@ WS = Path(__file__).resolve().parents[2]
 TOOLS_DIR = WS / "templates/voice"
 VOICE_DIR = WS / "local/voice"
 WHISPER = "mlx-community/whisper-large-v3-turbo"
+if sys.platform == "linux":
+    from linux_whisper import MODEL as WHISPER
 RATE = 24000
 LEAD_IN, SENTENCE_PAUSE, SCENE_PAUSE, EXPLICIT_PAUSE, TAIL = 0.35, 0.22, 0.50, 3.0, 0.45
 LOUDNORM = "I=-16:TP=-1.5:LRA=11"
@@ -148,7 +150,11 @@ def voice_identity(name: str) -> tuple[dict, str]:
         raise SystemExit(f"Unknown voice '{name}'; available: {', '.join(config['voices'])}")
     spec = config["voices"][name]
     refs = {key: sha256((VOICE_DIR / spec[key]).read_bytes()) for key in ("ref_audio", "ref_text") if key in spec}
-    return spec, sha256(json.dumps({"voice": name, "spec": spec, "refs": refs}, sort_keys=True).encode())
+    identity = {"voice": name, "spec": spec, "refs": refs}
+    # CPU Qwen is a different generation backend; retain legacy Mac and Kokoro cache keys.
+    if sys.platform == "linux" and spec["engine"] in ("qwen3", "qwen3-preset"):
+        identity["backend"] = "qwen-tts-cpu-float32-v1"
+    return spec, sha256(json.dumps(identity, sort_keys=True).encode())
 
 
 def cache_key(identity: str, spoken: str) -> str:
@@ -283,8 +289,14 @@ def espeak(language: str):
     """eSpeak's first choice of voice, with one library wrapper per requested language."""
     from espeak_backend import CachedEspeakBackend, espeak_wrapper
     from phonemizer.backend.espeak.wrapper import EspeakWrapper
-    EspeakWrapper.set_library(str(ESPEAK / "lib/libespeak-ng.dylib"))
-    EspeakWrapper.set_data_path(str(ESPEAK / "share/espeak-ng-data"))
+    if sys.platform == "linux":
+        from linux_speech import espeak_paths
+        lib, data = espeak_paths()
+        EspeakWrapper.set_library(str(lib))
+        EspeakWrapper.set_data_path(str(data))
+    else:
+        EspeakWrapper.set_library(str(ESPEAK / "lib/libespeak-ng.dylib"))
+        EspeakWrapper.set_data_path(str(ESPEAK / "share/espeak-ng-data"))
     # eSpeak ranks its voices for the language, and the phonemizer reads only its own voices, not MBROLA's.
     wrapper = espeak_wrapper(language)
     supported = {voice.language for voice in wrapper.available_voices()}
@@ -527,7 +539,10 @@ def normalize(raw: Path, final: Path, preserve_take_levels: bool = False) -> flo
 
 
 def transcribe_words(audio: str | np.ndarray, language: str) -> list[dict]:
-    import mlx_whisper
+    if sys.platform == "linux":
+        import linux_whisper as mlx_whisper
+    else:
+        import mlx_whisper
 
     result = mlx_whisper.transcribe(audio, path_or_hf_repo=WHISPER, language=language, word_timestamps=True,
                                     condition_on_previous_text=False)
@@ -609,7 +624,10 @@ def align_with_repairs(path: Path, sents: list[dict], asr: list[dict], language:
     if not fallbacks:
         return asr, rows, fallbacks, 0
 
-    from mlx_whisper.audio import SAMPLE_RATE, load_audio
+    if sys.platform == "linux":
+        from linux_whisper import SAMPLE_RATE, load_audio
+    else:
+        from mlx_whisper.audio import SAMPLE_RATE, load_audio
 
     # Decode/resample once for all repair spans, using Whisper's own audio loader.
     samples = load_audio(str(path))
@@ -848,7 +866,7 @@ def narrate(args: argparse.Namespace) -> None:
     asr, word_rows, fallbacks, repaired_spans = align_with_repairs(out / "narration.wav", sentence_rows, asr, args.language)
     words = [w for sentence in word_rows for w in sentence]
     (out / "words.json").write_text(json.dumps({
-        "model": "mlx-whisper large-v3-turbo", "model_path": model_path, "language": args.language, "language_probability": 1,
+        "model": "faster-whisper large-v3-turbo" if sys.platform == "linux" else "mlx-whisper large-v3-turbo", "model_path": model_path, "language": args.language, "language_probability": 1,
         "duration": timing["duration"], "word_count": len(words),
         "segments": [{"text": s["text"], "start": w[0]["start"], "end": w[-1]["end"]} for s, w in zip(sentence_rows, word_rows)],
         "words": words}, indent=2) + "\n")

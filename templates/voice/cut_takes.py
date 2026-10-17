@@ -28,6 +28,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts/audio"))
 from text_tokens import norm as letters
 
 WHISPER = "mlx-community/whisper-large-v3-turbo"
+if sys.platform == "linux":
+    from linux_whisper import MODEL as WHISPER
 WINDOW = 0.01  # loudness frame, seconds
 SMOOTH = 5  # frames in the moving average of power
 FLOOR_PCT = 5  # the take's noise floor is this percentile of smoothed loudness
@@ -93,7 +95,10 @@ def sentence_bounds(sents, words, duration):
 
 
 def main():
-    import mlx_whisper
+    if sys.platform == "linux":
+        import linux_whisper as mlx_whisper
+    else:
+        import mlx_whisper
     import numpy as np
     import soundfile as sf
 
