@@ -504,7 +504,7 @@ def assemble(scenes: list[dict], rows: dict[str, dict], audio: dict[str, np.ndar
 
 
 def ffmpeg(args: list[str]) -> str:
-    return subprocess.run(["ffmpeg", "-hide_banner", "-nostats", *args], capture_output=True, text=True, check=True).stderr
+    return subprocess.run(["ffmpeg", "-hide_banner", "-nostats", *args], stdin=subprocess.DEVNULL, capture_output=True, text=True, check=True).stderr
 
 
 def measure_loudness(path: Path) -> dict:

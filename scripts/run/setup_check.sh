@@ -25,7 +25,7 @@ snapshot() { [ -n "$(ls "$HFHUB/models--$1/snapshots"/*/* 2>/dev/null | head -1)
 echo "== ffmpeg"
 command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null
 check $? "ffmpeg and ffprobe: $(command -v ffmpeg)" "ffmpeg or ffprobe is not on PATH"
-if ffmpeg -hide_banner -filters 2>/dev/null | grep -q ' drawtext '; then
+if ffmpeg -hide_banner -filters </dev/null 2>/dev/null | grep -q ' drawtext '; then
   ok "ffmpeg drawtext filter"
 else
   ok "ffmpeg has no drawtext, so render labels with the PIL fallback (Pillow draws the text into a PNG, ffmpeg overlays it)"

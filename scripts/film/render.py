@@ -40,12 +40,12 @@ def next_free(out):
 
 def sh(cmd, **kw):
     print("+", " ".join(map(str, cmd)), flush=True)
-    if subprocess.run(cmd, **kw).returncode:
+    if subprocess.run(cmd, stdin=subprocess.DEVNULL, **kw).returncode:
         raise SystemExit(f"failed: {cmd[0]}")
 
 
 def aac_args():
-    encoders = subprocess.run(["ffmpeg", "-hide_banner", "-encoders"], capture_output=True, text=True).stdout
+    encoders = subprocess.run(["ffmpeg", "-hide_banner", "-encoders"], stdin=subprocess.DEVNULL, capture_output=True, text=True).stdout
     if re.search(r"\baac_at\b", encoders):
         return ["-c:a", "aac_at", "-b:a", "192k"]
     # Noise substitution fills each channel with its own noise, which breaks identical channels.
@@ -101,7 +101,7 @@ def main():
             env.setdefault("HF_DE_VERIFY", "0")
             cmd = hf + ["render", a.project.resolve(), "-c", a.composition, "-o", raw, "--browser-gpu"] + extra
             print("+", " ".join(map(str, cmd)), flush=True)
-            proc = subprocess.Popen(cmd, env=env, cwd=a.project, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            proc = subprocess.Popen(cmd, env=env, cwd=a.project, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             fallback = False
             for line in proc.stdout:
                 print(line, end="", flush=True)

@@ -1,5 +1,8 @@
 """Synthetic samples exercise sentence matching without synthesis or media tools."""
 import unittest
+from unittest.mock import patch
+from types import SimpleNamespace
+import subprocess
 
 import numpy as np
 
@@ -12,6 +15,12 @@ def tone(db, frames=20):
 
 
 class SentenceLevelTests(unittest.TestCase):
+    def test_loudness_ffmpeg_cannot_read_interactive_keys(self):
+        with patch.object(film.subprocess, "run", return_value=SimpleNamespace(stderr="meter")) as run:
+            self.assertEqual(film.ffmpeg(["-version"]), "meter")
+        self.assertEqual(run.call_args.kwargs["stdin"], subprocess.DEVNULL)
+
+
     def test_short_quiet_sentences_match_and_scene_flags_clear(self):
         audio = {str(i): np.concatenate([np.zeros(240), tone(db, frames), np.zeros(240)])
                  for i, (db, frames) in enumerate([(-25, 8), (-18, 60), (-24, 10), (-18, 80), (-18, 50)])}

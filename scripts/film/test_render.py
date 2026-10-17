@@ -5,16 +5,21 @@ import subprocess, sys, tempfile, unittest
 RENDER = Path(__file__).resolve().parent / "render.py"
 
 
-def run(cli_body, env_extra=None):
+def run(cli_body, env_extra=None, input=None):
     with tempfile.TemporaryDirectory() as d:
         cli = Path(d) / "hf.sh"
         cli.write_text(cli_body)
         env = {"PATH": "/usr/bin:/bin", **(env_extra or {})}
         return subprocess.run([sys.executable, RENDER, "--hf", cli, "--project", d, ".", "-o", Path(d) / "out.mp4"],
-                              capture_output=True, text=True, env=env)
+                              capture_output=True, text=True, env=env, input=input)
 
 
 class RenderGuardTests(unittest.TestCase):
+    def test_renderer_does_not_read_the_callers_pipe(self):
+        r = run('read answer || true; echo "stdin=$answer"; exit 3\n', input="q\n")
+        self.assertIn("stdin=\n", r.stdout)
+
+
     def test_screenshot_fallback_fails_even_when_the_cli_succeeds(self):
         r = run('echo "drawElement self-verification failed; re-rendering via screenshot"\n')
         self.assertNotEqual(r.returncode, 0)

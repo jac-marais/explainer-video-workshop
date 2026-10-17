@@ -21,7 +21,7 @@ CH = {1: "mono", 2: "stereo"}
 
 
 def run(cmd):
-    p = subprocess.run(cmd, capture_output=True, text=True)
+    p = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, text=True)
     if p.returncode:
         sys.exit(f"{cmd[0]} failed on {cmd[-1]}: {p.stderr.strip()[-300:]}")
     return p.stdout + p.stderr
