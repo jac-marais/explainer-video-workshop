@@ -9,7 +9,7 @@ KOKORO="${KOKORO_TTS_CACHE:-$HOME/.cache/hyperframes/tts}"
 ESPEAK="${AGENT_PROTOCOL_ESPEAK_NG_PREFIX:-/opt/homebrew/opt/espeak-ng}"
 PLATFORM="$(uname -s)"
 case "$PLATFORM" in
-  Darwin) CHROME="${HYPERFRAMES_BROWSER_PATH:-/Applications/Google Chrome.app/Contents/MacOS/Google Chrome}" ;;
+  Darwin) CHROME="/Applications/Google Chrome.app" ;;
   Linux) CHROME="${HYPERFRAMES_BROWSER_PATH:-$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)}" ;;
   *) echo "FAIL  Supported platforms are macOS and Linux"; exit 1 ;;
 esac
@@ -31,15 +31,14 @@ else
   ok "ffmpeg has no drawtext, so render labels with the PIL fallback (Pillow draws the text into a PNG, ffmpeg overlays it)"
 fi
 
-echo "== Python"
+if [ "$PLATFORM" = Darwin ]; then echo "== voice"; else echo "== Python"; fi
 command -v uv >/dev/null
 check $? "uv: $(command -v uv)" "uv is not on PATH"
-if command -v uv >/dev/null; then
+if [ "$PLATFORM" = Linux ] && command -v uv >/dev/null; then
   UV_OFFLINE=1 "$WS/scripts/run/py" -c 'import numpy, scipy, regex, stanza, PIL, soundfile'
   check $? "render Python imports available offline" "render Python environment is missing packages (run uv sync --locked first)"
 fi
 if [ "$PLATFORM" = Darwin ]; then
-echo "== voice"
 if command -v uv >/dev/null; then
   tmp="$(mktemp)"
   # UV_OFFLINE makes uv sync the shared environment from its cache and never download.
@@ -94,18 +93,28 @@ fi
 
 echo "== renderer"
 command -v node >/dev/null && [ "$(node -p 'process.versions.node.split(".")[0]')" -ge 22 ] 2>/dev/null
-check $? "node $(node -v 2>/dev/null) (22+ needed)" "node 22+ is not on PATH"
+node_status=$?
+if [ "$PLATFORM" = Darwin ]; then
+  check "$node_status" "node $(node -v 2>/dev/null) (22+ needed)" "node 22+ is not on PATH (hf.sh uses ~/.nvm/versions/node/v24.12.0/bin)"
+else
+  check "$node_status" "node $(node -v 2>/dev/null) (22+ needed)" "node 22+ is not on PATH"
+fi
 if [ -z "$HF" ]; then
   printf 'SKIP  HyperFrames CLI: pass the route'"'"'s HyperFrames CLI as the argument\n'
 else
   [ -x "$HF" ]; check $? "HyperFrames CLI: $HF" "HyperFrames CLI missing: $HF"
 fi
-[ -n "$CHROME" ] && [ -x "$CHROME" ]; check $? "Google Chrome: $CHROME" "Google Chrome missing: $CHROME"
+if [ "$PLATFORM" = Darwin ]; then [ -d "$CHROME" ]; else [ -n "$CHROME" ] && [ -x "$CHROME" ]; fi
+check $? "Google Chrome: $CHROME" "Google Chrome missing: $CHROME"
 
 echo "== HyperFrames environment (set these before check/render; hf.sh does)"
 note 'export HYPERFRAMES_NO_UPDATE_CHECK=1 HYPERFRAMES_NO_AUTO_INSTALL=1   # else a background self-update breaks render ("Missing manifest")'
 note 'export HYPERFRAMES_NO_TELEMETRY=1 DO_NOT_TRACK=1'
-note 'export HYPERFRAMES_BROWSER_PATH="'"$CHROME"'"   # host Chrome, so WebGL uses the GPU'
+if [ "$PLATFORM" = Darwin ]; then
+  note 'export HYPERFRAMES_BROWSER_PATH="'"$CHROME"'/Contents/MacOS/Google Chrome"   # host Chrome, so WebGL uses the GPU'
+else
+  note 'export HYPERFRAMES_BROWSER_PATH="'"$CHROME"'"   # host Chrome, so WebGL uses the GPU'
+fi
 note 'unset GEMINI_API_KEY GOOGLE_API_KEY   # snapshot would send frames to Gemini'
 if [ -n "${GEMINI_API_KEY:-}${GOOGLE_API_KEY:-}" ]; then note "this shell has a Gemini/Google key set"; fi
 
