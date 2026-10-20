@@ -56,7 +56,7 @@ class CorrectionTests(unittest.TestCase):
             calls.append(gain)
             return gain_only(samples, rate, gain)
         output, result = run(pcm, rows, process)
-        self.assertEqual(len(calls), 1)
+        self.assertGreaterEqual(len(calls), 1)
         self.assertEqual([p['id'] for p in result['plan']], ['s2'])
         start, end = round(rows[2]['start'] * RATE), round(rows[2]['end'] * RATE)
         self.assertTrue(np.array_equal(output[:start], pcm[:start]))
@@ -65,6 +65,65 @@ class CorrectionTests(unittest.TestCase):
         self.assertEqual(len(output), len(pcm))
         self.assertTrue(np.all((output & 255) == 0))
         self.assertLess(abs(result['after_db']['s2'] - result['median_after_db']), film.LEVEL_DEV_DB)
+        self.assertTrue(result['plan'][0]['target_reached'])
+
+    def test_peaky_sentence_single_pass_at_gate_retries_until_margin_is_measured(self):
+        pcm, rows = fixture([.12, .12, .06, .12, .12])
+        start, end = round(rows[2]['start'] * RATE), round(rows[2]['end'] * RATE)
+        pcm[start + 480:end:960] = int(round(.9 * 2 ** 23)) << 8
+        contexts = []
+        def limited(samples, rate, gain):
+            contexts.append(samples.copy())
+            return np.clip(gain_only(samples, rate, gain), -.8, .8)
+        output, result = run(pcm, rows, limited)
+        plan = result['plan'][0]
+        first = plan['attempts'][0]
+        first_deviation = first['after_db'] - result['median_before_db']
+        self.assertLess(first['gain_db'], helper.GAIN_CAP_DB)
+        self.assertLess(first_deviation, -film.LEVEL_DEV_DB)
+        self.assertEqual(round(first_deviation, 1), -film.LEVEL_DEV_DB)
+        self.assertGreater(len(plan['attempts']), 1)
+        self.assertTrue(plan['target_reached'])
+        self.assertFalse(plan['gain_cap_reached'])
+        self.assertGreaterEqual(result['after_db']['s2'], plan['target_db'])
+        self.assertLessEqual(result['median_after_db'] - result['after_db']['s2'],
+                             film.LEVEL_DEV_DB - helper.MARGIN_DB)
+        gains = [a['gain_db'] for a in plan['attempts']]
+        self.assertTrue(all(a < b <= helper.GAIN_CAP_DB for a, b in zip(gains, gains[1:])))
+        for context in contexts[1:]:
+            np.testing.assert_array_equal(context, contexts[0])
+        self.assertEqual(plan['gain_db'], gains[-1])
+        self.assertLess(np.max(np.abs(output.astype(np.float64) / 2 ** 31)), .81)
+        np.testing.assert_array_equal(output[:start], pcm[:start])
+        np.testing.assert_array_equal(output[end:], pcm[end:])
+        flags, _ = film.level_flags(rows, [s['scene_id'] for s in rows],
+                                    output.astype(np.float32) / np.float32(2 ** 31), RATE)
+        self.assertFalse(any(f['check'] == 'loudness_outlier' for f in flags))
+
+    def test_unresponsive_limiter_stops_at_total_cap_and_reports_unmet_target(self):
+        pcm, rows = fixture([.1, .1, .06, .1, .1])
+        calls = []
+        def unresponsive(samples, rate, gain):
+            calls.append(gain)
+            return samples.copy()
+        output, result = run(pcm, rows, unresponsive)
+        plan = result['plan'][0]
+        self.assertEqual(calls[-1], helper.GAIN_CAP_DB)
+        self.assertTrue(all(g <= helper.GAIN_CAP_DB for g in calls))
+        self.assertLessEqual(len(calls), 1 + int(np.ceil(helper.GAIN_CAP_DB / helper.MIN_GAIN_STEP_DB)))
+        self.assertTrue(plan['gain_cap_reached'])
+        self.assertFalse(plan['target_reached'])
+        np.testing.assert_array_equal(output, pcm)
+
+    def test_revisits_target_when_another_scene_lift_moves_the_median(self):
+        pcm, rows = fixture([.075, .12, .10, .16], ['a', 'a', 'b', 'c'])
+        output, result = run(pcm, rows, gain_only)
+        self.assertGreater(result['median_after_db'], result['median_before_db'])
+        first = result['plan'][0]
+        self.assertGreater(first['target_db'], first['attempts'][0]['target_db'])
+        for entry in result['plan']:
+            self.assertTrue(entry['target_reached'])
+            self.assertGreaterEqual(result['after_db'][entry['id']], entry['target_db'])
 
     def test_high_crest_quiet_span_uses_peak_control_instead_of_unsafe_gain(self):
         pcm, rows = fixture([.1, .1, .06, .1, .1])

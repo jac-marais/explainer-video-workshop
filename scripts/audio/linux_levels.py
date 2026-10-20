@@ -15,6 +15,7 @@ import numpy as np
 
 GAIN_CAP_DB = 4.0
 MARGIN_DB = .5
+MIN_GAIN_STEP_DB = .05
 CONTEXT_S = .25
 BLEND_S = .005
 LIMIT_DBFS = -1.6
@@ -93,11 +94,12 @@ def _filter_context(samples, rate, gain_db, scratch_dir, ffmpeg):
 def correct_levels(pcm, rate, sentences, *, frame_power, sentence_level_db,
                    frame_s, level_dev_db, scene_jump_db, scratch_dir=None,
                    ffmpeg='ffmpeg', filter_context=None):
-    """One capped plan/pass; return corrected PCM and measured settings/results.
+    """Capped localized lifts; return corrected PCM and measured settings/results.
 
     Select negative loudness outliers plus the quieter, below-median endpoint of
-    existing failing scene boundaries. No iteration, threshold changes or automatic
-    acceptance. filter_context is injectable for light deterministic tests only.
+    existing failing scene boundaries. Re-measure after limiting and retry from
+    original PCM until the measured target or total gain cap is reached. The caller
+    still runs all final checks. filter_context is injectable for deterministic tests.
     """
     _require(isinstance(pcm, np.ndarray) and pcm.ndim == 1 and pcm.dtype == np.int32,
              'Require mono left-aligned int32 PCM24')
@@ -110,7 +112,7 @@ def correct_levels(pcm, rate, sentences, *, frame_power, sentence_level_db,
         _require(row['id'] not in ids and previous <= start < end <= len(pcm), 'Invalid/overlapping sentence intervals')
         ids.add(row['id']); intervals[row['id']] = (start, end); previous = end
     before, median = _levels(pcm, rate, sentences, frame_power, sentence_level_db, frame_s)
-    targets, reasons = {}, {}
+    targets, reasons, neighbors = {}, {}, {}
     for i, value in enumerate(before):
         if value < median - level_dev_db:
             targets[i] = median - level_dev_db + MARGIN_DB
@@ -122,38 +124,65 @@ def correct_levels(pcm, rate, sentences, *, frame_power, sentence_level_db,
         if before[low] < median:
             targets[low] = max(targets.get(low, before[low]), before[high] - scene_jump_db + MARGIN_DB)
             reasons.setdefault(low, []).append('quiet_scene_boundary_endpoint')
+            neighbors.setdefault(low, []).append(high)
     output, changed, plan = pcm.copy(), np.zeros(len(pcm), dtype=bool), []
     process = filter_context
     if process is None:
         process = lambda samples, sample_rate, gain: _filter_context(samples, sample_rate, gain, scratch_dir, ffmpeg)
+    settings = {}
     for i in sorted(targets):
-        desired = max(0.0, targets[i] - before[i])
-        gain = min(GAIN_CAP_DB, desired)
-        if gain == 0:
-            continue
         sid = sentences[i]['id']; start, end = intervals[sid]
         left = max(0, start - round(CONTEXT_S * rate))
         right = min(len(pcm), end + round(CONTEXT_S * rate))
         context = pcm[left:right].astype(np.float64) / (2 ** 31)
-        filtered = process(context.copy(), rate, gain)
-        _require(isinstance(filtered, np.ndarray) and filtered.shape == context.shape,
-                 'Limiter changed context frame count; do not trim, pad or compensate silently')
-        _require(np.isfinite(filtered).all(), 'Limiter returned nonfinite samples')
-        offset = start - left
-        selected = filtered[offset:offset + end - start]
         original = pcm[start:end].astype(np.float64) / (2 ** 31)
         blend = min(round(BLEND_S * rate), len(original) // 4)
         _require(blend >= 2, 'Sentence too short for the fixed boundary blend')
         weight = np.ones(len(original)); ramp = .5 - .5 * np.cos(np.linspace(0, np.pi, blend))
         weight[:blend] = ramp; weight[-blend:] = ramp[::-1]
-        mixed = original * (1 - weight) + selected * weight
-        quantized = np.rint(mixed * (2 ** 23))
-        _require((quantized >= -(2 ** 23)).all() and (quantized < 2 ** 23).all(), 'Correction would clip; refuse rather than clip')
-        output[start:end] = quantized.astype(np.int32) << 8
-        changed[start:end] = True
-        plan.append({'id': sid, 'reason': reasons[i], 'gain_db': gain, 'requested_gain_db': desired,
-                     'gain_cap_reached': desired > GAIN_CAP_DB, 'target_db': targets[i],
-                     'start_frame': start, 'end_frame': end})
+        settings[i] = (context, start - left, original, weight)
+        plan.append({'id': sid, 'reason': reasons[i], 'gain_db': 0.0,
+                     'requested_gain_db': targets[i] - before[i],
+                     'gain_cap_reached': False, 'target_db': targets[i],
+                     'start_frame': start, 'end_frame': end, 'attempts': []})
+
+    after, after_median = before, median
+    while True:
+        retried = False
+        for i, entry in zip(sorted(targets), plan):
+            # A lifted scene endpoint can move the median or a neighboring target.
+            # Revisit earlier entries against the resulting track, retaining at
+            # least the original target even if another correction lowers it.
+            target = max(targets[i], after_median - level_dev_db + MARGIN_DB,
+                         *(after[j] - scene_jump_db + MARGIN_DB for j in neighbors.get(i, [])))
+            entry['target_db'] = target
+            entry['target_reached'] = after[i] >= target
+            if entry['target_reached'] or entry['gain_cap_reached']:
+                continue
+            residual = target - after[i]
+            # Minimum progress bounds retries even for an unresponsive limiter or
+            # a discontinuity in the active-frame gate. gain_db is always TOTAL
+            # gain on the original context, never a compounded per-pass lift.
+            requested = entry['gain_db'] + (max(MIN_GAIN_STEP_DB, residual) if entry['attempts'] else residual)
+            gain = min(GAIN_CAP_DB, requested)
+            context, offset, original, weight = settings[i]
+            filtered = process(context.copy(), rate, gain)
+            _require(isinstance(filtered, np.ndarray) and filtered.shape == context.shape,
+                     'Limiter changed context frame count; do not trim, pad or compensate silently')
+            _require(np.isfinite(filtered).all(), 'Limiter returned nonfinite samples')
+            selected = filtered[offset:offset + len(original)]
+            mixed = original * (1 - weight) + selected * weight
+            quantized = np.rint(mixed * (2 ** 23))
+            _require((quantized >= -(2 ** 23)).all() and (quantized < 2 ** 23).all(), 'Correction would clip; refuse rather than clip')
+            start, end = entry['start_frame'], entry['end_frame']
+            output[start:end] = quantized.astype(np.int32) << 8
+            changed[start:end] = True
+            after, after_median = _levels(output, rate, sentences, frame_power, sentence_level_db, frame_s)
+            entry.update(gain_db=gain, requested_gain_db=requested, gain_cap_reached=gain >= GAIN_CAP_DB)
+            entry['attempts'].append({'gain_db': gain, 'target_db': target, 'after_db': after[i]})
+            retried = True
+        if not retried:
+            break
     _require(len(output) == len(pcm) and np.array_equal(output[~changed], pcm[~changed]), 'Outside-interval PCM or total frames changed')
     after, after_median = _levels(output, rate, sentences, frame_power, sentence_level_db, frame_s)
     return output, {'plan': plan, 'median_before_db': median, 'median_after_db': after_median,
