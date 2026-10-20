@@ -26,6 +26,14 @@ class NumberTests(unittest.TestCase):
                    ('71', 'soixante et onze'), ('80', 'quatre-vingts'),
                    ('3000', 'trois mille'), ('280000', 'deux cent quatre-vingt mille'),
                    ('45.06', 'quarante-cinq virgule zéro six'), ('62%', 'soixante-deux pour cent')],
+            'pt': [('37', 'Trinta e sete'), ('32', 'trinta e duas'), ('13', 'treze'), ('14', 'quatorze'),
+                   ('16', 'dezesseis'), ('100', 'cem'), ('101', 'cento e uma'), ('250', 'duzentas e cinquenta'),
+                   ('1250', 'mil duzentos e cinquenta'), ('2000', 'duas mil'), ('45.06', 'quarenta e cinco vírgula zero seis'),
+                   ('62%', 'sessenta e dois por cento')],
+            'es': [('20', 'veinte'), ('41', 'cuarenta y un'), ('21', 'veintiuna'), ('31', 'treinta y una'),
+                   ('16', 'dieciséis'), ('100', 'cien'), ('109', 'ciento nueve'), ('500', 'quinientas'),
+                   ('41000', 'cuarenta y un mil'), ('45.06', 'cuarenta y cinco coma cero seis'),
+                   ('62%', 'sesenta y dos por ciento')],
             'hi': [('246', 'दो सौ छियालीस'), ('98007', 'अट्ठानवे हजार सात'),
                    ('200000', 'दो लाख'), ('45.06', 'पैंतालीस पॉइंट शून्य छह'),
                    ('62%', 'बासठ प्रतिशत')],
@@ -47,7 +55,7 @@ class NumberTests(unittest.TestCase):
 
     def test_limits_zero_and_hindi_table(self):
         self.assertEqual(len(HI), 100)
-        for lang, zero in [('fr', 'zéro'), ('hi', 'शून्य'), ('zh', '零'), ('ko', '영')]:
+        for lang, zero in [('fr', 'zéro'), ('pt', 'zero'), ('es', 'cero'), ('hi', 'शून्य'), ('zh', '零'), ('ko', '영')]:
             self.assertEqual(film.readings('0', lang), {norm(zero)})
             self.assertTrue(film.readings('999999', lang))
             for invalid in ['1000000', '-4', 'flower', '4..2']:
@@ -56,7 +64,7 @@ class NumberTests(unittest.TestCase):
             self.assertEqual(film.readings(str(n), 'hi'), {word})
 
     def test_legacy_readings(self):
-        for lang in ['en', 'pt', 'es']:
+        for lang in ['en', 'de']:
             self.assertEqual(film.readings('2046', lang), {'twothousandfortysix', 'twentyfortysix'})
             self.assertEqual(film.readings('1000000', lang), set())
 

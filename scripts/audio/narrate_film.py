@@ -20,7 +20,7 @@ has looped and is re-voiced, at most twice.
 Sentence WAVs are keyed by voice config and spoken text, and takes.json records each sentence's original take id.
 --reuse and reruns follow the canonical take-level reuse rule in methods/voice-explainer-video.md#take-level-reuse.
 words.json holds one row per whitespace word or Han/Kana character of the script, timed by aligning Whisper's transcript of narration.wav to it.
-Number matching supports fr/hi/zh/ko integers below a million, decimals and percents, also inside a heard word (12층); English cardinals/years stay unchanged.
+Number matching supports fr/pt/es/hi/zh/ko integers below a million (pt and es in either gender), decimals and percents, also inside a heard word (12층); English cardinals/years stay unchanged.
 Sentences with fallback words are re-transcribed once from narration.wav, merging adjacent sentences and padding
 0.15 s at each end (clamped to the file). A span's words replace the long-form ones only when fewer words fall back,
 and the result feeds both alignment and difference checks, including --check-only; audio-checks stats record retranscribed_spans when nonzero. Fully aligned runs are unchanged.
@@ -679,7 +679,7 @@ def say(n: int) -> str:
 
 
 def readings(digits: str, language: str = "en") -> set[str]:
-    """Normalized readings: legacy English cardinals/years; fr/hi/zh/ko decimals and percents too."""
+    """Normalized readings: legacy English cardinals/years; fr/pt/es/hi/zh/ko decimals and percents too."""
     if language in LANGUAGES:
         return {letters(form) for form in spoken_numbers(digits, language)}
     n = int(digits)
