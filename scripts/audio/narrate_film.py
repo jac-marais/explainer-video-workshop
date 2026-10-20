@@ -22,8 +22,10 @@ Sentence WAVs are keyed by voice config and spoken text, and takes.json records 
 words.json holds one row per whitespace word or Han/Kana character of the script, timed by aligning Whisper's transcript of narration.wav to it.
 Number matching supports fr/pt/es/hi/zh/ko integers below a million (pt and es in either gender), decimals and percents, also inside a heard word (12층); English cardinals/years stay unchanged.
 Sentences with fallback words are re-transcribed once from narration.wav, merging adjacent sentences and padding
-0.15 s at each end (clamped to the file). A span's words replace the long-form ones only when fewer words fall back,
-and the result feeds both alignment and difference checks, including --check-only; audio-checks stats record retranscribed_spans when nonzero. Fully aligned runs are unchanged.
+0.15 s at each end (clamped to the file). In non-English narration, spans with Latin-script fallbacks are also heard
+in English, replacing words between matched neighbours. A span's words replace the long-form ones only when fewer words
+fall back, and the result feeds both alignment and difference checks, including --check-only; audio-checks stats record
+retranscribed_spans and english_retranscribed_spans when nonzero. Fully aligned runs are unchanged.
 A word Whisper still did not time is interpolated and listed in audio-checks.json; --strict exits non-zero if there is one.
 audio-checks.json lists only failures. --check-only runs the same checks on finished audio (timing.json and narration.wav)
 and exits non-zero on any flag; it writes audio-checks.json only if --out is given."""
@@ -42,6 +44,7 @@ import statistics
 import subprocess
 import sys
 import time
+import unicodedata
 import uuid
 from pathlib import Path
 
@@ -617,12 +620,39 @@ def align_words(sents: list[dict], asr: list[dict], language: str = "en") -> tup
     return rows, fallbacks
 
 
-def align_with_repairs(path: Path, sents: list[dict], asr: list[dict], language: str = "en"
+def latin_fallback_windows(sents: list[dict], rows: list[list[dict]], fallbacks: list[dict]) -> list[tuple[float, float]]:
+    """Bound fallback runs containing Latin letters by their nearest matched neighbours, as in take cutting."""
+    missing = {(w["sentence"], w["word"], w["start"]) for w in fallbacks}
+    windows = []
+    for sentence, words in zip(sents, rows):
+        i = 0
+        while i < len(words):
+            start = i
+            latin = False
+            while i < len(words) and (sentence["id"], words[i]["text"], words[i]["start"]) in missing:
+                latin |= any(unicodedata.name(c, "").startswith("LATIN ") for c in letters(words[i]["text"]))
+                i += 1
+            if i == start:
+                i += 1
+                continue
+            if latin:
+                left = words[start - 1]["end"] if start else sentence["start"]
+                right = words[i]["start"] if i < len(words) else sentence["end"]
+                if left < right:
+                    windows.append((left, right))
+    return windows
+
+
+def align_with_repairs(path: Path, sents: list[dict], asr: list[dict], language: str = "en", *,
+                       stats: dict | None = None
                        ) -> tuple[list[dict], list[list[dict]], list[dict], int]:
-    """Retry fallback sentence spans once; keep the original transcript untouched on a clean alignment."""
+    """Retry fallback spans, also in English for Latin letters; leave clean alignments untouched."""
     rows, fallbacks = align_words(sents, asr, language)
     if not fallbacks:
         return asr, rows, fallbacks, 0
+    english_sentences = {w["sentence"] for w in fallbacks
+                         if any(unicodedata.name(c, "").startswith("LATIN ") for c in letters(w["word"]))
+                         } if language != "en" else set()
 
     if sys.platform == "linux":
         from linux_whisper import SAMPLE_RATE, load_audio
@@ -646,23 +676,48 @@ def align_with_repairs(path: Path, sents: list[dict], asr: list[dict], language:
         # Also merge overlapping padding so no audio is replaced twice.
         if spans and (previous_failed or start <= spans[-1][1]):
             spans[-1][1] = max(spans[-1][1], end)
+            spans[-1][2] |= sentence["id"] in english_sentences
         else:
-            spans.append([start, end])
+            spans.append([start, end, sentence["id"] in english_sentences])
         previous_failed = True
 
-    repaired = asr
-    for start, end in spans:
+    best, english_spans = (asr, rows, fallbacks), 0
+
+    def replace_span(words, replacement, start, end):
+        candidate = [word for word in words if not start <= (word["start"] + word["end"]) / 2 < end]
+        candidate.extend(replacement)
+        candidate.sort(key=lambda word: (word["start"] + word["end"]) / 2)
+        return candidate, *align_words(sents, candidate, language)
+
+    for start, end, rehear_english in spans:
         offset, stop = start / SAMPLE_RATE, end / SAMPLE_RATE
         replacement = transcribe_words(samples[start:end], language)
-        candidate = [word for word in repaired if not offset <= (word["start"] + word["end"]) / 2 < stop]
-        candidate.extend({**word, "start": word["start"] + offset, "end": word["end"] + offset}
-                         for word in replacement)
-        candidate.sort(key=lambda word: (word["start"] + word["end"]) / 2)
-        # A short clip can swap homophones or hallucinate, so a span is kept only when it times more words.
-        trial = align_words(sents, candidate, language)
-        if len(trial[1]) < len(fallbacks):
-            repaired, (rows, fallbacks) = candidate, trial
-    return repaired, rows, fallbacks, len(spans)
+        previous = best
+        retried = replace_span(best[0],
+                               [{**w, "start": w["start"] + offset, "end": w["end"] + offset} for w in replacement],
+                               offset, stop)
+        # A short clip can swap homophones or hallucinate, so keep only strict improvements.
+        if len(retried[2]) < len(best[2]):
+            best = retried
+        if rehear_english:
+            english = transcribe_words(samples[start:end], "en")
+            english_spans += 1
+            heard = [{**w, "start": w["start"] + offset, "end": w["end"] + offset} for w in english]
+            # Try both native transcripts so a retry cannot trade good native words for English matches.
+            for source in (previous, retried):
+                for left, right in latin_fallback_windows(sents, source[1], source[2]):
+                    left, right = max(left, offset), min(right, stop)
+                    if left < right:
+                        trial = replace_span(source[0],
+                                             [w for w in heard if left <= (w["start"] + w["end"]) / 2 < right],
+                                             left, right)
+                        if len(trial[2]) < len(source[2]):
+                            source = trial
+                if len(source[2]) < len(best[2]):
+                    best = source
+    if stats is not None and english_spans:
+        stats["english_retranscribed_spans"] = english_spans
+    return *best, len(spans)
 
 
 ONES = "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen".split()
@@ -785,8 +840,11 @@ def report(flags: list[dict], stats: dict, fallbacks: list[dict], out: Path | No
 def check_only(audio_dir: Path, out: Path | None, language: str = "en") -> None:
     timing = json.loads((audio_dir / "timing.json").read_text())
     asr, _ = transcribe(audio_dir / "narration.wav", language)
-    asr, _, fallbacks, repaired_spans = align_with_repairs(audio_dir / "narration.wav", timing["sentences"], asr, language)
+    repair_stats = {}
+    asr, _, fallbacks, repaired_spans = align_with_repairs(audio_dir / "narration.wav", timing["sentences"], asr,
+                                                       language, stats=repair_stats)
     flags, stats = audio_checks(timing, audio_dir / "narration.wav", asr, [], language)
+    stats.update(repair_stats)
     if repaired_spans:
         stats["retranscribed_spans"] = repaired_spans
     if out:
@@ -869,7 +927,9 @@ def narrate(args: argparse.Namespace) -> None:
     (out / "timing.json").write_text(json.dumps(timing, indent=2) + "\n")
 
     asr, model_path = transcribe(out / "narration.wav", args.language)
-    asr, word_rows, fallbacks, repaired_spans = align_with_repairs(out / "narration.wav", sentence_rows, asr, args.language)
+    repair_stats = {}
+    asr, word_rows, fallbacks, repaired_spans = align_with_repairs(out / "narration.wav", sentence_rows, asr,
+                                                               args.language, stats=repair_stats)
     words = [w for sentence in word_rows for w in sentence]
     (out / "words.json").write_text(json.dumps({
         "model": "faster-whisper large-v3-turbo" if sys.platform == "linux" else "mlx-whisper large-v3-turbo", "model_path": model_path, "language": args.language, "language_probability": 1,
@@ -878,6 +938,7 @@ def narrate(args: argparse.Namespace) -> None:
         "words": words}, indent=2) + "\n")
 
     flags, stats = audio_checks(timing, out / "narration.wav", asr, unclean, args.language)
+    stats.update(repair_stats)
     if repaired_spans:
         stats["retranscribed_spans"] = repaired_spans
     stats.update({"sentences": len(rows), "reused": reused, "voiced": len(pending), "reused_takes": len(set(reuse.takes.values())),

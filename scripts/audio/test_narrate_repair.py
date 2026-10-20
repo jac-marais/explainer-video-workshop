@@ -96,7 +96,8 @@ class RepairTests(unittest.TestCase):
                                               word_timestamps=True, condition_on_previous_text=False))
 
     def test_fully_aligned_languages_have_identical_results_and_no_extra_call(self):
-        for lang, text in [("en", "Hello garden."), ("pt", "Olá jardim."), ("es", "Hola jardín.")]:
+        for lang, text in [("en", "Hello garden."), ("pt", "Olá jardim."), ("es", "Hola jardín."),
+                           ("ko", "여기 Garden으로 가요.")]:
             with self.subTest(language=lang):
                 self.whisper.reset_mock()
                 self.whisper.return_value = result([word(t, i + .1, i + .8) for i, t in enumerate(text.split())])
@@ -111,10 +112,91 @@ class RepairTests(unittest.TestCase):
                 self.assertEqual(self.whisper.call_args.kwargs["language"], lang)
         self.loader.assert_not_called()
 
+    def test_korean_term_is_heard_again_in_english(self):
+        sents = [sentence("a", "여기 Garden으로 가요.", 2, 5)]
+        original = [word("여기", 2.1, 2.6), word("가든으로", 2.7, 3.6), word("가요.", 3.8, 4.5)]
+        native = [word(w["word"], w["start"] - 1.85, w["end"] - 1.85) for w in original]
+        english = [word("Here", .25, .75), word("Garden", .85, 1.75), word("go.", 1.95, 2.65)]
+        self.whisper.side_effect = [result(native), result(english)]
+        self.assertEqual(len(film.align_words(sents, original, "ko")[1]), 1)
+        stats = {}
+        repaired, rows, fallbacks, count = film.align_with_repairs(self.path, sents, original, "ko", stats=stats)
+        self.assertEqual((fallbacks, count), ([], 1))
+        self.assertEqual(stats, {"english_retranscribed_spans": 1})
+        self.assertEqual([w["word"] for w in repaired], ["여기", "Garden", "가요."])
+        self.assertEqual((repaired[0], repaired[-1]), (original[0], original[-1]))
+        self.assertEqual(rows[0][1], dict(text="Garden으로", start=2.7, end=3.6))
+        self.assertEqual([c.kwargs["language"] for c in self.whisper.call_args_list], ["ko", "en"])
+        for call in self.whisper.call_args_list:
+            np.testing.assert_array_equal(call.args[0], self.samples[29600:82400])
+        self.loader.assert_called_once()
+
+    def test_full_english_quote_is_heard_again_in_english(self):
+        sents = [sentence("a", "꽃이 피어요.", 0, 1), sentence("b", '"Small birds sing softly."', 2, 5),
+                 sentence("c", "끝이에요.", 6, 7)]
+        original = [word("꽃이", .1, .4), word("피어요.", .5, .9), word("스몰", 2.1, 2.5),
+                    word("버즈", 2.6, 3), word("싱", 3.1, 3.5), word("소프틀리.", 3.6, 4.5),
+                    word("끝이에요.", 6.1, 6.8)]
+        native = [word(w["word"], w["start"] - 1.85, w["end"] - 1.85) for w in original[2:6]]
+        english = [word(t, .25 + i * .6, .75 + i * .6)
+                   for i, t in enumerate(["Small", "birds", "sing", "softly."])]
+        self.whisper.side_effect = [result(native), result(english)]
+        self.assertEqual(len(film.align_words(sents, original, "ko")[1]), 4)
+        repaired, rows, fallbacks, count = film.align_with_repairs(self.path, sents, original, "ko")
+        self.assertEqual((fallbacks, count), ([], 1))
+        self.assertEqual(film.asr_differences(sents, repaired, "ko"), [])
+        self.assertEqual(repaired[:2], original[:2])
+        self.assertEqual(repaired[-1], original[-1])
+        self.assertEqual([w["text"] for w in rows[1]], ['"Small', "birds", "sing", 'softly."'])
+        self.assertEqual([c.kwargs["language"] for c in self.whisper.call_args_list], ["ko", "en"])
+
+    def test_english_and_non_latin_fallbacks_do_not_rehear_in_english(self):
+        for language, text, heard in [("en", "Garden", "flowers"), ("ko", "꽃이", "여기"),
+                                      ("ko", "42", "여기")]:
+            with self.subTest(language=language, text=text):
+                self.whisper.reset_mock()
+                self.whisper.return_value = result([word(heard, .2, .8)])
+                sents = [sentence("a", text, 0, 1)]
+                stats = {}
+                original = [word(heard, .2, .8)]
+                before = film.align_words(sents, original, language)
+                self.assertTrue(before[1])
+                repaired, rows, fallbacks, count = film.align_with_repairs(self.path, sents, original,
+                                                                          language, stats=stats)
+                self.assertIs(repaired, original)
+                self.assertEqual((rows, fallbacks), before)
+                self.assertEqual(count, 1)
+                self.assertEqual(stats, {})
+                self.whisper.assert_called_once()
+                self.assertEqual(self.whisper.call_args.kwargs["language"], language)
+
+    def test_english_rehearing_without_improvement_is_discarded(self):
+        sents = [sentence("a", "여기 Garden으로 가요.", 2, 5)]
+        original = [word("여기", 2.1, 2.6), word("가든으로", 2.7, 3.6), word("가요.", 3.8, 4.5)]
+        self.whisper.side_effect = [result([]), result([word("flowers", .85, 1.75)])]
+        before = film.align_words(sents, original, "ko")
+        repaired, rows, fallbacks, count = film.align_with_repairs(self.path, sents, original, "ko")
+        self.assertIs(repaired, original)
+        self.assertEqual((rows, fallbacks), before)
+        self.assertEqual(count, 1)
+        self.assertEqual([c.kwargs["language"] for c in self.whisper.call_args_list], ["ko", "en"])
+
+    def test_english_merge_keeps_the_native_transcript_with_fewer_fallbacks(self):
+        sents = [sentence("a", "꽃이 Garden green.", 0, 2)]
+        original = [word("꽃이", .1, .5), word("가든", .6, 1.1), word("그린.", 1.2, 1.8)]
+        english = [word("Garden", .6, 1.1), word("green.", 1.2, 1.8)]
+        native = [word("여기", .1, .5), *english]
+        self.assertEqual(len(film.align_words(sents, original, "ko")[1]), 2)
+        self.assertEqual(len(film.align_words(sents, native, "ko")[1]), 1)
+        self.whisper.side_effect = [result(native), result(english)]
+        repaired, _, fallbacks, count = film.align_with_repairs(self.path, sents, original, "ko")
+        self.assertEqual((fallbacks, count), ([], 1))
+        self.assertEqual(repaired, [original[0], *english])
+
     def test_adjacent_spans_merge_clamp_and_load_once(self):
         sents = [sentence("a", "Alpha", .05, 1), sentence("b", "Beta", 1.2, 2),
                  sentence("c", "Gamma", 3, 4), sentence("d", "Delta", 7, 8)]
-        initial = ([[], [], [], []], [{"sentence": sid} for sid in ("a", "b", "d")])
+        initial = ([[], [], [], []], [{"sentence": sid, "word": "花", "start": 0} for sid in ("a", "b", "d")])
         self.whisper.return_value = result([])
         with patch.object(film, "align_words", side_effect=[initial, ([], []), ([], [])]) as align:
             _, _, _, count = film.align_with_repairs(self.path, sents, [], "pt")
