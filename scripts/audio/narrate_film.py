@@ -17,6 +17,8 @@ Kokoro voices are synthesized one sentence at a time, because the model does not
 is voiced in bounded runs (templates/voice/plan_runs.py), one take per run ending in a throwaway sentence, and cut
 into sentences by templates/voice/cut_takes.py. A take longer than twice its estimate, or one the cutter cannot cut in order,
 has looped and is re-voiced, at most twice.
+On the CPU path, an unclean run is split at its failed boundaries and re-voiced, with one further split into
+single sentences if needed. Only clean replacements are accepted; split takes retain their original reuse group.
 Sentence WAVs are keyed by voice config and spoken text, and takes.json records each sentence's original take id.
 --reuse and reruns follow the canonical take-level reuse rule in methods/voice-explainer-video.md#take-level-reuse.
 words.json holds one row per whitespace word or Han/Kana character of the script, timed by aligning Whisper's transcript of narration.wav to it.
@@ -78,6 +80,7 @@ MAX_TAKE_SECONDS = 120
 TAKE_RESERVE_SECONDS = 10
 # A take lands near its estimate, while a looping generation often runs several times longer.
 RUNAWAY_FACTOR, RUNAWAY_RETRIES = 2.0, 2
+UNCLEAN_RETRIES = 2
 UNCUTTABLE_EXIT = 3  # cut_takes.py's exit code for a take whose sentences it cannot cut in order
 THROWAWAY = "That's all for now."
 # Thresholds are set so the Kokoro audio of the v4 reference film raises nothing (its largest values are in parentheses).
@@ -239,8 +242,9 @@ def decide_reuse(rows: list[dict], engine: str, sources: list[ReuseSource]) -> R
     for source in reversed(sources):
         by_take: dict[str, set[str]] = {}
         for sid, take in (source.takes or {}).items():
-            by_take.setdefault(take, set()).add(sid)
-        for take, members in by_take.items():
+            group = source.manifests.get(take, {}).get("split_from", take)
+            by_take.setdefault(group, set()).add(sid)
+        for members in by_take.values():
             if any(sid not in source.scenes for sid in members):
                 continue
             covered = {source.scenes[sid] for sid in members}
@@ -249,20 +253,24 @@ def decide_reuse(rows: list[dict], engine: str, sources: list[ReuseSource]) -> R
             needed = set().union(*(by_scene[scene] for scene in covered))
             source_order = [sid for sid in source.scenes if sid in members]
             current_order = [row["id"] for row in rows if row["scene_id"] in covered]
-            manifest = source.manifests.get(take)
-            if source_order != current_order or (manifest is not None and
-                    (manifest.get("sentences") != source_order or set(manifest.get("scenes", [])) != covered)):
+            takes = {source.takes[sid] for sid in members}
+            if source_order != current_order:
+                continue
+            if any(manifest is not None and
+                   (manifest.get("sentences") != [sid for sid in source_order if source.takes[sid] == take] or
+                    ("split_from" in manifest and manifest.get("split_sentences") != source_order) or
+                    set(manifest.get("scenes", [])) != {source.scenes[sid] for sid in members if source.takes[sid] == take})
+                   for take in takes for manifest in [source.manifests.get(take)]):
                 continue
             if members != needed or any(sid not in source.audio or source.hashes.get(sid) != current[sid]["key"]
                                         or source.scenes[sid] != current[sid]["scene_id"] for sid in needed):
                 continue
             for sid in needed:
                 result.audio[sid] = source.audio[sid]
-                result.takes[sid] = take
+                result.takes[sid] = source.takes[sid]
             selected_scenes.update(covered)
-            result.unclean.extend(flag for flag in source.unclean if flag.get("take") == take)
-            if take in source.manifests:
-                result.manifests[take] = source.manifests[take]
+            result.unclean.extend(flag for flag in source.unclean if flag.get("take") in takes)
+            result.manifests.update({take: source.manifests[take] for take in takes if take in source.manifests})
     return result
 
 
@@ -364,7 +372,8 @@ def plan_runs(seconds: dict[str, float], work: Path) -> list[list[str]]:
     return runs
 
 
-def voice_takes(name: str, spec: dict, pending: list[dict], work: Path, language: str = "en") -> tuple[dict[str, np.ndarray], dict[str, str], list[dict], dict[str, dict]]:
+def voice_takes(name: str, spec: dict, pending: list[dict], work: Path, language: str = "en", *,
+                unclean_after: set[str] = frozenset(), stats: dict | None = None) -> tuple[dict[str, np.ndarray], dict[str, str], list[dict], dict[str, dict]]:
     """Voice pending rows and return samples, original take ids, unclean cuts and raw take receipts."""
     work.mkdir(parents=True, exist_ok=True)
     generation = uuid.uuid4().hex
@@ -390,44 +399,107 @@ def voice_takes(name: str, spec: dict, pending: list[dict], work: Path, language
         return {row["id"]: read_audio(work / f"{row['id']}.wav") for row in pending}, origins, [], manifests
     units: dict[str, list[dict]] = {}
     seconds: dict[str, float] = {}
+    estimates = {}
     # The authored text, because eSpeak would read a respelling's phoneme markup letter by letter.
     for row, estimate in zip(pending, estimate_seconds([row["text"] for row in pending], language)):
         units.setdefault(row["alias"], []).append(row)
+        estimates[row["id"]] = estimate
         seconds[row["alias"]] = seconds.get(row["alias"], 0.0) + estimate
     takes, take_members, planned = [], {}, {}
+
+    def write_take(stem, members):
+        text = work / f"{stem}.txt"
+        text.write_text(" ".join(r["spoken"] for r in members) + " " + THROWAWAY)
+        take_members[stem] = members
+        planned[stem] = sum(estimates[r["id"]] for r in members)
+        return text
+
+    split_from, split_depth, sentence_files = {}, {}, {}
+
+    def split_take(t, after, depth):
+        members = take_members[t.stem]
+        groups, group = [], []
+        for row in members:
+            group.append(row)
+            if row["id"] in after:
+                groups.append(group)
+                group = []
+        if group:
+            groups.append(group)
+        # A failed throwaway boundary cannot shorten a run; use single sentences.
+        if depth == UNCLEAN_RETRIES or len(groups) == 1:
+            groups = [[row] for row in members]
+        if len(groups) == 1 or depth > UNCLEAN_RETRIES:
+            raise SystemExit(f"take {t.stem} still has unclean cuts after {depth - 1} split retries")
+        # The throwaway is a substantial part of a short replacement's duration.
+        throwaway_seconds = estimate_seconds([THROWAWAY], language)[0]
+        replacements = []
+        for members in groups:
+            stem = f"R{len(take_members):04d}"
+            replacements.append(write_take(stem, members))
+            planned[stem] += throwaway_seconds
+            split_from[stem] = split_from.get(t.stem, f"{generation}:{t.stem}")
+            split_depth[stem] = depth
+            # Give the unchanged cutter an explicit subset, with a local scene alias.
+            sentence_files[stem] = work / f"{stem}-sentences.json"
+            sentence_files[stem].write_text(json.dumps([
+                {"id": row["id"], "scene": stem, "text": row["spoken"]} for row in members]))
+        if stats is not None:
+            stats["unclean_split_runs"] = stats.get("unclean_split_runs", 0) + 1
+            stats["unclean_revoiced_takes"] = stats.get("unclean_revoiced_takes", 0) + len(replacements)
+        log(f"splitting unclean take {t.stem} into {len(replacements)} runs (retry {depth}/{UNCLEAN_RETRIES})")
+        return replacements
+
     for run in plan_runs(seconds, work):
         stem = run[0] if len(run) == 1 else f"{run[0]}-{run[-1]}"
-        (work / f"{stem}.txt").write_text(" ".join(r["spoken"] for alias in run for r in units[alias]) + " " + THROWAWAY)
-        takes.append(work / f"{stem}.txt")
-        take_members[stem] = [r for alias in run for r in units[alias]]
-        planned[stem] = sum(seconds[alias] for alias in run)
+        t = write_take(stem, [r for alias in run for r in units[alias]])
+        takes.extend(split_take(t, unclean_after, 1) if sys.platform == "linux" and
+                     any(r["id"] in unclean_after for r in take_members[stem]) else [t])
     run_voice(name, takes, work)
     (work / "sentences.json").write_text(json.dumps([{"id": r["id"], "scene": r["alias"], "text": r["spoken"]} for r in pending]))
     cut, lines, todo = work / "cut", [], takes
+    accepted, runaway_attempts = {}, {}
     # A looping generation runs past its text, often far past it, and the cutter then cannot place its sentences in order.
-    for attempt in range(RUNAWAY_RETRIES + 1):
+    while todo:
         runaway = {}
+        replacements = []
         for t in todo:
             seconds_voiced = sf.info(t.with_suffix(".wav")).duration
             if seconds_voiced > RUNAWAY_FACTOR * planned[t.stem]:
                 runaway[t] = f"{seconds_voiced:.0f} s for {planned[t.stem]:.0f} s planned"
                 continue
-            out = run_tool("cut_takes.py", [t.with_suffix(".wav"), "--sentences", work / "sentences.json", "--out", cut,
+            out = run_tool("cut_takes.py", [t.with_suffix(".wav"), "--sentences", sentence_files.get(t.stem, work / "sentences.json"), "--out", cut,
                                             "--throwaway", THROWAWAY, "--language", language],
                            capture=True, soft_exit=UNCUTTABLE_EXIT)
             if out is None:
                 runaway[t] = "cannot be cut in order"
             else:
-                lines += [json.loads(line) for line in out.splitlines() if line.startswith("{")]
-        if not runaway:
-            break
+                cuts = [json.loads(line) for line in out.splitlines() if line.startswith("{")]
+                failed = {r["after"] for r in cuts if r.get("clean") is False}
+                if failed and sys.platform == "linux":
+                    replacements.extend(split_take(t, failed, split_depth.get(t.stem, 0) + 1))
+                else:
+                    lines += cuts
+                    accepted[t.stem] = take_members[t.stem]
         report = ", ".join(f"{t.stem} {why}" for t, why in runaway.items())
-        if attempt == RUNAWAY_RETRIES:
+        if any(runaway_attempts.get(t.stem, 0) == RUNAWAY_RETRIES for t in runaway):
             raise SystemExit(f"takes still run away after {RUNAWAY_RETRIES} retries: {report}")
-        log(f"re-voicing runaway takes: {report}")
-        run_voice(name, list(runaway), work)
-        todo = list(runaway)
-    take_ids = {stem: record_take(stem, members) for stem, members in take_members.items()}
+        if runaway:
+            log(f"re-voicing runaway takes: {report}")
+            for t in runaway:
+                runaway_attempts[t.stem] = runaway_attempts.get(t.stem, 0) + 1
+            if stats is not None:
+                stats["runaway_revoiced_takes"] = stats.get("runaway_revoiced_takes", 0) + len(runaway)
+        todo = [*runaway, *replacements]
+        if todo:
+            run_voice(name, todo, work)
+    take_ids = {stem: record_take(stem, members) for stem, members in accepted.items()}
+    for stem, take in take_ids.items():
+        if stem in split_from:
+            manifests[take]["split_from"] = split_from[stem]
+            original = split_from[stem].split(":", 1)[1]
+            manifests[take]["split_sentences"] = [row["id"] for row in take_members[original]]
+            manifests[take]["split_depth"] = split_depth[stem]
     unclean = [{"check": "unclean_cut", "take": take_ids[r["take"]], "after": r["after"], "gap_s": r["gap_s"]}
                for r in lines if r.get("clean") is False]
     return {row["id"]: read_audio(cut / f"{row['id']}.wav") for row in pending}, origins, unclean, manifests
@@ -916,6 +988,17 @@ def narrate(args: argparse.Namespace) -> None:
 
     out = args.out
     reuse = decide_reuse(list(rows.values()), spec["engine"], load_reuse_sources([args.reuse, out], spec["engine"]))
+    unclean_after = set()
+    if sys.platform == "linux" and reuse.unclean:
+        bad_takes = {flag["take"] for flag in reuse.unclean}
+        bad_groups = {reuse.manifests.get(take, {}).get("split_from", take) for take in bad_takes}
+        invalid = {take for take in reuse.takes.values()
+                   if reuse.manifests.get(take, {}).get("split_from", take) in bad_groups}
+        unclean_after = {flag["after"] for flag in reuse.unclean}
+        reuse.audio = {sid: path for sid, path in reuse.audio.items() if reuse.takes[sid] not in invalid}
+        reuse.takes = {sid: take for sid, take in reuse.takes.items() if take not in invalid}
+        reuse.manifests = {take: manifest for take, manifest in reuse.manifests.items() if take not in invalid}
+        reuse.unclean = []
     audio = {sid: read_audio(path) for sid, path in reuse.audio.items()}
     take_origins, manifests = dict(reuse.takes), dict(reuse.manifests)
     reused = len(audio)
@@ -925,9 +1008,11 @@ def narrate(args: argparse.Namespace) -> None:
     log("scenes to voice: " + (", ".join(dict.fromkeys(row["scene_id"] for row in pending)) or "none"))
     unclean = list(reuse.unclean)
     voiced_takes = 0
+    voice_stats = {}
     out.mkdir(parents=True, exist_ok=True)
     if pending:
-        voiced, origins, cut_flags, generated = voice_takes(args.voice, spec, pending, out / "takes" / uuid.uuid4().hex, args.language)
+        voiced, origins, cut_flags, generated = voice_takes(args.voice, spec, pending, out / "takes" / uuid.uuid4().hex, args.language,
+                                                         unclean_after=unclean_after, stats=voice_stats)
         audio.update(voiced)
         take_origins.update(origins)
         manifests.update(generated)
@@ -989,6 +1074,7 @@ def narrate(args: argparse.Namespace) -> None:
     stats.update(repair_stats)
     if repaired_spans:
         stats["retranscribed_spans"] = repaired_spans
+    stats.update(voice_stats)
     stats.update({"sentences": len(rows), "reused": reused, "voiced": len(pending), "reused_takes": len(set(reuse.takes.values())),
                   "voiced_takes": voiced_takes, "take_gain_db": take_gain_db, "take_target_sentence_db": take_target,
                   "normalization_gain_db": normalization_gain, "final_take_target_sentence_db": final_take_target,

@@ -305,7 +305,7 @@ class GenerationTests(unittest.TestCase):
             sentence_file = args[args.index("--sentences") + 1]
             for row in json.loads(sentence_file.read_text()):
                 sf.write(destination / f"{row['id']}.wav", np.full(2400, 0.01, dtype="float32"), film.RATE, subtype="PCM_16")
-            return json.dumps({"take": "S01-S03", "after": "opening-01", "clean": False, "gap_s": 0.02}) + "\n"
+            return json.dumps({"take": "S01-S03", "after": "opening-01", "clean": True, "gap_s": 0.1}) + "\n"
         self.fail(f"unexpected voice tool {script}")
 
     def test_whole_pending_scenes_are_grouped_and_provenance_matches_raw_hashes(self):
@@ -317,7 +317,7 @@ class GenerationTests(unittest.TestCase):
             self.assertEqual(set(planner.call_args.args[0]), {"S01", "S02", "S03"})
             self.assertEqual(len(set(takes.values())), 1)
             take = next(iter(takes.values()))
-            self.assertEqual(flags[0]["take"], take)
+            self.assertEqual(flags, [])
             manifest = manifests[take]
             self.assertEqual(manifest["sentences"], [r["id"] for r in current])
             self.assertEqual(manifest["scenes"], [r["scene_id"] for r in current])
@@ -465,7 +465,7 @@ class GenerationTests(unittest.TestCase):
                                 path = destination / f"{row['id']}.wav"
                                 sf.write(path, tone(-30 + index * 8), film.RATE, subtype="PCM_16")
                                 expected_cache[row["id"]] = path.read_bytes()
-                            return json.dumps({"take": "S01", "after": "opening-01", "clean": False, "gap_s": 0.02}) + "\n"
+                            return json.dumps({"take": "S01", "after": "opening-01", "clean": platform == "linux", "gap_s": 0.1}) + "\n"
                         self.fail(f"unexpected voice tool {script}")
 
                     def aligned(sentences, asr, language="en"):
