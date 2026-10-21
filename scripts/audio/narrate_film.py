@@ -21,6 +21,8 @@ Sentence WAVs are keyed by voice config and spoken text, and takes.json records 
 --reuse and reruns follow the canonical take-level reuse rule in methods/voice-explainer-video.md#take-level-reuse.
 words.json holds one row per whitespace word or Han/Kana character of the script, timed by aligning Whisper's transcript of narration.wav to it.
 Number matching supports fr/pt/es/hi/zh/ko integers below a million (pt and es in either gender), decimals and percents, also inside a heard word (12층); English cardinals/years stay unchanged.
+For zh only, unmatched Han characters can also take times from an equal toneless pinyin syllable, using pypinyin.
+Exact character matches stay fixed; different syllables remain unmatched, and homophones still count as ASR differences.
 Sentences with fallback words are re-transcribed once from narration.wav, merging adjacent sentences and padding
 0.15 s at each end (clamped to the file). With the CPU backend, non-English merged spans that still have fallback words are
 retried one sentence at a time with the same padding, skipping sentences already aligned. English narration and other
@@ -565,8 +567,18 @@ def transcribe(path: Path, language: str = "en") -> tuple[list[dict], str]:
     return words, snapshot_download(WHISPER, local_files_only=True)
 
 
+def mandarin_syllables(text: str) -> list[tuple[str, str]]:
+    """One contextual, toneless syllable per Han character; keep other scripts distinct from pinyin."""
+    from pypinyin import lazy_pinyin
+
+    syllables = lazy_pinyin(text, errors=lambda chars: list(chars))
+    return [("han", syllable) if unicodedata.name(char, "").startswith(
+                ("CJK UNIFIED IDEOGRAPH", "CJK COMPATIBILITY IDEOGRAPH")) or char == "〇"
+            else ("literal", char) for char, syllable in zip(text, syllables)]
+
+
 def align_words(sents: list[dict], asr: list[dict], language: str = "en") -> tuple[list[list[dict]], list[dict]]:
-    """Time each script token from Whisper's pieces, matched by Unicode letters/marks/numbers so a respelled or merged word still lines up."""
+    """Time script tokens by Unicode letters/marks/numbers, also filling unmatched Mandarin homophones for zh."""
     script = [(k, token) for k, s in enumerate(sents) for token in tokenize(s["text"])]
     ref, ref_word = "", []
     for i, (_, token) in enumerate(script):
@@ -582,8 +594,18 @@ def align_words(sents: list[dict], asr: list[dict], language: str = "en") -> tup
         step = (w["end"] - w["start"]) / max(1, len(chars))
         hyp += chars
         hyp_time += [(w["start"] + step * j, w["start"] + step * (j + 1)) for j in range(len(chars))]
+    matcher = difflib.SequenceMatcher(None, ref, hyp, autojunk=False)
+    blocks = list(matcher.get_matching_blocks())
+    if language == "zh":
+        # Preserve exact anchors and their times; only fill gaps with complete syllable matches.
+        gaps = [op for op in matcher.get_opcodes() if op[0] == "replace"]
+        if gaps:
+            ref_syllables, hyp_syllables = mandarin_syllables(ref), mandarin_syllables(hyp)
+            for _, a1, a2, b1, b2 in gaps:
+                matches = difflib.SequenceMatcher(None, ref_syllables[a1:a2], hyp_syllables[b1:b2], autojunk=False)
+                blocks.extend((a1 + a, b1 + b, n) for a, b, n in matches.get_matching_blocks() if n)
     hits: dict[int, list] = {}
-    for a, b, n in difflib.SequenceMatcher(None, ref, hyp, autojunk=False).get_matching_blocks():
+    for a, b, n in blocks:
         for d in range(n):
             hits.setdefault(ref_word[a + d], []).append(hyp_time[b + d])
     times: list[tuple[float, float] | None] = []

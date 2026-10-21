@@ -112,6 +112,76 @@ class RepairTests(unittest.TestCase):
                 self.assertEqual(self.whisper.call_args.kwargs["language"], lang)
         self.loader.assert_not_called()
 
+    def test_mandarin_homophones_keep_script_text_and_heard_times(self):
+        sents = [sentence("a", "小花在河边晒太阳。", 0, 5)]
+        original = [word("小画", .2, 1.2), word("再喝边", 1.4, 2.9), word("晒太羊。", 3, 4.5)]
+        self.whisper.return_value = result(original)
+        asr, _ = film.transcribe(self.path, "zh")
+        self.assertTrue(film.align_words(sents, asr)[1])
+        repaired, rows, fallbacks, count = film.align_with_repairs(self.path, sents, asr, "zh")
+        self.assertIs(repaired, asr)
+        self.assertEqual((fallbacks, count), ([], 0))
+        self.assertEqual(rows[0], [
+            dict(text="小", start=.2, end=.7), dict(text="花", start=.7, end=1.2),
+            dict(text="在", start=1.4, end=1.9), dict(text="河", start=1.9, end=2.4),
+            dict(text="边", start=2.4, end=2.9), dict(text="晒", start=3, end=3.5),
+            dict(text="太", start=3.5, end=4), dict(text="阳。", start=4, end=4.5)])
+        differences = film.asr_differences(sents, repaired, "zh")
+        self.assertEqual([(d["script"], d["heard"]) for d in differences],
+                         [("花 在 河", "画 再 喝"), ("阳。", "羊")])
+        self.whisper.assert_called_once()
+        self.loader.assert_not_called()
+
+    def test_mandarin_different_syllables_still_fall_back(self):
+        for text, heard, missing in [("小花在河边。", "小树在河边。", "花"),
+                                     ("白云飘过。", "北云飘过。", "白")]:
+            with self.subTest(text=text):
+                sents = [sentence("a", text, 0, 4)]
+                self.whisper.return_value = result([word(heard, .2, 3.8)])
+                asr, _ = film.transcribe(self.path, "zh")
+                _, fallbacks = film.align_words(sents, asr, "zh")
+                self.assertEqual([w["word"] for w in fallbacks], [missing])
+                self.assertTrue(film.asr_differences(sents, asr, "zh"))
+
+    def test_mandarin_polyphone_uses_phrase_context(self):
+        sents = [sentence("a", "音乐响了。", 0, 4)]
+        self.whisper.return_value = result([word("音岳响了。", .2, 3.8)])
+        asr, _ = film.transcribe(self.path, "zh")
+        rows, fallbacks = film.align_words(sents, asr, "zh")
+        self.assertEqual(fallbacks, [])
+        self.assertEqual(rows[0][1], dict(text="乐", start=1.1, end=2))
+        self.assertTrue(film.asr_differences(sents, asr, "zh"))
+
+    def test_mandarin_pinyin_does_not_match_latin_letters(self):
+        sents = [sentence("a", "啊，花开了。", 0, 4)]
+        self.whisper.return_value = result([word("a花开了。", .2, 3.8)])
+        asr, _ = film.transcribe(self.path, "zh")
+        _, fallbacks = film.align_words(sents, asr, "zh")
+        self.assertEqual([w["word"] for w in fallbacks], ["啊，"])
+
+    def test_english_alignment_does_not_use_pinyin(self):
+        sents = [sentence("a", "We see the sea.", 0, 4)]
+        self.whisper.return_value = result([word(t, i + .1, i + .8)
+                                           for i, t in enumerate("We see the tree.".split())])
+        asr, _ = film.transcribe(self.path, "en")
+        with patch.object(film, "mandarin_syllables", side_effect=AssertionError("unexpected pinyin")):
+            expected = film.align_words(sents, asr)
+            self.assertEqual(film.align_words(sents, asr, "en"), expected)
+        self.assertEqual([w["word"] for w in expected[1]], ["sea."])
+
+    def test_fully_aligned_mandarin_keeps_exact_times_without_pinyin(self):
+        sents = [sentence("a", "小花华丽。", 0, 3)]
+        self.whisper.return_value = result([word("小花", .1, 1.1), word("华丽。", 1.2, 2.2)])
+        asr, _ = film.transcribe(self.path, "zh")
+        expected = film.align_words(sents, asr)
+        with patch.object(film, "mandarin_syllables", side_effect=AssertionError("unexpected pinyin")):
+            repaired, rows, fallbacks, count = film.align_with_repairs(self.path, sents, asr, "zh")
+        self.assertIs(repaired, asr)
+        self.assertEqual((rows, fallbacks), expected)
+        self.assertEqual((fallbacks, count), ([], 0))
+        self.whisper.assert_called_once()
+        self.loader.assert_not_called()
+
     def test_korean_term_is_heard_again_in_english(self):
         sents = [sentence("a", "여기 Garden으로 가요.", 2, 5)]
         original = [word("여기", 2.1, 2.6), word("가든으로", 2.7, 3.6), word("가요.", 3.8, 4.5)]
