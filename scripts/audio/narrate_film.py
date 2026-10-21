@@ -22,10 +22,13 @@ Sentence WAVs are keyed by voice config and spoken text, and takes.json records 
 words.json holds one row per whitespace word or Han/Kana character of the script, timed by aligning Whisper's transcript of narration.wav to it.
 Number matching supports fr/pt/es/hi/zh/ko integers below a million (pt and es in either gender), decimals and percents, also inside a heard word (12층); English cardinals/years stay unchanged.
 Sentences with fallback words are re-transcribed once from narration.wav, merging adjacent sentences and padding
-0.15 s at each end (clamped to the file). In non-English narration, spans with Latin-script fallbacks are also heard
+0.15 s at each end (clamped to the file). With the CPU backend, non-English merged spans that still have fallback words are
+retried one sentence at a time with the same padding, skipping sentences already aligned. English narration and other
+platforms keep the existing repair pass. In non-English narration, spans with Latin-script fallbacks are also heard
 in English, replacing words between matched neighbours. A span's words replace the long-form ones only when fewer words
 fall back, and the result feeds both alignment and difference checks, including --check-only; audio-checks stats record
-retranscribed_spans and english_retranscribed_spans when nonzero. Fully aligned runs are unchanged.
+retranscribed_spans (including sentence retries), sentence_retranscribed_spans and english_retranscribed_spans when
+nonzero. Fully aligned runs are unchanged.
 A word Whisper still did not time is interpolated and listed in audio-checks.json; --strict exits non-zero if there is one.
 audio-checks.json lists only failures. --check-only runs the same checks on finished audio (timing.json and narration.wav)
 and exits non-zero on any flag; it writes audio-checks.json only if --out is given."""
@@ -646,7 +649,7 @@ def latin_fallback_windows(sents: list[dict], rows: list[list[dict]], fallbacks:
 def align_with_repairs(path: Path, sents: list[dict], asr: list[dict], language: str = "en", *,
                        stats: dict | None = None
                        ) -> tuple[list[dict], list[list[dict]], list[dict], int]:
-    """Retry fallback spans, also in English for Latin letters; leave clean alignments untouched."""
+    """Retry fallback spans and split unresolved merged spans into sentences on the CPU backend."""
     rows, fallbacks = align_words(sents, asr, language)
     if not fallbacks:
         return asr, rows, fallbacks, 0
@@ -677,8 +680,9 @@ def align_with_repairs(path: Path, sents: list[dict], asr: list[dict], language:
         if spans and (previous_failed or start <= spans[-1][1]):
             spans[-1][1] = max(spans[-1][1], end)
             spans[-1][2] |= sentence["id"] in english_sentences
+            spans[-1][3].append(sentence)
         else:
-            spans.append([start, end, sentence["id"] in english_sentences])
+            spans.append([start, end, sentence["id"] in english_sentences, [sentence]])
         previous_failed = True
 
     best, english_spans = (asr, rows, fallbacks), 0
@@ -689,7 +693,8 @@ def align_with_repairs(path: Path, sents: list[dict], asr: list[dict], language:
         candidate.sort(key=lambda word: (word["start"] + word["end"]) / 2)
         return candidate, *align_words(sents, candidate, language)
 
-    for start, end, rehear_english in spans:
+    def retry_span(start, end, rehear_english):
+        nonlocal best, english_spans
         offset, stop = start / SAMPLE_RATE, end / SAMPLE_RATE
         replacement = transcribe_words(samples[start:end], language)
         previous = best
@@ -715,9 +720,30 @@ def align_with_repairs(path: Path, sents: list[dict], asr: list[dict], language:
                             source = trial
                 if len(source[2]) < len(best[2]):
                     best = source
+
+    for start, end, rehear_english, _ in spans:
+        retry_span(start, end, rehear_english)
+
+    sentence_spans = 0
+    for start, end, _, group in spans:
+        # A merged retry can repeat the long-form decoder's omissions or timestamp
+        # jumps. Short windows bound that failure without changing successful decodes.
+        if sys.platform == "linux" and language != "en" and len(group) > 1:
+            for sentence in group:
+                remaining = [w for w in best[2] if w["sentence"] == sentence["id"]]
+                if not remaining:
+                    continue
+                left = max(start, round((sentence["start"] - 0.15) * SAMPLE_RATE))
+                right = min(end, round((sentence["end"] + 0.15) * SAMPLE_RATE))
+                latin = any(unicodedata.name(c, "").startswith("LATIN ")
+                            for w in remaining for c in letters(w["word"]))
+                retry_span(left, right, latin)
+                sentence_spans += 1
+    if stats is not None and sentence_spans:
+        stats["sentence_retranscribed_spans"] = sentence_spans
     if stats is not None and english_spans:
         stats["english_retranscribed_spans"] = english_spans
-    return *best, len(spans)
+    return *best, len(spans) + sentence_spans
 
 
 ONES = "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen".split()
