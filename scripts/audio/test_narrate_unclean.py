@@ -200,6 +200,7 @@ class UncleanTests(unittest.TestCase):
             with patch.object(film, "plan_runs", return_value=[["S01"]]), \
                     patch.object(film, "voice_identity", return_value=({"engine": "run-voice"}, "voice-identity")), \
                     patch.object(film, "normalize", side_effect=normalized), \
+                    patch("linux_levels.correct_file", return_value={"plan": []}), \
                     patch.object(film, "transcribe", return_value=([], "local-model")), \
                     patch.object(film, "align_with_repairs", side_effect=aligned), \
                     patch.object(film, "audio_checks", side_effect=lambda timing, wav, asr, unclean, language: (unclean, {})), \

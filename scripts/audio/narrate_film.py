@@ -951,7 +951,7 @@ def audio_checks(timing: dict, wav: Path, asr: list[dict], unclean: list[dict], 
     stats["duration_s"] = round(wav_s, 3)
     stats.update({key: timing[key] for key in ("take_gain_db", "take_target_sentence_db", "normalization_gain_db",
                                              "final_take_target_sentence_db", "sentence_gain_db", "sentence_target_db",
-                                             "sentence_peak_dbfs", "loudness_correction") if key in timing})
+                                             "sentence_peak_dbfs", "loudness_correction", "linux_level_correction") if key in timing})
     return flags, stats
 
 
@@ -1063,7 +1063,7 @@ def narrate(args: argparse.Namespace) -> None:
                          "explicit": EXPLICIT_PAUSE, "tail": TAIL, "none_after": sorted(run_on)}}
     if loudness_correction:
         timing["loudness_correction"] = loudness_correction
-    if sys.platform == "linux" and spec["engine"] == "kokoro":
+    if sys.platform == "linux":
         from linux_levels import correct_file
         timing["linux_level_correction"] = correct_file(
             out / "narration.wav", sentence_rows, frame_power=frame_power,

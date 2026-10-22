@@ -94,10 +94,10 @@ def _filter_context(samples, rate, gain_db, scratch_dir, ffmpeg):
 def correct_levels(pcm, rate, sentences, *, frame_power, sentence_level_db,
                    frame_s, level_dev_db, scene_jump_db, scratch_dir=None,
                    ffmpeg='ffmpeg', filter_context=None):
-    """Capped localized lifts; return corrected PCM and measured settings/results.
+    """Capped localized gains; return corrected PCM and measured settings/results.
 
-    Select negative loudness outliers plus the quieter, below-median endpoint of
-    existing failing scene boundaries. Re-measure after limiting and retry from
+    Select loudness outliers plus the quieter, below-median endpoint of
+    existing failing scene boundaries. Re-measure after blending and retry from
     original PCM until the measured target or total gain cap is reached. The caller
     still runs all final checks. filter_context is injectable for deterministic tests.
     """
@@ -117,12 +117,16 @@ def correct_levels(pcm, rate, sentences, *, frame_power, sentence_level_db,
         if value < median - level_dev_db:
             targets[i] = median - level_dev_db + MARGIN_DB
             reasons[i] = ['negative_loudness_outlier']
+        elif value > median + level_dev_db:
+            targets[i] = median + level_dev_db - MARGIN_DB
+            reasons[i] = ['positive_loudness_outlier']
     for i in range(len(sentences) - 1):
         if sentences[i]['scene_id'] == sentences[i + 1]['scene_id'] or abs(before[i + 1] - before[i]) <= scene_jump_db:
             continue
         low, high = (i, i + 1) if before[i] < before[i + 1] else (i + 1, i)
         if before[low] < median:
-            targets[low] = max(targets.get(low, before[low]), before[high] - scene_jump_db + MARGIN_DB)
+            neighbor_level = min(before[high], targets.get(high, before[high]))
+            targets[low] = max(targets.get(low, before[low]), neighbor_level - scene_jump_db + MARGIN_DB)
             reasons.setdefault(low, []).append('quiet_scene_boundary_endpoint')
             neighbors.setdefault(low, []).append(high)
     output, changed, plan = pcm.copy(), np.zeros(len(pcm), dtype=bool), []
@@ -130,7 +134,10 @@ def correct_levels(pcm, rate, sentences, *, frame_power, sentence_level_db,
     if process is None:
         process = lambda samples, sample_rate, gain: _filter_context(samples, sample_rate, gain, scratch_dir, ffmpeg)
     settings = {}
-    for i in sorted(targets):
+    directions = {i: 1 if targets[i] > before[i] else -1 for i in targets}
+    # Cut loud neighbors before choosing measured gains for quiet endpoints.
+    order = sorted(targets, key=lambda i: (directions[i], i))
+    for i in order:
         sid = sentences[i]['id']; start, end = intervals[sid]
         left = max(0, start - round(CONTEXT_S * rate))
         right = min(len(pcm), end + round(CONTEXT_S * rate))
@@ -149,24 +156,29 @@ def correct_levels(pcm, rate, sentences, *, frame_power, sentence_level_db,
     after, after_median = before, median
     while True:
         retried = False
-        for i, entry in zip(sorted(targets), plan):
-            # A lifted scene endpoint can move the median or a neighboring target.
+        for i, entry in zip(order, plan):
+            # A corrected sentence can move the median or a neighboring target.
             # Revisit earlier entries against the resulting track, retaining at
-            # least the original target even if another correction lowers it.
-            target = max(targets[i], after_median - level_dev_db + MARGIN_DB,
-                         *(after[j] - scene_jump_db + MARGIN_DB for j in neighbors.get(i, [])))
+            # least the original correction even if another change relaxes it.
+            direction = directions[i]
+            if direction > 0:
+                target = max(targets[i], after_median - level_dev_db + MARGIN_DB,
+                             *(after[j] - scene_jump_db + MARGIN_DB for j in neighbors.get(i, [])))
+            else:
+                target = min(targets[i], after_median + level_dev_db - MARGIN_DB)
             entry['target_db'] = target
-            entry['target_reached'] = after[i] >= target
+            entry['target_reached'] = direction * (after[i] - target) >= 0
             if entry['target_reached'] or entry['gain_cap_reached']:
                 continue
-            residual = target - after[i]
+            residual = direction * (target - after[i])
             # Minimum progress bounds retries even for an unresponsive limiter or
             # a discontinuity in the active-frame gate. gain_db is always TOTAL
-            # gain on the original context, never a compounded per-pass lift.
-            requested = entry['gain_db'] + (max(MIN_GAIN_STEP_DB, residual) if entry['attempts'] else residual)
-            gain = min(GAIN_CAP_DB, requested)
+            # gain on the original context, never compounded between attempts.
+            requested = entry['gain_db'] + direction * (max(MIN_GAIN_STEP_DB, residual) if entry['attempts'] else residual)
+            gain = direction * min(GAIN_CAP_DB, direction * requested)
             context, offset, original, weight = settings[i]
-            filtered = process(context.copy(), rate, gain)
+            # Attenuation cannot introduce peaks and needs no limiter.
+            filtered = context * 10 ** (gain / 20) if gain < 0 else process(context.copy(), rate, gain)
             _require(isinstance(filtered, np.ndarray) and filtered.shape == context.shape,
                      'Limiter changed context frame count; do not trim, pad or compensate silently')
             _require(np.isfinite(filtered).all(), 'Limiter returned nonfinite samples')
@@ -178,7 +190,7 @@ def correct_levels(pcm, rate, sentences, *, frame_power, sentence_level_db,
             output[start:end] = quantized.astype(np.int32) << 8
             changed[start:end] = True
             after, after_median = _levels(output, rate, sentences, frame_power, sentence_level_db, frame_s)
-            entry.update(gain_db=gain, requested_gain_db=requested, gain_cap_reached=gain >= GAIN_CAP_DB)
+            entry.update(gain_db=gain, requested_gain_db=requested, gain_cap_reached=abs(gain) >= GAIN_CAP_DB)
             entry['attempts'].append({'gain_db': gain, 'target_db': target, 'after_db': after[i]})
             retried = True
         if not retried:

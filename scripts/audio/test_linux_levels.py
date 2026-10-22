@@ -1,4 +1,4 @@
-"""Synthetic level-correction tests; real ffmpeg probes are explicit opt-in."""
+"""Synthetic level-correction tests; extended media probes are explicit opt-in."""
 import os
 from pathlib import Path
 import shutil
@@ -7,6 +7,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 import numpy as np
+import soundfile as sf
 
 import narrate_film as film  # Measurement functions only; no speech/Stanza model loading.
 import linux_levels as helper
@@ -119,11 +120,11 @@ class CorrectionTests(unittest.TestCase):
         pcm, rows = fixture([.075, .12, .10, .16], ['a', 'a', 'b', 'c'])
         output, result = run(pcm, rows, gain_only)
         self.assertGreater(result['median_after_db'], result['median_before_db'])
-        first = result['plan'][0]
+        first = next(entry for entry in result['plan'] if entry['id'] == 's0')
         self.assertGreater(first['target_db'], first['attempts'][0]['target_db'])
         for entry in result['plan']:
             self.assertTrue(entry['target_reached'])
-            self.assertGreaterEqual(result['after_db'][entry['id']], entry['target_db'])
+            self.assertGreaterEqual(np.sign(entry['gain_db']) * (result['after_db'][entry['id']] - entry['target_db']), 0)
 
     def test_high_crest_quiet_span_uses_peak_control_instead_of_unsafe_gain(self):
         pcm, rows = fixture([.1, .1, .06, .1, .1])
@@ -154,12 +155,35 @@ class CorrectionTests(unittest.TestCase):
         self.assertEqual(result['plan'][0]['reason'], ['quiet_scene_boundary_endpoint'])
         self.assertLess(abs(result['after_db']['s2'] - result['after_db']['s1']), film.SCENE_JUMP_DB)
 
+    def test_scene_lift_accounts_for_neighbor_cut_without_creating_another_outlier(self):
+        pcm, rows = fixture([.1, .1, .099, .2, .1], ['a', 'a', 'a', 'b', 'b'])
+        output, result = run(pcm, rows, gain_only)
+        self.assertEqual([p['id'] for p in result['plan']], ['s3', 's2'])
+        self.assertTrue(all(p['target_reached'] for p in result['plan']))
+        self.assertLess(result['plan'][1]['gain_db'], 1)
+        flags, _ = film.level_flags(rows, [s['scene_id'] for s in rows],
+                                    output.astype(np.float32) / np.float32(2 ** 31), RATE)
+        self.assertFalse(any(f['check'] in ('loudness_outlier', 'scene_jump') for f in flags))
+
     def test_gain_cap_is_reported_and_unresolved_quietness_remains_visible(self):
         pcm, rows = fixture([.1, .1, .015, .1, .1])
         output, result = run(pcm, rows, gain_only)
         self.assertEqual(result['plan'][0]['gain_db'], 4)
         self.assertTrue(result['plan'][0]['gain_cap_reached'])
         self.assertGreater(result['median_after_db'] - result['after_db']['s2'], film.LEVEL_DEV_DB)
+
+    def test_loud_outlier_cut_stops_at_same_cap_and_leaves_failure_visible(self):
+        pcm, rows = fixture([.1, .1, .4, .1, .1])
+        process = Mock(side_effect=AssertionError('Attenuation needs no limiter'))
+        output, result = run(pcm, rows, process)
+        plan = result['plan'][0]
+        process.assert_not_called()
+        self.assertEqual(plan['gain_db'], -helper.GAIN_CAP_DB)
+        self.assertTrue(plan['gain_cap_reached'])
+        self.assertFalse(plan['target_reached'])
+        flags, _ = film.level_flags(rows, [s['scene_id'] for s in rows],
+                                    output.astype(np.float32) / np.float32(2 ** 31), RATE)
+        self.assertTrue(any(f['check'] == 'loudness_outlier' for f in flags))
 
     def test_changed_length_is_rejected_without_hidden_padding(self):
         pcm, rows = fixture([.1, .1, .06, .1, .1])
@@ -224,6 +248,78 @@ class CorrectionTests(unittest.TestCase):
         stop.assert_called_once_with(process)
         np.testing.assert_array_equal(output, samples)
 
+
+@unittest.skipUnless(shutil.which('ffmpeg'), 'Requires the media processor')
+class RunVoicedCorrectionTests(unittest.TestCase):
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+        self.root = Path(self.folder.name)
+        self.raw, self.final = self.root / 'raw.wav', self.root / 'final.wav'
+
+    def correct_run(self, amplitudes, process=None):
+        pcm, self.rows = fixture(amplitudes)
+        sf.write(self.raw, pcm, RATE, subtype='PCM_24')
+        self.raw_bytes = self.raw.read_bytes()
+        with patch.object(film.sys, 'platform', 'linux'):
+            film.normalize(self.raw, self.final, preserve_take_levels=True)
+        self.normalized_bytes = self.final.read_bytes()
+        self.original, _ = sf.read(self.final, dtype='int32')
+        result = helper.correct_file(
+            self.final, self.rows, frame_power=film.frame_power,
+            sentence_level_db=film.sentence_level_db, frame_s=film.FRAME_S,
+            level_dev_db=film.LEVEL_DEV_DB, scene_jump_db=film.SCENE_JUMP_DB,
+            filter_context=process)
+        self.assertEqual(self.raw.read_bytes(), self.raw_bytes)
+        return result
+
+    def verify_outlier(self, result, direction):
+        plan, = result['plan']
+        self.assertEqual(plan['id'], 's2')
+        self.assertGreater(direction * plan['gain_db'], 0)
+        self.assertLessEqual(abs(plan['gain_db']), helper.GAIN_CAP_DB)
+        self.assertTrue(plan['target_reached'])
+        self.assertLessEqual(abs(result['after_db']['s2'] - result['median_after_db']),
+                             film.LEVEL_DEV_DB - helper.MARGIN_DB)
+        output, rate = sf.read(self.final, dtype='int32')
+        self.assertEqual(rate, RATE)
+        self.assertEqual(len(output), len(self.original))
+        self.assertEqual(sf.info(self.final).subtype, 'PCM_24')
+        a, b = plan['start_frame'], plan['end_frame']
+        np.testing.assert_array_equal(output[:a], self.original[:a])
+        np.testing.assert_array_equal(output[b:], self.original[b:])
+        self.assertEqual(output[a], self.original[a])
+        self.assertEqual(output[b - 1], self.original[b - 1])
+        flags, _ = film.level_flags(self.rows, [s['scene_id'] for s in self.rows],
+                                    output.astype(np.float32) / np.float32(2 ** 31), rate)
+        self.assertFalse(any(f['check'] in ('loudness_outlier', 'scene_jump') for f in flags))
+        timing = {'sentences': self.rows, 'duration': len(output) / rate,
+                  'linux_level_correction': result}
+        with patch.object(film, 'asr_differences', return_value=[]):
+            _, stats = film.audio_checks(timing, self.final, [], [])
+        self.assertEqual(stats['linux_level_correction'], result)
+
+    def test_loud_outlier_in_normalized_run_is_cut_without_limiting(self):
+        process = Mock(side_effect=AssertionError('Attenuation needs no limiter'))
+        result = self.correct_run([.1, .1, .15, .1, .1], process)
+        process.assert_not_called()
+        self.assertEqual(result['plan'][0]['reason'], ['positive_loudness_outlier'])
+        self.assertGreater(len(result['plan'][0]['attempts']), 1)
+        self.verify_outlier(result, -1)
+
+    def test_quiet_outlier_in_normalized_run_is_lifted_with_shared_limiter(self):
+        with patch.object(helper, '_filter_context', wraps=helper._filter_context) as limiter:
+            result = self.correct_run([.1, .1, .06, .1, .1])
+        self.assertGreater(limiter.call_count, 0)
+        self.assertEqual(result['plan'][0]['reason'], ['negative_loudness_outlier'])
+        self.verify_outlier(result, 1)
+
+    def test_passing_run_near_gate_keeps_exact_normalized_file_bytes(self):
+        process = Mock(side_effect=AssertionError('Passing audio needs no filtering'))
+        result = self.correct_run([.1, .1, .139, .1, .1], process)
+        process.assert_not_called()
+        self.assertEqual(result['plan'], [])
+        self.assertEqual(self.final.read_bytes(), self.normalized_bytes)
 
 
 @unittest.skipUnless(os.environ.get('RUN_FFMPEG_LEVEL_TESTS') == '1' and shutil.which('ffmpeg'),

@@ -416,7 +416,7 @@ class GenerationTests(unittest.TestCase):
                     args = argparse.Namespace(scenes=scene_file, out=output, spoken=None, voice="selected", reuse=None, strict=False, language="en")
                     expected_cache = {}
                     stages = []
-                    enabled = platform == "linux" and engine == "kokoro"
+                    enabled = platform == "linux"
                     correction = {"plan": []}
                     expected_stages = ["normalize", "correct", "asr"] if enabled else ["normalize", "asr"]
 
