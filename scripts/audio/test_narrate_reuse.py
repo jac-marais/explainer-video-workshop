@@ -150,7 +150,8 @@ class NormalizationTests(unittest.TestCase):
         for measured, expected in (({"input_i": "-20", "input_tp": "-10"}, 4),
                                    ({"input_i": "-16.40", "input_tp": "-0.90"}, -0.60)):
             with self.subTest(measured=measured), patch.object(film, "measure_loudness", return_value=measured), \
-                    patch.object(film, "ffmpeg") as ffmpeg, patch.object(film, "log"):
+                    patch.object(film, "ffmpeg") as ffmpeg, patch.object(film, "log"), \
+                    patch("linux_levels.correct_loudness_file", return_value=None):
                 self.assertAlmostEqual(film.normalize(Path("raw.wav"), Path("final.wav"), preserve_take_levels=True), expected)
                 self.assertTrue(ffmpeg.call_args.args[0][ffmpeg.call_args.args[0].index("-af") + 1].startswith("volume="))
 
@@ -487,6 +488,7 @@ class GenerationTests(unittest.TestCase):
                             patch.object(film, "audio_checks", side_effect=lambda timing, wav, asr, unclean, language="en": (unclean, {})), \
                             patch.object(film, "log"), patch("sys.stdout", new=io.StringIO()):
                         film.narrate(args)
+                        self.assertEqual(normalizer.call_args.kwargs.pop("correction"), {})
                         self.assertEqual(normalizer.call_args.kwargs, {"preserve_take_levels": engine != "kokoro"})
                         first_timing = json.loads((output / "timing.json").read_text())
                         verify_dispatch(first_timing, 1)

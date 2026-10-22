@@ -1,6 +1,6 @@
-"""Localized final-PCM level correction for Linux Kokoro narration.
+"""Conditional final-PCM level correction for Linux narration.
 
-Call only from the reviewed Linux/Kokoro dispatch. Inputs/outputs are mono48kHz
+Call only from the reviewed Linux dispatch. Inputs/outputs are mono48kHz
 PCM24 represented as left-aligned int32. Existing production measurement functions
 and constants must be supplied. The caller keeps all ordinary final audio/ASR gates.
 """
@@ -215,3 +215,67 @@ def correct_file(wav, sentences, **settings):
                  (current.st_size, current.st_mtime_ns, current.st_ino), 'Final WAV changed concurrently')
         os.replace(temporary, wav)
     return result
+
+
+def correct_loudness_file(wav, *, measure_loudness, target_lufs, tolerance_lu,
+                          peak_ceiling_dbtp, scratch_dir=None, ffmpeg='ffmpeg',
+                          filter_context=None):
+    """Lift only a failing, peak-bound track with the existing limiter profile.
+
+    Each attempt filters the original normalized PCM with increasing total gain,
+    then measures the encoded candidate. Never trim or pad to conceal latency.
+    Passing tracks keep their exact file bytes. The caller retains every gate.
+    """
+    import soundfile as sf
+    wav = Path(wav)
+    before_stat = wav.stat()
+    before = measure_loudness(wav)
+    before_lufs, before_peak = float(before['input_i']), float(before['input_tp'])
+    _require(tolerance_lu > MARGIN_DB, 'Invalid loudness tolerance')
+    if (not np.isfinite([before_lufs, before_peak]).all()
+            or before_lufs >= target_lufs - tolerance_lu
+            or target_lufs - before_lufs <= peak_ceiling_dbtp - before_peak):
+        return None
+    info = sf.info(wav)
+    _require(info.channels == 1 and info.samplerate == 48000 and info.subtype == 'PCM_24',
+             'Require final mono48kHz PCM24 WAV')
+    original, rate = sf.read(wav, dtype='int32')
+    _require(len(original) > 0, 'Require nonempty final narration')
+    samples = original.astype(np.float64) / (2 ** 31)
+    target = target_lufs - tolerance_lu + MARGIN_DB
+    process = filter_context
+    if process is None:
+        process = lambda data, sample_rate, gain: _filter_context(data, sample_rate, gain, scratch_dir, ffmpeg)
+    gain, after_lufs, after_peak, attempts = 0.0, before_lufs, before_peak, []
+    with tempfile.TemporaryDirectory(prefix='loudness-final-', dir=wav.parent) as name:
+        temporary = Path(name) / 'narration.wav'
+        while after_lufs < target and gain < GAIN_CAP_DB:
+            gain = min(GAIN_CAP_DB, gain + max(MIN_GAIN_STEP_DB, target - after_lufs))
+            filtered = process(samples.copy(), rate, gain)
+            _require(isinstance(filtered, np.ndarray) and filtered.shape == samples.shape,
+                     'Limiter changed frame count; do not trim or pad')
+            _require(np.isfinite(filtered).all(), 'Limiter returned nonfinite samples')
+            quantized = np.rint(filtered * (2 ** 23))
+            _require((quantized >= -(2 ** 23)).all() and (quantized < 2 ** 23).all(),
+                     'Correction would clip; refuse rather than clip')
+            output = quantized.astype(np.int32) << 8
+            sf.write(temporary, output, rate, format='WAVEX', subtype='PCM_24')
+            reread, actual_rate = sf.read(temporary, dtype='int32')
+            _require(actual_rate == rate and len(reread) == len(original) and np.array_equal(reread, output),
+                     'Encoded final PCM/rate/frame verification failed')
+            after = measure_loudness(temporary)
+            after_lufs, after_peak = float(after['input_i']), float(after['input_tp'])
+            _require(np.isfinite([after_lufs, after_peak]).all(), 'Nonfinite corrected loudness')
+            _require(after_peak <= peak_ceiling_dbtp, 'Correction exceeded true-peak ceiling')
+            attempts.append({'gain_db': gain, 'lufs': after_lufs, 'true_peak_dbtp': after_peak})
+        current = wav.stat()
+        _require((before_stat.st_size, before_stat.st_mtime_ns, before_stat.st_ino) ==
+                 (current.st_size, current.st_mtime_ns, current.st_ino), 'Final WAV changed concurrently')
+        os.replace(temporary, wav)
+    return {'reason': 'peak_bound_loudness', 'before_lufs': before_lufs,
+            'before_true_peak_dbtp': before_peak, 'after_lufs': after_lufs,
+            'after_true_peak_dbtp': after_peak, 'target_lufs': target,
+            'target_margin_db': MARGIN_DB, 'gain_db': gain, 'gain_cap_db': GAIN_CAP_DB,
+            'gain_cap_reached': gain >= GAIN_CAP_DB, 'target_reached': after_lufs >= target,
+            'filter': filter_graph(rate, gain), 'attempts': attempts,
+            'total_frames_identical': True}

@@ -604,14 +604,22 @@ def measure_loudness(path: Path) -> dict:
     return json.JSONDecoder().raw_decode(log_text[log_text.rfind("{"):])[0]
 
 
-def normalize(raw: Path, final: Path, preserve_take_levels: bool = False) -> float | None:
-    """Write 48 kHz, 24-bit mono with a common peak-capped gain, or Kokoro's two-pass loudnorm."""
+def normalize(raw: Path, final: Path, preserve_take_levels: bool = False, *,
+              correction: dict | None = None) -> float | None:
+    """Write final mono PCM24; record conditional limiting after common gain."""
     m = measure_loudness(raw)
     if preserve_take_levels:
         gain = min(-16 - float(m["input_i"]), -1.5 - float(m["input_tp"]))
         log(f"global normalization gain: {gain:+.2f} dB")
         ffmpeg(["-y", "-i", str(raw), "-af", f"volume={gain:.8f}dB:precision=double", "-ar", "48000", "-ac", "1",
                 "-c:a", "pcm_s24le", str(final)])
+        if sys.platform == "linux":
+            from linux_levels import correct_loudness_file
+            result = correct_loudness_file(
+                final, measure_loudness=measure_loudness, target_lufs=-16,
+                tolerance_lu=LUFS_TOLERANCE, peak_ceiling_dbtp=-1.5)
+            if correction is not None and result is not None:
+                correction.update(result)
         return gain
     apply = (f"loudnorm={LOUDNORM}:measured_I={m['input_i']}:measured_TP={m['input_tp']}:measured_LRA={m['input_lra']}"
              f":measured_thresh={m['input_thresh']}:offset={m['target_offset']}:linear=true")
@@ -943,7 +951,7 @@ def audio_checks(timing: dict, wav: Path, asr: list[dict], unclean: list[dict], 
     stats["duration_s"] = round(wav_s, 3)
     stats.update({key: timing[key] for key in ("take_gain_db", "take_target_sentence_db", "normalization_gain_db",
                                              "final_take_target_sentence_db", "sentence_gain_db", "sentence_target_db",
-                                             "sentence_peak_dbfs") if key in timing})
+                                             "sentence_peak_dbfs", "loudness_correction") if key in timing})
     return flags, stats
 
 
@@ -1040,7 +1048,9 @@ def narrate(args: argparse.Namespace) -> None:
     (out / "takes.json").write_text(json.dumps(take_origins, indent=2) + "\n")
     (out / "take-manifest.json").write_text(json.dumps(manifests, indent=2) + "\n")
     sf.write(out / "narration-raw.wav", samples, RATE, subtype="PCM_16")
-    normalization_gain = normalize(out / "narration-raw.wav", out / "narration.wav", preserve_take_levels=spec["engine"] != "kokoro")
+    loudness_correction = {}
+    normalization_gain = normalize(out / "narration-raw.wav", out / "narration.wav",
+                                   preserve_take_levels=spec["engine"] != "kokoro", correction=loudness_correction)
     final_take_target = take_target + normalization_gain if take_target is not None and normalization_gain is not None else None
     timing = {"source_sha256": sha256(args.scenes.read_bytes()), "voice": args.voice, "speed": spec.get("speed"),
               "sample_rate": RATE, "duration": round(duration, 3), "frames_30fps": round(duration * 30),
@@ -1051,6 +1061,8 @@ def narrate(args: argparse.Namespace) -> None:
               "sentence_peak_dbfs": SENTENCE_PEAK_DBFS if sentence_target is not None else None,
               "pauses": {"lead_in": LEAD_IN, "between_sentences": SENTENCE_PAUSE, "between_scenes": SCENE_PAUSE,
                          "explicit": EXPLICIT_PAUSE, "tail": TAIL, "none_after": sorted(run_on)}}
+    if loudness_correction:
+        timing["loudness_correction"] = loudness_correction
     if sys.platform == "linux" and spec["engine"] == "kokoro":
         from linux_levels import correct_file
         timing["linux_level_correction"] = correct_file(
