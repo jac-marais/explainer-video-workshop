@@ -2,8 +2,9 @@
 // HyperFrames 0.8.57 runs external scripts from <head> before the body exists, so nothing here touches the page
 // until the scene script in index.html calls startFilm().
 window.FilmBrands = window.FilmBrands || {};
+window.FilmFigures = window.FilmFigures || {};
 
-window.startFilm = ({ brand } = {}) => {
+window.startFilm = ({ brand, figures } = {}) => {
   const FILM = window.FILM;
   if (!FILM) throw new Error("window.FILM is missing: write data.js with scripts/film/build_data.py");
   const root = document.querySelector("[data-composition-id]");
@@ -77,6 +78,10 @@ window.startFilm = ({ brand } = {}) => {
   if (brand) {
     if (!window.FilmBrands[brand]) throw new Error(`brand module "${brand}" is not loaded; add brand-modules/${brand}.js after film.js`);
     window.FilmBrands[brand](film);
+  }
+  if (figures) {
+    if (!window.FilmFigures[figures]) throw new Error(`figure module "${figures}" is not loaded; add figure-modules/${figures}.js after film.js`);
+    window.FilmFigures[figures](film);
   }
 
   const band = root.appendChild(document.createElement("div"));

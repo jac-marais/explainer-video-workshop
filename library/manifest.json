@@ -1024,6 +1024,18 @@
       "commit": null,
       "access": "gh api queries; 30 sampled .glb hits held no real GLB (LFS pointers or non-glTF); license: filter is repo-level only",
       "private": false
+    },
+    {
+      "id": "S-HL-001",
+      "title": "Hairline — isometric line figures that answer the pointer",
+      "canonical_url": "https://github.com/lucasmarkes/hairline",
+      "source_class": "primary artifact inspected",
+      "publisher": "Lucas Marques",
+      "fetched": "2026-10-24",
+      "source_date_or_version": "@lucasmarkes/hairline 0.5.1 at main",
+      "commit": "37d2e78dcb333ab30c3338e28ed4a690364ea014",
+      "access": "shallow clone in an isolated container, read only; no package, skill or script was installed or run; MIT license",
+      "private": false
     }
   ]
 }

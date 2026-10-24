@@ -32,6 +32,10 @@ Each preset is a self-contained style file that a video agent can build from.
 | Spotify-inspired | [`brands/spotify.md`](../brands/spotify.md) |
 | Uber-inspired | [`brands/uber.md`](../brands/uber.md) |
 
+## Figure styles are not brands
+
+A figure style sets how diagrams are drawn and how they move. It has no type, layout or captions, so it works with any brand or with the neutral default. The workshop's one figure style is Hairline, in [figure modules](../templates/composition/README.md#figure-modules). Choose it per run in the scene plan's global visual system, not in `local/brand.md`, unless the user wants it for every run. Its palette comes from the brand's tokens. Where a brand rule and a figure-style rule disagree, the brand wins; the audit records the conflict.
+
 ## Procedure
 
 ### 1. Learn the brand through its own route

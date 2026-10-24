@@ -1,6 +1,6 @@
 # Starter composition
 
-A HyperFrames composition to copy into a run, so the run writes only its scenes. It holds the paused timeline, the narration audio, the burned-in captions and the lookups that read audio-bound times from `data.js`. A brand module adds a style's signature motion.
+A HyperFrames composition to copy into a run, so the run writes only its scenes. It holds the paused timeline, the narration audio, the burned-in captions and the lookups that read audio-bound times from `data.js`. A brand module adds a style's signature motion, and a figure module adds a drawing style that works with any brand.
 
 ## Files
 
@@ -12,6 +12,7 @@ A HyperFrames composition to copy into a run, so the run writes only its scenes.
 | `tokens.css` | neutral placeholder tokens | replace it with the brand's tokens |
 | `example-script.md` | the invented script that cues the example scene | no; a run uses its own script |
 | `brand-modules/<brand>.js`, `.css` | a brand's signature motion | no |
+| `figure-modules/hairline.js`, `.css`, `HAIRLINE-LICENSE.txt` | isometric line figures drawn from the timeline | no |
 
 ## Set up a run
 
@@ -61,6 +62,58 @@ A module registers `window.FilmBrands["<brand>"] = (film) => { ... }` and loads 
 The preset's Layout section owns the mark positions and bounds.
 
 `change` throws when the pause before the next scene is too short for the morph. Write `[pause]` before each later scene's first sentence. The estimate's scene gap can pass where measured narration's does not, so only the measured `data.js` proves it.
+
+## Figure modules
+
+A figure module registers `window.FilmFigures["<name>"] = (film) => { ... }` and loads after `film.js`. `startFilm({ figures: "<name>" })` calls it after the brand module, and fails when it is not loaded. A run that uses one links its `.css` in `<head>` and its `.js` after `film.js`.
+
+`hairline` draws isometric line figures of rounded solids in the style of [Hairline](https://github.com/lucasmarkes/hairline) (S-HL-001). Its geometry and its two motion curves are ported from that MIT package, and `HAIRLINE-LICENSE.txt` must stay beside the module. The package itself moves on `requestAnimationFrame` and the pointer, which a seeked render cannot follow, so do not load it in a composition. In the port every moving value is a timeline property, and a seek redraws the part that it changes.
+
+- `const fig = film.hairline.figure("#s02-fig", { S })` draws into an element of class `abs` that has a width. The figure is a 400 × 320 viewBox at a 5:4 ratio, in Hairline's 2:1 view. `S` is the world-to-viewBox scale, 1.6 by default.
+- `fig.box({ x, y, w, d, h, z, r, bevel, ground })` adds a rounded solid with its foot at `(x, y, z)`. It draws one silhouette and one crease, and never the vertical corners. Set `ground: true` for a plinth, which stays under every link and part.
+- `fig.link(a, b)` adds a dashed ground line between the centres of two boxes. `box.dot(u, v)` adds a flat dot on the box's lid, offset from its centre, to number the part without a word.
+- `fig.fit(cx, cy, points)` centres the figure on `(cx, cy)` in the viewBox, by default (200, 166). Call it once, after the parts. `points` are world `[x, y, z]` points of the most extreme pose, which rule 03 needs. It moves the drawing but never scales it, and it throws when the rest pose and those points span more than 400 × 320; lower `S` or the motion. A centred figure can still cross the box's edge when it sits off centre, so check the extreme pose's still.
+- A box tweens `x`, `y`, `z`, `h`, `hi` and `opacity` with plain `tl.to`. A link tweens `hi` and a dot tweens `on`.
+- `film.hairline.ripple(boxes, at, { from, step, clock, ...values })` tweens each box `|i − from| × step` seconds after `at`, so the motion spreads from one part. `clock: "lift"` is the 700 ms curve for a change of state, and `"spring"` is the settling spring for a follow. It returns the time the last box lands.
+- `film.hairline.light(target, at, on)` switches the bright stroke. That stroke is the only highlight.
+
+The palette comes from the brand's tokens. Plates fill with `--bg`, the lit stroke is `--emph`, and the other strokes are `--text` mixed into `--bg`. Strokes are `--stroke` wide. Set `--hairline-plate`, `--hairline-hi`, `--hairline-edge`, `--hairline-mid`, `--hairline-lo` or `--hairline-stroke` to override one. A brand that forbids tints sets all four strokes. Set the plate to the panel colour when a figure sits on a panel.
+
+### Design a Hairline figure
+
+A figure is an object, not a diagram. Find something that could sit on a desk and that holds the scene's idea: a rack of blades, a stack of trays, a hub with its tiles. Name the two or three features that make each kind of part that thing, and draw them. Find the one number or choice that the scene's narration turns on, and let the figure's motion show only that. Then design the rest pose. Write the figure in the shot's Visual line as its object, what moves on which cue, and its rest pose.
+
+Drop or rework a concept when it is dead at rest, when it needs a word to be understood, when it holds two ideas, when it is boxes joined by arrows, or when it depends on colour.
+
+### Hairline rules
+
+These are Hairline's ten rules (S-HL-001), adapted for a seeked film. Rule 01 (hit areas) and rule 07 (loops sleep offscreen) govern the pointer and the frame loop, which the timeline replaces.
+
+- **02 Order.** Stagger by distance, never by list order. `ripple` delays each box by `|i − from| × step`, so order the boxes by their distance from the source. Use a `step` of 0.03 to 0.06 s, and keep `max(|i − from|) × step` under the clock's duration (0.7 s for the lift), so the last box starts before the first one lands. For a long row, lower the step or ripple from the middle.
+- **03 Reach.** The motion has a far end, and the figure is still composed there. Clamp every lift, gap and lean. Pass the most extreme pose's world points to `fit(cx, cy, points)`, so nothing leaves the figure's box.
+- **04 Accent.** The bright stroke is the only highlight: no fills, glows, shadows or colours of a figure's own. At rest one bright mark says where to look. When a beat picks a part, the bright moves to it and the rest mark goes dim. One highlight may cover the parts of one thing, but it marks one place.
+- **05 Rest.** The rest pose is designed, never flat: not zero, not uniform, never a regular grid. It is the still a viewer sees first.
+- **06 Honesty.** Plates are opaque and paint back to front by their centres, and parts on one centre paint bottom up, so no far edge shows through a near solid. Links paint under the parts, and a plinth is `ground`. Parts that intersect, or a large part among small ones, need `ground` or a split.
+- **08 Clocks.** A change of state, such as which part, uses the 700 ms lift. A follow uses the spring. Keep their constants unless the scene has a reason you can state.
+- **09 Radius.** Every corner is round. A solid is its silhouette, one dim crease and at most a few marks the object would really have. Never draw a vertical corner line.
+- **10 Quiet.** No words, digits, arrows or icons inside a figure. Number parts with lid dots, and put labels in the scene beside the figure.
+- **The frame.** A figure must still read at a quarter of the frame's width, 480 px. Past about a hundred solids, or with parts under ten viewBox units, it will not.
+
+Where a brand rule and a Hairline rule disagree, the brand wins, under [Figure styles are not brands](../../methods/brand-explainer-video.md#figure-styles-are-not-brands). For a brand with no rounded corners, pass `r: 0` to every box, which drops rule 09, and record the conflict in the brand audit. Keep rounded corners only when the user approves that exception.
+
+### Check a Hairline figure
+
+In the scene's stills, at rest and at each beat's landed pose, answer yes or no, and fix every no:
+
+1. The object is clear from the figure scaled to 480 px wide; point to its features in it (the frame).
+2. Rest is a composition, with one bright mark (rules 04 and 05).
+3. The motion spreads from its source; it is not everything at once (rule 02).
+4. At most one place is bright (rule 04).
+5. No far edge or link crosses a near solid (rule 06).
+6. Nothing leaves the figure's box at the most extreme pose (rule 03).
+7. Nothing inside the figure is a word, digit, arrow or icon (rule 10).
+
+A figure's motion is small against the 1920 × 1080 frame, so the frozen-picture check in `check_film.py` can fail on a scene with only a small lift. Give each scene a larger move or a planned hold. In 0.8.145, `hyperframes check` can also warn `connector_detached` for links whose ends sit under a part; read a still before you accept or fix that warning.
 
 ## Check
 

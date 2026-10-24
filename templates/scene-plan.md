@@ -34,10 +34,12 @@ For every scene, answer these questions in one or two sentences:
 - What is the hardest timing or layout risk?
 - What changes if the audio is re-recorded?
 - What can be reviewed with stills, and what requires a contiguous motion sample?
+- For a Hairline figure: does it pass "Check a Hairline figure" in `templates/composition/README.md`?
 
 ## Global visual system
 
 - Brand: `[none | the source in local/brand.md; the audit is in brand-audit.md]`
+- Figure style: `[none | hairline, from templates/composition/README.md#figure-modules; brand conflicts and their decisions]`
 - Canvas and safe area: `[values]`
 - Type sizes and contrast: `[values or tokens]`
 - Color meaning: `[mapping]`

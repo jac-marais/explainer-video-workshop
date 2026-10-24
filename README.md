@@ -25,7 +25,7 @@ The [preparation method](methods/prepare-explainer-video.md) produces a usable p
 
 ## Brand guidelines
 
-The workshop is brand-neutral. On first use, the agent asks whether you have brand guidelines, then records your answer in `local/brand.md`, which is git-ignored. The answer can be a path to a brand workshop, a document, a URL, or "none". No guidelines? [See the nine workshop styles](https://jac-marais.github.io/explainer-video-workshop/brands/) and tell the agent which one you want. From then on, every run styles and audits its output against that source through [the brand method](methods/brand-explainer-video.md). To change brands, edit or delete `local/brand.md`. The [profile template](templates/brand.md) shows its shape.
+The workshop is brand-neutral. On first use, the agent asks whether you have brand guidelines, then records your answer in `local/brand.md`, which is git-ignored. The answer can be a path to a brand workshop, a document, a URL, or "none". No guidelines? [See the nine workshop styles](https://jac-marais.github.io/explainer-video-workshop/brands/) and tell the agent which one you want. Separately from the brand, a run can draw its diagrams as [Hairline](https://github.com/lucasmarkes/hairline)-style isometric line figures, which take their colours from the brand; see [figure modules](templates/composition/README.md#figure-modules). From then on, every run styles and audits its output against that source through [the brand method](methods/brand-explainer-video.md). To change brands, edit or delete `local/brand.md`. The [profile template](templates/brand.md) shows its shape.
 
 <p>
 <a href="https://jac-marais.github.io/explainer-video-workshop/brands/mit-media-lab.mp4#t=5"><img src="brands/readme/step-1.jpg" width="49%" alt="Step 1, Start with a brand. The agent asks for brand guidelines, or you pick one of nine styles."></a>
@@ -87,3 +87,5 @@ This workshop is not a generic video studio, a model leaderboard, a collection o
 ## License
 
 The workshop is [MIT licensed](LICENSE). Cited third-party sources keep their own licenses.
+
+The optional Hairline figure module in `templates/composition/figure-modules/` ports its geometry and motion from [Hairline](https://github.com/lucasmarkes/hairline) by Lucas Marques, under the MIT license in [`HAIRLINE-LICENSE.txt`](templates/composition/figure-modules/HAIRLINE-LICENSE.txt). It is an adaptation, not the Hairline package, and Hairline's author has not endorsed it.

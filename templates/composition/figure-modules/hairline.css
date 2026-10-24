@@ -1,0 +1,20 @@
+/* Hairline figures. The palette derives from the brand's tokens; a brand that forbids tints sets the --hairline-* tokens itself. */
+.hl-figure { position: absolute; aspect-ratio: 5 / 4;
+  --hl-plate: var(--hairline-plate, var(--bg));
+  --hl-hi: var(--hairline-hi, var(--emph));
+  --hl-edge: var(--hairline-edge, color-mix(in srgb, var(--text) 72%, var(--bg)));
+  --hl-mid: var(--hairline-mid, color-mix(in srgb, var(--text) 42%, var(--bg)));
+  --hl-lo: var(--hairline-lo, color-mix(in srgb, var(--text) 22%, var(--bg)));
+  --hl-sw: var(--hairline-stroke, var(--stroke, 2px)); }
+.hl-figure svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; }
+/* No CSS transitions: they run on the wall clock, and the renderer seeks. */
+.hl-figure path, .hl-figure ellipse { fill: var(--hl-plate); stroke: var(--hl-mid); stroke-width: var(--hl-sw);
+  vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; }
+.hl-figure .sil { stroke: var(--hl-edge); }
+.hl-figure .sil.hi { stroke: var(--hl-hi); }
+.hl-figure .crease { fill: none; stroke: var(--hl-lo); }
+.hl-figure .link { fill: none; stroke: var(--hl-mid); }
+.hl-figure .link.dash { stroke-dasharray: 2 6; }
+.hl-figure .link.hi { stroke: var(--hl-hi); }
+.hl-figure .dot { stroke: none; fill: var(--hl-lo); }
+.hl-figure .dot.on { fill: var(--hl-hi); }
