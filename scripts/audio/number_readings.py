@@ -1,7 +1,9 @@
-"""Pure Python French, Hindi, Mandarin and Sino-Korean number readings.
+"""Pure Python French, Portuguese, Spanish, Hindi, Mandarin and Sino-Korean number readings.
 
 Nonnegative integers below a million, dot decimals (fractional digits read
 individually), and percent suffixes. Results retain spoken word boundaries.
+Portuguese and Spanish also return their feminine and shortened forms, such as
+duas and una, because the script agrees the number with its noun.
 """
 import re
 
@@ -62,7 +64,60 @@ def korean(n):
     return ('' if q == 1 else korean(q)) + name + (korean(r) if r else '')
 
 
-LANGUAGES = {'fr': french, 'hi': hindi, 'zh': chinese, 'ko': korean}
+PT = ('zero um dois três quatro cinco seis sete oito nove dez onze doze treze catorze quinze '
+      'dezesseis dezessete dezoito dezenove').split()
+PT_TENS = ',,vinte,trinta,quarenta,cinquenta,sessenta,setenta,oitenta,noventa'.split(',')
+PT_HUNDREDS = ',cento,duzentos,trezentos,quatrocentos,quinhentos,seiscentos,setecentos,oitocentos,novecentos'.split(',')
+
+
+def portuguese(n):
+    if n < 20:
+        return PT[n]
+    if n < 100:
+        return PT_TENS[n // 10] + (' e ' + PT[n % 10] if n % 10 else '')
+    if n < 1000:
+        return 'cem' if n == 100 else PT_HUNDREDS[n // 100] + (' e ' + portuguese(n % 100) if n % 100 else '')
+    q, r = divmod(n, 1000)
+    head = 'mil' if q == 1 else portuguese(q) + ' mil'
+    # "e" joins a remainder below a hundred or a round hundred; otherwise a space does.
+    return head + ((' e ' if r < 100 or r % 100 == 0 else ' ') + portuguese(r) if r else '')
+
+
+ES = ('cero uno dos tres cuatro cinco seis siete ocho nueve diez once doce trece catorce quince '
+      'dieciséis diecisiete dieciocho diecinueve veinte veintiuno veintidós veintitrés veinticuatro '
+      'veinticinco veintiséis veintisiete veintiocho veintinueve').split()
+ES_TENS = ',,,treinta,cuarenta,cincuenta,sesenta,setenta,ochenta,noventa'.split(',')
+ES_HUNDREDS = ',ciento,doscientos,trescientos,cuatrocientos,quinientos,seiscientos,setecientos,ochocientos,novecientos'.split(',')
+
+
+def spanish(n):
+    if n < 30:
+        return ES[n]
+    if n < 100:
+        return ES_TENS[n // 10] + (' y ' + ES[n % 10] if n % 10 else '')
+    if n < 1000:
+        return 'cien' if n == 100 else ES_HUNDREDS[n // 100] + (' ' + spanish(n % 100) if n % 100 else '')
+    q, r = divmod(n, 1000)
+    # Before mil, uno shortens: veintiún mil, treinta y un mil.
+    head = 'mil' if q == 1 else re.sub(r'(?:^| )uno$', lambda m: m[0][:-1], re.sub(r'veintiuno$', 'veintiún', spanish(q))) + ' mil'
+    return head + (' ' + spanish(r) if r else '')
+
+
+def agreements(text, language):
+    """The masculine reading plus its feminine and shortened forms."""
+    if language == 'pt':
+        feminine = re.sub(r'\b(um|dois)\b', lambda m: {'um': 'uma', 'dois': 'duas'}[m[1]], text)
+        forms = {text, re.sub(r'entos\b', 'entas', feminine)}
+        # Brazilian speech also says quatorze.
+        return forms | {form.replace('catorze', 'quatorze') for form in forms}
+    if language == 'es':
+        swap = lambda words: re.sub(r'\b(veinti)?uno\b', lambda m: (m[1] or '') + words[bool(m[1])], text)
+        feminine = re.sub(r'ientos\b', 'ientas', swap(('una', 'una')))
+        return {text, swap(('un', 'ún')), feminine}
+    return {text}
+
+
+LANGUAGES = {'fr': french, 'pt': portuguese, 'es': spanish, 'hi': hindi, 'zh': chinese, 'ko': korean}
 
 
 def spoken_numbers(text, language):
@@ -73,12 +128,12 @@ def spoken_numbers(text, language):
     say = LANGUAGES[language]
     result = say(int(match[1]))
     if match[2]:
-        point = {'fr': ' virgule ', 'hi': ' पॉइंट ', 'zh': '点', 'ko': ' 점 '}[language]
+        point = {'fr': ' virgule ', 'pt': ' vírgula ', 'es': ' coma ', 'hi': ' पॉइंट ', 'zh': '点', 'ko': ' 점 '}[language]
         separator = '' if language in ('zh', 'ko') else ' '
         result += point + separator.join(say(int(d)) for d in match[2])
     if match[3]:
-        result = '百分之' + result if language == 'zh' else result + {'fr': ' pour cent', 'hi': ' प्रतिशत', 'ko': ' 퍼센트'}[language]
-    found = {result}
+        result = '百分之' + result if language == 'zh' else result + {'fr': ' pour cent', 'pt': ' por cento', 'es': ' por ciento', 'hi': ' प्रतिशत', 'ko': ' 퍼센트'}[language]
+    found = agreements(result, language)
     if language == 'hi':
         found.add(result.replace('हज़ार', 'हजार'))
     return found

@@ -17,13 +17,22 @@ Kokoro voices are synthesized one sentence at a time, because the model does not
 is voiced in bounded runs (templates/voice/plan_runs.py), one take per run ending in a throwaway sentence, and cut
 into sentences by templates/voice/cut_takes.py. A take longer than twice its estimate, or one the cutter cannot cut in order,
 has looped and is re-voiced, at most twice.
+On the CPU path, an unclean run is split at its failed boundaries and re-voiced, with one further split into
+single sentences if needed. Only clean replacements are accepted; split takes retain their original reuse group.
 Sentence WAVs are keyed by voice config and spoken text, and takes.json records each sentence's original take id.
 --reuse and reruns follow the canonical take-level reuse rule in methods/voice-explainer-video.md#take-level-reuse.
 words.json holds one row per whitespace word or Han/Kana character of the script, timed by aligning Whisper's transcript of narration.wav to it.
-Number matching supports fr/hi/zh/ko integers below a million, decimals and percents, also inside a heard word (12층); English cardinals/years stay unchanged.
+Number matching supports fr/pt/es/hi/zh/ko integers below a million (pt and es in either gender), decimals and percents, also inside a heard word (12층); English cardinals/years stay unchanged.
+For zh only, unmatched Han characters can also take times from an equal toneless pinyin syllable, using pypinyin.
+Exact character matches stay fixed; different syllables remain unmatched, and homophones still count as ASR differences.
 Sentences with fallback words are re-transcribed once from narration.wav, merging adjacent sentences and padding
-0.15 s at each end (clamped to the file). A span's words replace the long-form ones only when fewer words fall back,
-and the result feeds both alignment and difference checks, including --check-only; audio-checks stats record retranscribed_spans when nonzero. Fully aligned runs are unchanged.
+0.15 s at each end (clamped to the file). With the CPU backend, non-English merged spans that still have fallback words are
+retried one sentence at a time with the same padding, skipping sentences already aligned. English narration and other
+platforms keep the existing repair pass. In non-English narration, spans with Latin-script fallbacks are also heard
+in English, replacing words between matched neighbours. A span's words replace the long-form ones only when fewer words
+fall back, and the result feeds both alignment and difference checks, including --check-only; audio-checks stats record
+retranscribed_spans (including sentence retries), sentence_retranscribed_spans and english_retranscribed_spans when
+nonzero. Fully aligned runs are unchanged.
 A word Whisper still did not time is interpolated and listed in audio-checks.json; --strict exits non-zero if there is one.
 audio-checks.json lists only failures. --check-only runs the same checks on finished audio (timing.json and narration.wav)
 and exits non-zero on any flag; it writes audio-checks.json only if --out is given."""
@@ -42,6 +51,7 @@ import statistics
 import subprocess
 import sys
 import time
+import unicodedata
 import uuid
 from pathlib import Path
 
@@ -58,6 +68,8 @@ WS = Path(__file__).resolve().parents[2]
 TOOLS_DIR = WS / "templates/voice"
 VOICE_DIR = WS / "local/voice"
 WHISPER = "mlx-community/whisper-large-v3-turbo"
+if sys.platform == "linux":
+    from linux_whisper import MODEL as WHISPER
 RATE = 24000
 LEAD_IN, SENTENCE_PAUSE, SCENE_PAUSE, EXPLICIT_PAUSE, TAIL = 0.35, 0.22, 0.50, 3.0, 0.45
 LOUDNORM = "I=-16:TP=-1.5:LRA=11"
@@ -68,6 +80,7 @@ MAX_TAKE_SECONDS = 120
 TAKE_RESERVE_SECONDS = 10
 # A take lands near its estimate, while a looping generation often runs several times longer.
 RUNAWAY_FACTOR, RUNAWAY_RETRIES = 2.0, 2
+UNCLEAN_RETRIES = 2
 UNCUTTABLE_EXIT = 3  # cut_takes.py's exit code for a take whose sentences it cannot cut in order
 THROWAWAY = "That's all for now."
 # Thresholds are set so the Kokoro audio of the v4 reference film raises nothing (its largest values are in parentheses).
@@ -148,7 +161,11 @@ def voice_identity(name: str) -> tuple[dict, str]:
         raise SystemExit(f"Unknown voice '{name}'; available: {', '.join(config['voices'])}")
     spec = config["voices"][name]
     refs = {key: sha256((VOICE_DIR / spec[key]).read_bytes()) for key in ("ref_audio", "ref_text") if key in spec}
-    return spec, sha256(json.dumps({"voice": name, "spec": spec, "refs": refs}, sort_keys=True).encode())
+    identity = {"voice": name, "spec": spec, "refs": refs}
+    # CPU Qwen is a different generation backend; retain legacy Mac and Kokoro cache keys.
+    if sys.platform == "linux" and spec["engine"] in ("qwen3", "qwen3-preset"):
+        identity["backend"] = "qwen-tts-cpu-float32-v1"
+    return spec, sha256(json.dumps(identity, sort_keys=True).encode())
 
 
 def cache_key(identity: str, spoken: str) -> str:
@@ -225,8 +242,9 @@ def decide_reuse(rows: list[dict], engine: str, sources: list[ReuseSource]) -> R
     for source in reversed(sources):
         by_take: dict[str, set[str]] = {}
         for sid, take in (source.takes or {}).items():
-            by_take.setdefault(take, set()).add(sid)
-        for take, members in by_take.items():
+            group = source.manifests.get(take, {}).get("split_from", take)
+            by_take.setdefault(group, set()).add(sid)
+        for members in by_take.values():
             if any(sid not in source.scenes for sid in members):
                 continue
             covered = {source.scenes[sid] for sid in members}
@@ -235,26 +253,30 @@ def decide_reuse(rows: list[dict], engine: str, sources: list[ReuseSource]) -> R
             needed = set().union(*(by_scene[scene] for scene in covered))
             source_order = [sid for sid in source.scenes if sid in members]
             current_order = [row["id"] for row in rows if row["scene_id"] in covered]
-            manifest = source.manifests.get(take)
-            if source_order != current_order or (manifest is not None and
-                    (manifest.get("sentences") != source_order or set(manifest.get("scenes", [])) != covered)):
+            takes = {source.takes[sid] for sid in members}
+            if source_order != current_order:
+                continue
+            if any(manifest is not None and
+                   (manifest.get("sentences") != [sid for sid in source_order if source.takes[sid] == take] or
+                    ("split_from" in manifest and manifest.get("split_sentences") != source_order) or
+                    set(manifest.get("scenes", [])) != {source.scenes[sid] for sid in members if source.takes[sid] == take})
+                   for take in takes for manifest in [source.manifests.get(take)]):
                 continue
             if members != needed or any(sid not in source.audio or source.hashes.get(sid) != current[sid]["key"]
                                         or source.scenes[sid] != current[sid]["scene_id"] for sid in needed):
                 continue
             for sid in needed:
                 result.audio[sid] = source.audio[sid]
-                result.takes[sid] = take
+                result.takes[sid] = source.takes[sid]
             selected_scenes.update(covered)
-            result.unclean.extend(flag for flag in source.unclean if flag.get("take") == take)
-            if take in source.manifests:
-                result.manifests[take] = source.manifests[take]
+            result.unclean.extend(flag for flag in source.unclean if flag.get("take") in takes)
+            result.manifests.update({take: source.manifests[take] for take in takes if take in source.manifests})
     return result
 
 
 def run_tool(script: str, args: list[str], capture: bool = False, soft_exit: int | None = None) -> str | None:
     """Run a voice tool and return its captured output, or None when it exits with soft_exit."""
-    result = subprocess.run([sys.executable, str(TOOLS_DIR / script), *map(str, args)], text=True,
+    result = subprocess.run([sys.executable, str(TOOLS_DIR / script), *map(str, args)], text=True, stdin=subprocess.DEVNULL,
                             stdout=subprocess.PIPE if capture else None, stderr=None if not capture else subprocess.PIPE)
     if soft_exit is not None and result.returncode == soft_exit:
         print(result.stderr or "", end="", file=sys.stderr)
@@ -283,8 +305,14 @@ def espeak(language: str):
     """eSpeak's first choice of voice, with one library wrapper per requested language."""
     from espeak_backend import CachedEspeakBackend, espeak_wrapper
     from phonemizer.backend.espeak.wrapper import EspeakWrapper
-    EspeakWrapper.set_library(str(ESPEAK / "lib/libespeak-ng.dylib"))
-    EspeakWrapper.set_data_path(str(ESPEAK / "share/espeak-ng-data"))
+    if sys.platform == "linux":
+        from linux_speech import espeak_paths
+        lib, data = espeak_paths()
+        EspeakWrapper.set_library(str(lib))
+        EspeakWrapper.set_data_path(str(data))
+    else:
+        EspeakWrapper.set_library(str(ESPEAK / "lib/libespeak-ng.dylib"))
+        EspeakWrapper.set_data_path(str(ESPEAK / "share/espeak-ng-data"))
     # eSpeak ranks its voices for the language, and the phonemizer reads only its own voices, not MBROLA's.
     wrapper = espeak_wrapper(language)
     supported = {voice.language for voice in wrapper.available_voices()}
@@ -344,7 +372,8 @@ def plan_runs(seconds: dict[str, float], work: Path) -> list[list[str]]:
     return runs
 
 
-def voice_takes(name: str, spec: dict, pending: list[dict], work: Path, language: str = "en") -> tuple[dict[str, np.ndarray], dict[str, str], list[dict], dict[str, dict]]:
+def voice_takes(name: str, spec: dict, pending: list[dict], work: Path, language: str = "en", *,
+                unclean_after: set[str] = frozenset(), stats: dict | None = None) -> tuple[dict[str, np.ndarray], dict[str, str], list[dict], dict[str, dict]]:
     """Voice pending rows and return samples, original take ids, unclean cuts and raw take receipts."""
     work.mkdir(parents=True, exist_ok=True)
     generation = uuid.uuid4().hex
@@ -370,44 +399,107 @@ def voice_takes(name: str, spec: dict, pending: list[dict], work: Path, language
         return {row["id"]: read_audio(work / f"{row['id']}.wav") for row in pending}, origins, [], manifests
     units: dict[str, list[dict]] = {}
     seconds: dict[str, float] = {}
+    estimates = {}
     # The authored text, because eSpeak would read a respelling's phoneme markup letter by letter.
     for row, estimate in zip(pending, estimate_seconds([row["text"] for row in pending], language)):
         units.setdefault(row["alias"], []).append(row)
+        estimates[row["id"]] = estimate
         seconds[row["alias"]] = seconds.get(row["alias"], 0.0) + estimate
     takes, take_members, planned = [], {}, {}
+
+    def write_take(stem, members):
+        text = work / f"{stem}.txt"
+        text.write_text(" ".join(r["spoken"] for r in members) + " " + THROWAWAY)
+        take_members[stem] = members
+        planned[stem] = sum(estimates[r["id"]] for r in members)
+        return text
+
+    split_from, split_depth, sentence_files = {}, {}, {}
+
+    def split_take(t, after, depth):
+        members = take_members[t.stem]
+        groups, group = [], []
+        for row in members:
+            group.append(row)
+            if row["id"] in after:
+                groups.append(group)
+                group = []
+        if group:
+            groups.append(group)
+        # A failed throwaway boundary cannot shorten a run; use single sentences.
+        if depth == UNCLEAN_RETRIES or len(groups) == 1:
+            groups = [[row] for row in members]
+        if len(groups) == 1 or depth > UNCLEAN_RETRIES:
+            raise SystemExit(f"take {t.stem} still has unclean cuts after {depth - 1} split retries")
+        # The throwaway is a substantial part of a short replacement's duration.
+        throwaway_seconds = estimate_seconds([THROWAWAY], language)[0]
+        replacements = []
+        for members in groups:
+            stem = f"R{len(take_members):04d}"
+            replacements.append(write_take(stem, members))
+            planned[stem] += throwaway_seconds
+            split_from[stem] = split_from.get(t.stem, f"{generation}:{t.stem}")
+            split_depth[stem] = depth
+            # Give the unchanged cutter an explicit subset, with a local scene alias.
+            sentence_files[stem] = work / f"{stem}-sentences.json"
+            sentence_files[stem].write_text(json.dumps([
+                {"id": row["id"], "scene": stem, "text": row["spoken"]} for row in members]))
+        if stats is not None:
+            stats["unclean_split_runs"] = stats.get("unclean_split_runs", 0) + 1
+            stats["unclean_revoiced_takes"] = stats.get("unclean_revoiced_takes", 0) + len(replacements)
+        log(f"splitting unclean take {t.stem} into {len(replacements)} runs (retry {depth}/{UNCLEAN_RETRIES})")
+        return replacements
+
     for run in plan_runs(seconds, work):
         stem = run[0] if len(run) == 1 else f"{run[0]}-{run[-1]}"
-        (work / f"{stem}.txt").write_text(" ".join(r["spoken"] for alias in run for r in units[alias]) + " " + THROWAWAY)
-        takes.append(work / f"{stem}.txt")
-        take_members[stem] = [r for alias in run for r in units[alias]]
-        planned[stem] = sum(seconds[alias] for alias in run)
+        t = write_take(stem, [r for alias in run for r in units[alias]])
+        takes.extend(split_take(t, unclean_after, 1) if sys.platform == "linux" and
+                     any(r["id"] in unclean_after for r in take_members[stem]) else [t])
     run_voice(name, takes, work)
     (work / "sentences.json").write_text(json.dumps([{"id": r["id"], "scene": r["alias"], "text": r["spoken"]} for r in pending]))
     cut, lines, todo = work / "cut", [], takes
+    accepted, runaway_attempts = {}, {}
     # A looping generation runs past its text, often far past it, and the cutter then cannot place its sentences in order.
-    for attempt in range(RUNAWAY_RETRIES + 1):
+    while todo:
         runaway = {}
+        replacements = []
         for t in todo:
             seconds_voiced = sf.info(t.with_suffix(".wav")).duration
             if seconds_voiced > RUNAWAY_FACTOR * planned[t.stem]:
                 runaway[t] = f"{seconds_voiced:.0f} s for {planned[t.stem]:.0f} s planned"
                 continue
-            out = run_tool("cut_takes.py", [t.with_suffix(".wav"), "--sentences", work / "sentences.json", "--out", cut,
+            out = run_tool("cut_takes.py", [t.with_suffix(".wav"), "--sentences", sentence_files.get(t.stem, work / "sentences.json"), "--out", cut,
                                             "--throwaway", THROWAWAY, "--language", language],
                            capture=True, soft_exit=UNCUTTABLE_EXIT)
             if out is None:
                 runaway[t] = "cannot be cut in order"
             else:
-                lines += [json.loads(line) for line in out.splitlines() if line.startswith("{")]
-        if not runaway:
-            break
+                cuts = [json.loads(line) for line in out.splitlines() if line.startswith("{")]
+                failed = {r["after"] for r in cuts if r.get("clean") is False}
+                if failed and sys.platform == "linux":
+                    replacements.extend(split_take(t, failed, split_depth.get(t.stem, 0) + 1))
+                else:
+                    lines += cuts
+                    accepted[t.stem] = take_members[t.stem]
         report = ", ".join(f"{t.stem} {why}" for t, why in runaway.items())
-        if attempt == RUNAWAY_RETRIES:
+        if any(runaway_attempts.get(t.stem, 0) == RUNAWAY_RETRIES for t in runaway):
             raise SystemExit(f"takes still run away after {RUNAWAY_RETRIES} retries: {report}")
-        log(f"re-voicing runaway takes: {report}")
-        run_voice(name, list(runaway), work)
-        todo = list(runaway)
-    take_ids = {stem: record_take(stem, members) for stem, members in take_members.items()}
+        if runaway:
+            log(f"re-voicing runaway takes: {report}")
+            for t in runaway:
+                runaway_attempts[t.stem] = runaway_attempts.get(t.stem, 0) + 1
+            if stats is not None:
+                stats["runaway_revoiced_takes"] = stats.get("runaway_revoiced_takes", 0) + len(runaway)
+        todo = [*runaway, *replacements]
+        if todo:
+            run_voice(name, todo, work)
+    take_ids = {stem: record_take(stem, members) for stem, members in accepted.items()}
+    for stem, take in take_ids.items():
+        if stem in split_from:
+            manifests[take]["split_from"] = split_from[stem]
+            original = split_from[stem].split(":", 1)[1]
+            manifests[take]["split_sentences"] = [row["id"] for row in take_members[original]]
+            manifests[take]["split_depth"] = split_depth[stem]
     unclean = [{"check": "unclean_cut", "take": take_ids[r["take"]], "after": r["after"], "gap_s": r["gap_s"]}
                for r in lines if r.get("clean") is False]
     return {row["id"]: read_audio(cut / f"{row['id']}.wav") for row in pending}, origins, unclean, manifests
@@ -504,7 +596,7 @@ def assemble(scenes: list[dict], rows: dict[str, dict], audio: dict[str, np.ndar
 
 
 def ffmpeg(args: list[str]) -> str:
-    return subprocess.run(["ffmpeg", "-hide_banner", "-nostats", *args], capture_output=True, text=True, check=True).stderr
+    return subprocess.run(["ffmpeg", "-hide_banner", "-nostats", *args], stdin=subprocess.DEVNULL, capture_output=True, text=True, check=True).stderr
 
 
 def measure_loudness(path: Path) -> dict:
@@ -512,14 +604,22 @@ def measure_loudness(path: Path) -> dict:
     return json.JSONDecoder().raw_decode(log_text[log_text.rfind("{"):])[0]
 
 
-def normalize(raw: Path, final: Path, preserve_take_levels: bool = False) -> float | None:
-    """Write 48 kHz, 24-bit mono with a common peak-capped gain, or Kokoro's two-pass loudnorm."""
+def normalize(raw: Path, final: Path, preserve_take_levels: bool = False, *,
+              correction: dict | None = None) -> float | None:
+    """Write final mono PCM24; record conditional limiting after common gain."""
     m = measure_loudness(raw)
     if preserve_take_levels:
         gain = min(-16 - float(m["input_i"]), -1.5 - float(m["input_tp"]))
         log(f"global normalization gain: {gain:+.2f} dB")
         ffmpeg(["-y", "-i", str(raw), "-af", f"volume={gain:.8f}dB:precision=double", "-ar", "48000", "-ac", "1",
                 "-c:a", "pcm_s24le", str(final)])
+        if sys.platform == "linux":
+            from linux_levels import correct_loudness_file
+            result = correct_loudness_file(
+                final, measure_loudness=measure_loudness, target_lufs=-16,
+                tolerance_lu=LUFS_TOLERANCE, peak_ceiling_dbtp=-1.5)
+            if correction is not None and result is not None:
+                correction.update(result)
         return gain
     apply = (f"loudnorm={LOUDNORM}:measured_I={m['input_i']}:measured_TP={m['input_tp']}:measured_LRA={m['input_lra']}"
              f":measured_thresh={m['input_thresh']}:offset={m['target_offset']}:linear=true")
@@ -527,7 +627,10 @@ def normalize(raw: Path, final: Path, preserve_take_levels: bool = False) -> flo
 
 
 def transcribe_words(audio: str | np.ndarray, language: str) -> list[dict]:
-    import mlx_whisper
+    if sys.platform == "linux":
+        import linux_whisper as mlx_whisper
+    else:
+        import mlx_whisper
 
     result = mlx_whisper.transcribe(audio, path_or_hf_repo=WHISPER, language=language, word_timestamps=True,
                                     condition_on_previous_text=False)
@@ -544,8 +647,18 @@ def transcribe(path: Path, language: str = "en") -> tuple[list[dict], str]:
     return words, snapshot_download(WHISPER, local_files_only=True)
 
 
+def mandarin_syllables(text: str) -> list[tuple[str, str]]:
+    """One contextual, toneless syllable per Han character; keep other scripts distinct from pinyin."""
+    from pypinyin import lazy_pinyin
+
+    syllables = lazy_pinyin(text, errors=lambda chars: list(chars))
+    return [("han", syllable) if unicodedata.name(char, "").startswith(
+                ("CJK UNIFIED IDEOGRAPH", "CJK COMPATIBILITY IDEOGRAPH")) or char == "〇"
+            else ("literal", char) for char, syllable in zip(text, syllables)]
+
+
 def align_words(sents: list[dict], asr: list[dict], language: str = "en") -> tuple[list[list[dict]], list[dict]]:
-    """Time each script token from Whisper's pieces, matched by Unicode letters/marks/numbers so a respelled or merged word still lines up."""
+    """Time script tokens by Unicode letters/marks/numbers, also filling unmatched Mandarin homophones for zh."""
     script = [(k, token) for k, s in enumerate(sents) for token in tokenize(s["text"])]
     ref, ref_word = "", []
     for i, (_, token) in enumerate(script):
@@ -561,8 +674,18 @@ def align_words(sents: list[dict], asr: list[dict], language: str = "en") -> tup
         step = (w["end"] - w["start"]) / max(1, len(chars))
         hyp += chars
         hyp_time += [(w["start"] + step * j, w["start"] + step * (j + 1)) for j in range(len(chars))]
+    matcher = difflib.SequenceMatcher(None, ref, hyp, autojunk=False)
+    blocks = list(matcher.get_matching_blocks())
+    if language == "zh":
+        # Preserve exact anchors and their times; only fill gaps with complete syllable matches.
+        gaps = [op for op in matcher.get_opcodes() if op[0] == "replace"]
+        if gaps:
+            ref_syllables, hyp_syllables = mandarin_syllables(ref), mandarin_syllables(hyp)
+            for _, a1, a2, b1, b2 in gaps:
+                matches = difflib.SequenceMatcher(None, ref_syllables[a1:a2], hyp_syllables[b1:b2], autojunk=False)
+                blocks.extend((a1 + a, b1 + b, n) for a, b, n in matches.get_matching_blocks() if n)
     hits: dict[int, list] = {}
-    for a, b, n in difflib.SequenceMatcher(None, ref, hyp, autojunk=False).get_matching_blocks():
+    for a, b, n in blocks:
         for d in range(n):
             hits.setdefault(ref_word[a + d], []).append(hyp_time[b + d])
     times: list[tuple[float, float] | None] = []
@@ -602,14 +725,44 @@ def align_words(sents: list[dict], asr: list[dict], language: str = "en") -> tup
     return rows, fallbacks
 
 
-def align_with_repairs(path: Path, sents: list[dict], asr: list[dict], language: str = "en"
+def latin_fallback_windows(sents: list[dict], rows: list[list[dict]], fallbacks: list[dict]) -> list[tuple[float, float]]:
+    """Bound fallback runs containing Latin letters by their nearest matched neighbours, as in take cutting."""
+    missing = {(w["sentence"], w["word"], w["start"]) for w in fallbacks}
+    windows = []
+    for sentence, words in zip(sents, rows):
+        i = 0
+        while i < len(words):
+            start = i
+            latin = False
+            while i < len(words) and (sentence["id"], words[i]["text"], words[i]["start"]) in missing:
+                latin |= any(unicodedata.name(c, "").startswith("LATIN ") for c in letters(words[i]["text"]))
+                i += 1
+            if i == start:
+                i += 1
+                continue
+            if latin:
+                left = words[start - 1]["end"] if start else sentence["start"]
+                right = words[i]["start"] if i < len(words) else sentence["end"]
+                if left < right:
+                    windows.append((left, right))
+    return windows
+
+
+def align_with_repairs(path: Path, sents: list[dict], asr: list[dict], language: str = "en", *,
+                       stats: dict | None = None
                        ) -> tuple[list[dict], list[list[dict]], list[dict], int]:
-    """Retry fallback sentence spans once; keep the original transcript untouched on a clean alignment."""
+    """Retry fallback spans and split unresolved merged spans into sentences on the CPU backend."""
     rows, fallbacks = align_words(sents, asr, language)
     if not fallbacks:
         return asr, rows, fallbacks, 0
+    english_sentences = {w["sentence"] for w in fallbacks
+                         if any(unicodedata.name(c, "").startswith("LATIN ") for c in letters(w["word"]))
+                         } if language != "en" else set()
 
-    from mlx_whisper.audio import SAMPLE_RATE, load_audio
+    if sys.platform == "linux":
+        from linux_whisper import SAMPLE_RATE, load_audio
+    else:
+        from mlx_whisper.audio import SAMPLE_RATE, load_audio
 
     # Decode/resample once for all repair spans, using Whisper's own audio loader.
     samples = load_audio(str(path))
@@ -628,23 +781,71 @@ def align_with_repairs(path: Path, sents: list[dict], asr: list[dict], language:
         # Also merge overlapping padding so no audio is replaced twice.
         if spans and (previous_failed or start <= spans[-1][1]):
             spans[-1][1] = max(spans[-1][1], end)
+            spans[-1][2] |= sentence["id"] in english_sentences
+            spans[-1][3].append(sentence)
         else:
-            spans.append([start, end])
+            spans.append([start, end, sentence["id"] in english_sentences, [sentence]])
         previous_failed = True
 
-    repaired = asr
-    for start, end in spans:
+    best, english_spans = (asr, rows, fallbacks), 0
+
+    def replace_span(words, replacement, start, end):
+        candidate = [word for word in words if not start <= (word["start"] + word["end"]) / 2 < end]
+        candidate.extend(replacement)
+        candidate.sort(key=lambda word: (word["start"] + word["end"]) / 2)
+        return candidate, *align_words(sents, candidate, language)
+
+    def retry_span(start, end, rehear_english):
+        nonlocal best, english_spans
         offset, stop = start / SAMPLE_RATE, end / SAMPLE_RATE
         replacement = transcribe_words(samples[start:end], language)
-        candidate = [word for word in repaired if not offset <= (word["start"] + word["end"]) / 2 < stop]
-        candidate.extend({**word, "start": word["start"] + offset, "end": word["end"] + offset}
-                         for word in replacement)
-        candidate.sort(key=lambda word: (word["start"] + word["end"]) / 2)
-        # A short clip can swap homophones or hallucinate, so a span is kept only when it times more words.
-        trial = align_words(sents, candidate, language)
-        if len(trial[1]) < len(fallbacks):
-            repaired, (rows, fallbacks) = candidate, trial
-    return repaired, rows, fallbacks, len(spans)
+        previous = best
+        retried = replace_span(best[0],
+                               [{**w, "start": w["start"] + offset, "end": w["end"] + offset} for w in replacement],
+                               offset, stop)
+        # A short clip can swap homophones or hallucinate, so keep only strict improvements.
+        if len(retried[2]) < len(best[2]):
+            best = retried
+        if rehear_english:
+            english = transcribe_words(samples[start:end], "en")
+            english_spans += 1
+            heard = [{**w, "start": w["start"] + offset, "end": w["end"] + offset} for w in english]
+            # Try both native transcripts so a retry cannot trade good native words for English matches.
+            for source in (previous, retried):
+                for left, right in latin_fallback_windows(sents, source[1], source[2]):
+                    left, right = max(left, offset), min(right, stop)
+                    if left < right:
+                        trial = replace_span(source[0],
+                                             [w for w in heard if left <= (w["start"] + w["end"]) / 2 < right],
+                                             left, right)
+                        if len(trial[2]) < len(source[2]):
+                            source = trial
+                if len(source[2]) < len(best[2]):
+                    best = source
+
+    for start, end, rehear_english, _ in spans:
+        retry_span(start, end, rehear_english)
+
+    sentence_spans = 0
+    for start, end, _, group in spans:
+        # A merged retry can repeat the long-form decoder's omissions or timestamp
+        # jumps. Short windows bound that failure without changing successful decodes.
+        if sys.platform == "linux" and language != "en" and len(group) > 1:
+            for sentence in group:
+                remaining = [w for w in best[2] if w["sentence"] == sentence["id"]]
+                if not remaining:
+                    continue
+                left = max(start, round((sentence["start"] - 0.15) * SAMPLE_RATE))
+                right = min(end, round((sentence["end"] + 0.15) * SAMPLE_RATE))
+                latin = any(unicodedata.name(c, "").startswith("LATIN ")
+                            for w in remaining for c in letters(w["word"]))
+                retry_span(left, right, latin)
+                sentence_spans += 1
+    if stats is not None and sentence_spans:
+        stats["sentence_retranscribed_spans"] = sentence_spans
+    if stats is not None and english_spans:
+        stats["english_retranscribed_spans"] = english_spans
+    return *best, len(spans) + sentence_spans
 
 
 ONES = "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen".split()
@@ -661,7 +862,7 @@ def say(n: int) -> str:
 
 
 def readings(digits: str, language: str = "en") -> set[str]:
-    """Normalized readings: legacy English cardinals/years; fr/hi/zh/ko decimals and percents too."""
+    """Normalized readings: legacy English cardinals/years; fr/pt/es/hi/zh/ko decimals and percents too."""
     if language in LANGUAGES:
         return {letters(form) for form in spoken_numbers(digits, language)}
     n = int(digits)
@@ -750,7 +951,7 @@ def audio_checks(timing: dict, wav: Path, asr: list[dict], unclean: list[dict], 
     stats["duration_s"] = round(wav_s, 3)
     stats.update({key: timing[key] for key in ("take_gain_db", "take_target_sentence_db", "normalization_gain_db",
                                              "final_take_target_sentence_db", "sentence_gain_db", "sentence_target_db",
-                                             "sentence_peak_dbfs") if key in timing})
+                                             "sentence_peak_dbfs", "loudness_correction", "linux_level_correction") if key in timing})
     return flags, stats
 
 
@@ -767,8 +968,11 @@ def report(flags: list[dict], stats: dict, fallbacks: list[dict], out: Path | No
 def check_only(audio_dir: Path, out: Path | None, language: str = "en") -> None:
     timing = json.loads((audio_dir / "timing.json").read_text())
     asr, _ = transcribe(audio_dir / "narration.wav", language)
-    asr, _, fallbacks, repaired_spans = align_with_repairs(audio_dir / "narration.wav", timing["sentences"], asr, language)
+    repair_stats = {}
+    asr, _, fallbacks, repaired_spans = align_with_repairs(audio_dir / "narration.wav", timing["sentences"], asr,
+                                                       language, stats=repair_stats)
     flags, stats = audio_checks(timing, audio_dir / "narration.wav", asr, [], language)
+    stats.update(repair_stats)
     if repaired_spans:
         stats["retranscribed_spans"] = repaired_spans
     if out:
@@ -792,6 +996,17 @@ def narrate(args: argparse.Namespace) -> None:
 
     out = args.out
     reuse = decide_reuse(list(rows.values()), spec["engine"], load_reuse_sources([args.reuse, out], spec["engine"]))
+    unclean_after = set()
+    if sys.platform == "linux" and reuse.unclean:
+        bad_takes = {flag["take"] for flag in reuse.unclean}
+        bad_groups = {reuse.manifests.get(take, {}).get("split_from", take) for take in bad_takes}
+        invalid = {take for take in reuse.takes.values()
+                   if reuse.manifests.get(take, {}).get("split_from", take) in bad_groups}
+        unclean_after = {flag["after"] for flag in reuse.unclean}
+        reuse.audio = {sid: path for sid, path in reuse.audio.items() if reuse.takes[sid] not in invalid}
+        reuse.takes = {sid: take for sid, take in reuse.takes.items() if take not in invalid}
+        reuse.manifests = {take: manifest for take, manifest in reuse.manifests.items() if take not in invalid}
+        reuse.unclean = []
     audio = {sid: read_audio(path) for sid, path in reuse.audio.items()}
     take_origins, manifests = dict(reuse.takes), dict(reuse.manifests)
     reused = len(audio)
@@ -801,9 +1016,11 @@ def narrate(args: argparse.Namespace) -> None:
     log("scenes to voice: " + (", ".join(dict.fromkeys(row["scene_id"] for row in pending)) or "none"))
     unclean = list(reuse.unclean)
     voiced_takes = 0
+    voice_stats = {}
     out.mkdir(parents=True, exist_ok=True)
     if pending:
-        voiced, origins, cut_flags, generated = voice_takes(args.voice, spec, pending, out / "takes" / uuid.uuid4().hex, args.language)
+        voiced, origins, cut_flags, generated = voice_takes(args.voice, spec, pending, out / "takes" / uuid.uuid4().hex, args.language,
+                                                         unclean_after=unclean_after, stats=voice_stats)
         audio.update(voiced)
         take_origins.update(origins)
         manifests.update(generated)
@@ -831,7 +1048,9 @@ def narrate(args: argparse.Namespace) -> None:
     (out / "takes.json").write_text(json.dumps(take_origins, indent=2) + "\n")
     (out / "take-manifest.json").write_text(json.dumps(manifests, indent=2) + "\n")
     sf.write(out / "narration-raw.wav", samples, RATE, subtype="PCM_16")
-    normalization_gain = normalize(out / "narration-raw.wav", out / "narration.wav", preserve_take_levels=spec["engine"] != "kokoro")
+    loudness_correction = {}
+    normalization_gain = normalize(out / "narration-raw.wav", out / "narration.wav",
+                                   preserve_take_levels=spec["engine"] != "kokoro", correction=loudness_correction)
     final_take_target = take_target + normalization_gain if take_target is not None and normalization_gain is not None else None
     timing = {"source_sha256": sha256(args.scenes.read_bytes()), "voice": args.voice, "speed": spec.get("speed"),
               "sample_rate": RATE, "duration": round(duration, 3), "frames_30fps": round(duration * 30),
@@ -842,20 +1061,32 @@ def narrate(args: argparse.Namespace) -> None:
               "sentence_peak_dbfs": SENTENCE_PEAK_DBFS if sentence_target is not None else None,
               "pauses": {"lead_in": LEAD_IN, "between_sentences": SENTENCE_PAUSE, "between_scenes": SCENE_PAUSE,
                          "explicit": EXPLICIT_PAUSE, "tail": TAIL, "none_after": sorted(run_on)}}
+    if loudness_correction:
+        timing["loudness_correction"] = loudness_correction
+    if sys.platform == "linux":
+        from linux_levels import correct_file
+        timing["linux_level_correction"] = correct_file(
+            out / "narration.wav", sentence_rows, frame_power=frame_power,
+            sentence_level_db=sentence_level_db, frame_s=FRAME_S,
+            level_dev_db=LEVEL_DEV_DB, scene_jump_db=SCENE_JUMP_DB, scratch_dir=out)
     (out / "timing.json").write_text(json.dumps(timing, indent=2) + "\n")
 
     asr, model_path = transcribe(out / "narration.wav", args.language)
-    asr, word_rows, fallbacks, repaired_spans = align_with_repairs(out / "narration.wav", sentence_rows, asr, args.language)
+    repair_stats = {}
+    asr, word_rows, fallbacks, repaired_spans = align_with_repairs(out / "narration.wav", sentence_rows, asr,
+                                                               args.language, stats=repair_stats)
     words = [w for sentence in word_rows for w in sentence]
     (out / "words.json").write_text(json.dumps({
-        "model": "mlx-whisper large-v3-turbo", "model_path": model_path, "language": args.language, "language_probability": 1,
+        "model": "faster-whisper large-v3-turbo" if sys.platform == "linux" else "mlx-whisper large-v3-turbo", "model_path": model_path, "language": args.language, "language_probability": 1,
         "duration": timing["duration"], "word_count": len(words),
         "segments": [{"text": s["text"], "start": w[0]["start"], "end": w[-1]["end"]} for s, w in zip(sentence_rows, word_rows)],
         "words": words}, indent=2) + "\n")
 
     flags, stats = audio_checks(timing, out / "narration.wav", asr, unclean, args.language)
+    stats.update(repair_stats)
     if repaired_spans:
         stats["retranscribed_spans"] = repaired_spans
+    stats.update(voice_stats)
     stats.update({"sentences": len(rows), "reused": reused, "voiced": len(pending), "reused_takes": len(set(reuse.takes.values())),
                   "voiced_takes": voiced_takes, "take_gain_db": take_gain_db, "take_target_sentence_db": take_target,
                   "normalization_gain_db": normalization_gain, "final_take_target_sentence_db": final_take_target,

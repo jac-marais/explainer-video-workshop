@@ -23,7 +23,7 @@ All five narration, cue, caption, film-data and storyboard tools share `audio/te
 ## film/
 
 - `build_data.py` writes a composition's `data.js` from the script's cues, captions and narration length, and sets its `data-duration`. `--estimate --language CODE` times the script evenly for a silent preview before any voice exists, and `--key-script` maps translated quoted cues to the original names by position within each scene. Sentence cue names stay unchanged without that option. `test_build_data.py` checks it on a small sample script.
-- `render.py` renders a HyperFrames composition to a new MP4 with the known fixes that its docstring lists, and never overwrites. `test_render.py` checks its screenshot-fallback guard with a stand-in CLI.
+- `render.py` renders a HyperFrames composition to a new MP4 with the known fixes that its docstring lists, and never overwrites. It finds host Chrome on macOS and Chrome or Chromium on Linux, and its `encoded_true_peak()` measures a master's true peak after the AAC encoding, for a caller that mixes its own audio. `test_render.py` checks its guards and browser choice with a stand-in CLI.
 - `check_film.py` runs the final checks on an exact MP4 and prints the motion metrics and the failures. `measure_motion.py` is its motion gate, which binds only with `--pacing fast`.
 
 ## run/

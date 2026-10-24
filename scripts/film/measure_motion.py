@@ -22,13 +22,13 @@ def main():
     try:
         probe = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
                                 "stream=duration", "-of", "default=nw=1:nk=1", a.film],
-                               capture_output=True, check=True)
+                               stdin=subprocess.DEVNULL, capture_output=True, check=True)
         duration = float(probe.stdout)
         if not math.isfinite(duration) or duration <= 0:
             raise ValueError("invalid video stream duration")
         decoded = subprocess.run(["ffmpeg", "-v", "error", "-xerror", "-i", a.film, "-map", "0:v:0", "-an",
                                   "-vf", "fps=5:start_time=0,scale=160:90,format=gray", "-fps_mode", "passthrough",
-                                  "-f", "rawvideo", "-"], capture_output=True, check=True)
+                                  "-f", "rawvideo", "-"], stdin=subprocess.DEVNULL, capture_output=True, check=True)
         raw = decoded.stdout
         frames = [raw[i:i + PIXELS] for i in range(0, len(raw), PIXELS)]
         if len(raw) % PIXELS or len(frames) < 16 or len(frames) < math.floor(duration * FPS + 1e-6):

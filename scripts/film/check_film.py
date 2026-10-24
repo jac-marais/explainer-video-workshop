@@ -32,7 +32,7 @@ EDGE = 1  # frames of slack at hold and duration edges
 
 
 def run(cmd, check=True, text=True):
-    r = subprocess.run(cmd, capture_output=True, text=text)
+    r = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, text=text)
     if check and r.returncode:
         err = r.stderr if text else r.stderr.decode(errors="replace")
         sys.exit(f"command failed: {' '.join(map(str, cmd))}\n{err[-2000:]}")
@@ -352,7 +352,8 @@ def main():
         timing = json.loads(a.timing.read_text())
         rep["sheets"] = contact_sheets(a.film, timing, fps, nframes, a.sheet)
 
-    motion = subprocess.call([sys.executable, str(Path(__file__).with_name("measure_motion.py")), str(a.film)])
+    motion = subprocess.call([sys.executable, str(Path(__file__).with_name("measure_motion.py")), str(a.film)],
+                             stdin=subprocess.DEVNULL)
     rep["motion_gate"] = {"pacing": a.pacing, "exit": motion}
     if motion == 2 or (motion and a.pacing == "fast"):
         fails.append("motion gate failed; see motion metrics above")

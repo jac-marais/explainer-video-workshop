@@ -7,7 +7,12 @@ HF="${1:-}"
 HFHUB="${HF_HOME:-$HOME/.cache/huggingface}/hub"
 KOKORO="${KOKORO_TTS_CACHE:-$HOME/.cache/hyperframes/tts}"
 ESPEAK="${AGENT_PROTOCOL_ESPEAK_NG_PREFIX:-/opt/homebrew/opt/espeak-ng}"
-CHROME="/Applications/Google Chrome.app"
+PLATFORM="$(uname -s)"
+case "$PLATFORM" in
+  Darwin) CHROME="/Applications/Google Chrome.app" ;;
+  Linux) CHROME="${HYPERFRAMES_BROWSER_PATH:-$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)}" ;;
+  *) echo "FAIL  Supported platforms are macOS and Linux"; exit 1 ;;
+esac
 fails=0
 
 ok()   { printf 'OK    %s\n' "$1"; }
@@ -20,15 +25,20 @@ snapshot() { [ -n "$(ls "$HFHUB/models--$1/snapshots"/*/* 2>/dev/null | head -1)
 echo "== ffmpeg"
 command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null
 check $? "ffmpeg and ffprobe: $(command -v ffmpeg)" "ffmpeg or ffprobe is not on PATH"
-if ffmpeg -hide_banner -filters 2>/dev/null | grep -q ' drawtext '; then
+if ffmpeg -hide_banner -filters </dev/null 2>/dev/null | grep -q ' drawtext '; then
   ok "ffmpeg drawtext filter"
 else
   ok "ffmpeg has no drawtext, so render labels with the PIL fallback (Pillow draws the text into a PNG, ffmpeg overlays it)"
 fi
 
-echo "== voice"
+if [ "$PLATFORM" = Darwin ]; then echo "== voice"; else echo "== Python"; fi
 command -v uv >/dev/null
 check $? "uv: $(command -v uv)" "uv is not on PATH"
+if [ "$PLATFORM" = Linux ] && command -v uv >/dev/null; then
+  UV_OFFLINE=1 "$WS/scripts/run/py" -c 'import numpy, scipy, regex, stanza, PIL, soundfile'
+  check $? "render Python imports available offline" "render Python environment is missing packages (run uv sync --locked first)"
+fi
+if [ "$PLATFORM" = Darwin ]; then
 if command -v uv >/dev/null; then
   tmp="$(mktemp)"
   # UV_OFFLINE makes uv sync the shared environment from its cache and never download.
@@ -64,30 +74,47 @@ done
 [ -f "$ESPEAK/lib/libespeak-ng.dylib" ]; check $? "espeak-ng library" "espeak-ng library missing: $ESPEAK/lib/libespeak-ng.dylib (brew install espeak-ng)"
 [ -d "$ESPEAK/share/espeak-ng-data" ]; check $? "espeak-ng data" "espeak-ng data missing: $ESPEAK/share/espeak-ng-data"
 
+else
+  echo "SKIP  Linux renders existing audio without voice models; see README Linux CPU narration for voicing setup."
+fi
+
 echo "== text"
 dir="$(UV_OFFLINE=1 "$WS/scripts/run/py" -c 'from stanza.resources.common import DEFAULT_MODEL_DIR; print(DEFAULT_MODEL_DIR)')"
 [ -f "$dir/resources.json" ]; check $? "Stanza models: $dir" "Stanza models missing in $dir; download them as Setup in README.md says"
 
+if [ "$PLATFORM" = Darwin ]; then
 echo "== whisper"
 snapshot mlx-community--whisper-large-v3-turbo
 check $? "mlx-whisper large-v3-turbo snapshot" "mlx-whisper large-v3-turbo snapshot missing in $HFHUB"
 snapshot Systran--faster-whisper-small.en
 check $? "faster-whisper small.en snapshot" "faster-whisper small.en snapshot missing in $HFHUB"
 
+fi
+
 echo "== renderer"
 command -v node >/dev/null && [ "$(node -p 'process.versions.node.split(".")[0]')" -ge 22 ] 2>/dev/null
-check $? "node $(node -v 2>/dev/null) (22+ needed)" "node 22+ is not on PATH (hf.sh uses ~/.nvm/versions/node/v24.12.0/bin)"
+node_status=$?
+if [ "$PLATFORM" = Darwin ]; then
+  check "$node_status" "node $(node -v 2>/dev/null) (22+ needed)" "node 22+ is not on PATH (hf.sh uses ~/.nvm/versions/node/v24.12.0/bin)"
+else
+  check "$node_status" "node $(node -v 2>/dev/null) (22+ needed)" "node 22+ is not on PATH"
+fi
 if [ -z "$HF" ]; then
   printf 'SKIP  HyperFrames CLI: pass the route'"'"'s HyperFrames CLI as the argument\n'
 else
   [ -x "$HF" ]; check $? "HyperFrames CLI: $HF" "HyperFrames CLI missing: $HF"
 fi
-[ -d "$CHROME" ]; check $? "Google Chrome: $CHROME" "Google Chrome missing: $CHROME"
+if [ "$PLATFORM" = Darwin ]; then [ -d "$CHROME" ]; else [ -n "$CHROME" ] && [ -x "$CHROME" ]; fi
+check $? "Google Chrome: $CHROME" "Google Chrome missing: $CHROME"
 
 echo "== HyperFrames environment (set these before check/render; hf.sh does)"
 note 'export HYPERFRAMES_NO_UPDATE_CHECK=1 HYPERFRAMES_NO_AUTO_INSTALL=1   # else a background self-update breaks render ("Missing manifest")'
 note 'export HYPERFRAMES_NO_TELEMETRY=1 DO_NOT_TRACK=1'
-note 'export HYPERFRAMES_BROWSER_PATH="'"$CHROME"'/Contents/MacOS/Google Chrome"   # host Chrome, so WebGL uses the GPU'
+if [ "$PLATFORM" = Darwin ]; then
+  note 'export HYPERFRAMES_BROWSER_PATH="'"$CHROME"'/Contents/MacOS/Google Chrome"   # host Chrome, so WebGL uses the GPU'
+else
+  note 'export HYPERFRAMES_BROWSER_PATH="'"$CHROME"'"   # host Chrome, so WebGL uses the GPU'
+fi
 note 'unset GEMINI_API_KEY GOOGLE_API_KEY   # snapshot would send frames to Gemini'
 if [ -n "${GEMINI_API_KEY:-}${GOOGLE_API_KEY:-}" ]; then note "this shell has a Gemini/Google key set"; fi
 

@@ -6,7 +6,9 @@
   render.py --skip-render INPUT.mp4 -o OUT.mp4 [same options]
 
 COMPOSITION is passed to `hyperframes render DIR -c COMPOSITION`; use `.` for DIR/index.html.
-The render runs on host Chrome with the GPU and one worker unless the extra args set --workers, and with
+The render runs on host Chrome with the GPU (HYPERFRAMES_BROWSER_PATH if set, else Google Chrome on macOS or the
+first of google-chrome, chromium and chromium-browser on PATH elsewhere, as scripts/run/setup_check.sh finds it)
+and one worker unless the extra args set --workers, and with
 HF_DE_VERIFY=0 unless the environment sets it; it fails if the log shows a whole-film fallback to screenshot
 capture (see both bottom-band traps in methods/renderer-traps.md). Telemetry, update checks and auto-install
 are off and the Gemini/Google keys unset. OUT is never overwritten: if it exists, the run stops before rendering
@@ -20,6 +22,9 @@ re-encoding. Use it only for a render whose pixels measure as BT.601: a Docker i
 on ffmpeg 5.1 writes BT.601 pixels under a BT.709 tag, while the host CLI with ffmpeg 9.0.2 writes true
 BT.709, so a host render must not be relabelled. --mark runs `runlog.py mark` after success.
 Run check_film.py on OUT afterwards.
+
+encoded_true_peak(WAV) is for a caller that mixes its own master: AAC can raise the true peak above the WAV's, so
+measure the master as --narration will encode it before it reaches check_film.py's ceiling.
 """
 import argparse, os, re, shutil, subprocess, sys, tempfile
 from pathlib import Path
@@ -28,6 +33,29 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from check_film import loudness, probe, rate, stream  # noqa: E402
 
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+LINUX_BROWSERS = ("google-chrome", "chromium", "chromium-browser")
+
+
+def host_browser():
+    """The host Chrome or Chromium executable, or None to leave the choice to HyperFrames."""
+    if sys.platform == "darwin":
+        return CHROME if Path(CHROME).exists() else None
+    return next((path for name in LINUX_BROWSERS if (path := shutil.which(name))), None)
+
+
+def narration_filter(video_seconds=None):
+    """The --narration audio filter: dual-mono 48 kHz, padded in whole AAC frames to the video length if given."""
+    f = "aresample=48000,pan=stereo|c0=c0|c1=c0"
+    return f + f",apad=whole_len={int(video_seconds * 48000) // 1024 * 1024}" if video_seconds is not None else f
+
+
+def encoded_true_peak(wav):
+    """True peak (dBTP) of a mono master after the AAC encoding that --narration applies."""
+    with tempfile.TemporaryDirectory() as d:
+        encoded = Path(d) / "encoded.m4a"
+        subprocess.run(["ffmpeg", "-v", "error", "-nostdin", "-i", Path(wav).resolve(), "-af", narration_filter()] + aac_args()
+                       + [encoded], stdin=subprocess.DEVNULL, check=True, capture_output=True)
+        return loudness(encoded)[1]
 
 
 def next_free(out):
@@ -40,12 +68,12 @@ def next_free(out):
 
 def sh(cmd, **kw):
     print("+", " ".join(map(str, cmd)), flush=True)
-    if subprocess.run(cmd, **kw).returncode:
+    if subprocess.run(cmd, stdin=subprocess.DEVNULL, **kw).returncode:
         raise SystemExit(f"failed: {cmd[0]}")
 
 
 def aac_args():
-    encoders = subprocess.run(["ffmpeg", "-hide_banner", "-encoders"], capture_output=True, text=True).stdout
+    encoders = subprocess.run(["ffmpeg", "-hide_banner", "-encoders"], stdin=subprocess.DEVNULL, capture_output=True, text=True).stdout
     if re.search(r"\baac_at\b", encoders):
         return ["-c:a", "aac_at", "-b:a", "192k"]
     # Noise substitution fills each channel with its own noise, which breaks identical channels.
@@ -91,8 +119,8 @@ def main():
             # The snapshot command sends frames to Gemini when a key is set.
             for k in ("GEMINI_API_KEY", "GOOGLE_API_KEY"):
                 env.pop(k, None)
-            if Path(CHROME).exists():
-                env.setdefault("HYPERFRAMES_BROWSER_PATH", CHROME)
+            if "HYPERFRAMES_BROWSER_PATH" not in env and (browser := host_browser()):
+                env["HYPERFRAMES_BROWSER_PATH"] = browser
             hf = [a.hf.resolve()] if a.hf.suffix != ".sh" else ["sh", a.hf.resolve()]
             # With more than one worker, host Chrome can drop the bottom 87 px of frames.
             if not any(x in ("-w", "--workers") or x.startswith(("-w=", "--workers=")) for x in extra):
@@ -101,7 +129,7 @@ def main():
             env.setdefault("HF_DE_VERIFY", "0")
             cmd = hf + ["render", a.project.resolve(), "-c", a.composition, "-o", raw, "--browser-gpu"] + extra
             print("+", " ".join(map(str, cmd)), flush=True)
-            proc = subprocess.Popen(cmd, env=env, cwd=a.project, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            proc = subprocess.Popen(cmd, env=env, cwd=a.project, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             fallback = False
             for line in proc.stdout:
                 print(line, end="", flush=True)
@@ -120,7 +148,7 @@ def main():
                 sys.exit(f"narration {ndur:.3f}s is longer than the video {vdur:.3f}s")
             cmd += ["-i", a.narration.resolve(), "-map", "0:v:0", "-map", "1:a:0",
                     # Whole AAC frames only, so the audio cannot outrun the picture.
-                    "-af", f"aresample=48000,pan=stereo|c0=c0|c1=c0,apad=whole_len={int(vdur * 48000) // 1024 * 1024}"] + aac_args()
+                    "-af", narration_filter(vdur)] + aac_args()
         else:
             cmd += ["-map", "0", "-c:a", "copy"]
         cmd += ["-c:v", "copy", "-movflags", "+faststart"]

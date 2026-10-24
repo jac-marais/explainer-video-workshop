@@ -24,7 +24,7 @@ def execute(command, heavy=False):
     if heavy:
         command = [str(SCRIPTS / "run/heavy"), *command]
     print("+", shlex.join(command), flush=True)
-    subprocess.run(command, check=True)
+    subprocess.run(command, stdin=subprocess.DEVNULL, check=True)
 
 
 def split_sentences(texts):
