@@ -21,6 +21,8 @@ def load(name):
     path = SCRIPTS / name
     spec = importlib.util.spec_from_file_location(path.stem, path)
     module = importlib.util.module_from_spec(spec)
+    # Dataclasses look their module up by name.
+    sys.modules.setdefault(path.stem, module)
     spec.loader.exec_module(module)
     return module
 
@@ -37,6 +39,16 @@ class MediaStdinTests(unittest.TestCase):
         with patch.object(module.subprocess, "run", return_value=SimpleNamespace(stdout="aac")) as run:
             module.aac_args()
             self.assertEqual(run.call_args.kwargs["stdin"], subprocess.DEVNULL)
+
+    def test_step_and_tool_runners_close_stdin(self):
+        done = SimpleNamespace(returncode=0, stdout="", stderr="")
+        for name, call in (("run/make_film.py", lambda m: m.execute(["true"])),
+                           ("audio/narrate_film.py", lambda m: m.run_tool("example.py", []))):
+            module = load(name)
+            with self.subTest(name=name), patch.object(module.subprocess, "run", return_value=done) as run, \
+                    redirect_stdout(io.StringIO()):
+                call(module)
+                self.assertEqual(run.call_args.kwargs["stdin"], subprocess.DEVNULL)
 
     def test_direct_media_calls_close_stdin(self):
         # Also cover helpers outside scripts/, without loading their voice engines.

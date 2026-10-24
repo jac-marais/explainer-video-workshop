@@ -352,7 +352,8 @@ def main():
         timing = json.loads(a.timing.read_text())
         rep["sheets"] = contact_sheets(a.film, timing, fps, nframes, a.sheet)
 
-    motion = subprocess.call([sys.executable, str(Path(__file__).with_name("measure_motion.py")), str(a.film)])
+    motion = subprocess.call([sys.executable, str(Path(__file__).with_name("measure_motion.py")), str(a.film)],
+                             stdin=subprocess.DEVNULL)
     rep["motion_gate"] = {"pacing": a.pacing, "exit": motion}
     if motion == 2 or (motion and a.pacing == "fast"):
         fails.append("motion gate failed; see motion metrics above")

@@ -276,7 +276,7 @@ def decide_reuse(rows: list[dict], engine: str, sources: list[ReuseSource]) -> R
 
 def run_tool(script: str, args: list[str], capture: bool = False, soft_exit: int | None = None) -> str | None:
     """Run a voice tool and return its captured output, or None when it exits with soft_exit."""
-    result = subprocess.run([sys.executable, str(TOOLS_DIR / script), *map(str, args)], text=True,
+    result = subprocess.run([sys.executable, str(TOOLS_DIR / script), *map(str, args)], text=True, stdin=subprocess.DEVNULL,
                             stdout=subprocess.PIPE if capture else None, stderr=None if not capture else subprocess.PIPE)
     if soft_exit is not None and result.returncode == soft_exit:
         print(result.stderr or "", end="", file=sys.stderr)

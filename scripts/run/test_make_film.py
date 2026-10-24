@@ -178,7 +178,7 @@ class RunnerTests(unittest.TestCase):
         with patch.object(film.subprocess, "run") as run:
             film.execute(["python3", "file with spaces.py"], heavy=True)
         self.assertEqual(run.call_args.args[0], [str(film.SCRIPTS / "run/heavy"), "python3", "file with spaces.py"])
-        self.assertEqual(run.call_args.kwargs, {"check": True})
+        self.assertEqual(run.call_args.kwargs, {"stdin": film.subprocess.DEVNULL, "check": True})
 
 
 if __name__ == "__main__":
