@@ -17,7 +17,8 @@ A frame whose file does not exist yet shows as not drawn, and the run lists it.
 The page shows the narration on the left, with a faint underline under each cue's words. Hovering a phrase shows the
 shots that start on it, above a strip of every shot in its scene. Clicking a phrase or a strip shot pins it, and the
 arrow keys step through. A header switch, off by default and remembered by the browser, makes a click on the narration
-also read its sentence aloud, at 1x to 3x. --audio names a folder that scripts/audio/narrate_film.py wrote. A sentence
+read aloud from that sentence to the end of the storyboard, at 1x to 3x, while the shots move forward with the words;
+the next click anywhere on the page, or Esc, stops it. --audio names a folder that scripts/audio/narrate_film.py wrote. A sentence
 plays its clip from that folder only when the folder's timing.json records the sentence's ID with the script's exact
 text, and the clip's length matches that record. The browser checks the length again before it plays, so a clip voiced
 again after the build falls back too. Every other sentence is read in a browser speech voice, which on macOS is a `say`
@@ -384,7 +385,7 @@ code{font-family:var(--mono);font-size:.88em}
 <body>
 <main id="script">
 <header><h1>{{TITLE}}</h1>
-<p class="help">Built from {{SCRIPT}}. Each underlined phrase starts a shot. Hover a phrase to see its shots, click to pin it, and use the arrow keys to step. With read aloud on, a click also reads its sentence, and Esc stops it.</p>
+<p class="help">Built from {{SCRIPT}}. Each underlined phrase starts a shot. Hover a phrase to see its shots, click to pin it, and use the arrow keys to step. With read aloud on, a click reads on from its sentence to the end and moves the shots along with it. Click anywhere or press Esc to stop.</p>
 <div id="tts"><label class="toggle"><input type="checkbox" id="speak"> Read aloud</label>
 <label class="field" id="voice-field"><span class="label">System voice</span><select id="voice"></select></label>
 <label class="field"><span class="label">Speed</span><select id="rate"><option value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option><option value="2.5">2.5×</option><option value="3">3×</option></select></label></div>
@@ -414,7 +415,7 @@ function show(g,scroll){
   if(scroll){const s=spans.find(s=>+s.dataset.g===g); if(s)s.scrollIntoView({block:'center',behavior:motion});}
 }
 function pin(g){spans.forEach(x=>x.classList.toggle('pin',pinned&&+x.dataset.g===g));}
-function activate(s){const g=+s.dataset.g; pinned=!(pinned&&cur===g); show(g); pin(g); read(s.dataset.s);}
+function activate(s){const g=+s.dataset.g; if(onBox.checked){pinned=true; show(g); pin(g); play(s.dataset.s); return;} pinned=!(pinned&&cur===g); show(g); pin(g);}
 spans.forEach(s=>{
   s.addEventListener('mouseenter',()=>{if(!pinned)show(+s.dataset.g)});
   s.addEventListener('focus',()=>show(+s.dataset.g));
@@ -426,10 +427,22 @@ thumbs.forEach(t=>t.addEventListener('click',()=>{const g=+t.dataset.g; pinned=t
 const said=JSON.parse(document.getElementById('said').textContent), SLACK={{SLACK}};
 const tts=window.speechSynthesis, vSel=document.getElementById('voice'), rSel=document.getElementById('rate');
 const onBox=document.getElementById('speak'), bar=document.getElementById('bar'), now=document.getElementById('now'), stopBtn=document.getElementById('stop');
-let voices=[], reading=null, clip=null;
+let voices=[], reading=null, clip=null, run=0;
+const order=Object.keys(said);
+// Where each shot group starts inside a sentence, as a fraction of the sentence's text, so playback can move the shots.
+const starts={};
+for(const id of order){
+  const parts=spans.filter(s=>s.dataset.s===id), total=parts.reduce((n,s)=>n+s.textContent.length,0)||1;
+  let at=0; starts[id]=parts.map(s=>{const m={f:at/total,g:+s.dataset.g}; at+=s.textContent.length; return m;});
+}
+function follow(id,f){
+  const marks=starts[id]; if(!marks||!marks.length)return;
+  let g=marks[0].g; for(const m of marks)if(m.f<=f)g=m.g;
+  if(g!==cur){show(g,true); pin(g);}
+}
 // The bar sits at the foot of the narration pane, so the reason for a fallback stays in view wherever the reader is.
 function status(text){now.textContent=text; bar.classList.toggle('live',!!text); stopBtn.hidden=!text;}
-function stop(){reading=null; if(clip){clip.pause(); clip=null;} if(tts)tts.cancel(); status('');}
+function stop(){run++; reading=null; if(clip){clip.pause(); clip=null;} if(tts)tts.cancel(); status('');}
 stopBtn.onclick=stop;
 function setOn(on){onBox.checked=on; vSel.disabled=rSel.disabled=!on; if(!on)stop();}
 onBox.onchange=()=>{localStorage.setItem('sbSpeak',onBox.checked?'1':'0'); setOn(onBox.checked);};
@@ -445,30 +458,35 @@ function loadVoices(){
   vSel.value=pick.name;
 }
 if(tts){loadVoices(); tts.onvoiceschanged=loadVoices;} else document.getElementById('voice-field').hidden=true;
-function read(id){
-  const s=said[id]; if(!s||!onBox.checked)return;
-  const again=reading===id; stop(); if(again)return;
-  reading=id;
-  if(!s.src)return speak(id);
+function play(id){if(!said[id]||!onBox.checked)return; stop(); read(id, run);}
+// Each sentence hands on to the next when it ends; stop() bumps run, so a late end event from a stopped sentence does nothing.
+function next(id,r){if(r!==run)return; const n=order[order.indexOf(id)+1]; if(n)read(n,r); else stop();}
+function read(id,r){
+  const s=said[id]; reading=id; follow(id,0);
+  if(!s.src)return speak(id,r);
   const a=clip=new Audio(s.src);
   a.defaultPlaybackRate=a.playbackRate=+rSel.value;
   // A clip voiced again after the build has another length, so it never plays against this page's text.
-  a.onloadedmetadata=()=>{if(Math.abs(a.duration-s.seconds)>SLACK)fallback(id,a,'its clip changed after this page was built');};
-  a.onerror=()=>fallback(id,a,'its clip is missing');
-  a.onended=()=>{if(clip===a)stop();};
+  a.onloadedmetadata=()=>{if(Math.abs(a.duration-s.seconds)>SLACK)fallback(id,a,'its clip changed after this page was built',r);};
+  a.onerror=()=>fallback(id,a,'its clip is missing',r);
+  a.ontimeupdate=()=>{if(clip===a&&a.duration)follow(id,a.currentTime/a.duration);};
+  a.onended=()=>{if(clip===a){clip=null; next(id,r);}};
   a.play().catch(()=>{});
-  status(`Playing ${id} from the film's narration.`);
+  status(`Playing ${id} from the film's narration. Click anywhere to stop.`);
 }
-function fallback(id,a,why){a.pause(); if(clip!==a)return; clip=null; delete said[id].src; said[id].why=why; speak(id);}
-function speak(id){
+function fallback(id,a,why,r){a.pause(); if(clip!==a)return; clip=null; delete said[id].src; said[id].why=why; speak(id,r);}
+function speak(id,r){
   const s=said[id];
   if(!tts){reading=null; status(`This browser has no system voice to read ${id}.`); return;}
   const u=new SpeechSynthesisUtterance(s.text);
   u.voice=voices.find(v=>v.name===vSel.value)||null; u.rate=+rSel.value;
-  u.onend=()=>{if(reading===id&&!clip){reading=null; status('');}};
+  u.onboundary=e=>{if(r===run)follow(id,e.charIndex/s.text.length);};
+  u.onend=()=>{if(r===run&&!clip)next(id,r);};
   tts.speak(u);
-  status(`Reading ${id} in a system voice`+(s.why?`, because ${s.why}.`:'.'));
+  status(`Reading ${id} in a system voice`+(s.why?`, because ${s.why}.`:'.')+' Click anywhere to stop.');
 }
+// While the page reads, the next click anywhere stops it and does nothing else; the voice and speed controls stay usable.
+document.addEventListener('click',e=>{if(reading===null||e.target.closest('#tts'))return; e.preventDefault(); e.stopPropagation(); stop();},true);
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){stop(); return;}
   if((e.key!=='ArrowDown'&&e.key!=='ArrowUp')||e.target.closest('select,input'))return; e.preventDefault();
