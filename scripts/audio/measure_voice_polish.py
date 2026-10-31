@@ -1,8 +1,4 @@
-"""Offline stock narration trial; writes only synthetic audio under the chosen output folder.
-
-Run with scripts/run/heavy scripts/run/py scripts/audio/measure_voice_polish.py OUT.
-Requires cached Kokoro and production Whisper assets; downloads nothing.
-"""
+"""See library/voice-polish-measurements.md for the trial, command and results."""
 import argparse
 import importlib.util
 import json

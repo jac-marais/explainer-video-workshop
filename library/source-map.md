@@ -37,14 +37,12 @@ Evidence classes: primary artifact inspected; creator-reported; authoritative ca
 
 ## Voice polish sources
 
-[The atomic claim ledger](voice-polish-claims.md) records corrections, omissions,
-and workshop inferences before implementation. These receipts were read on
-2026-10-31; text access does not imply a listening trial of the publishers' media.
+See [the claim ledger](voice-polish-claims.md) for the evidence judgments and [the manifest](manifest.json) for canonical source metadata. These receipts record text access on 2026-10-31, not listening trials of the publishers' media.
 
-| ID | Author / class | Original and exact locators | Version / access / use limit |
-|---|---|---|---|
-| S-VP-001 | FFmpeg developers; authoritative implementation documentation | [Audio filters](https://ffmpeg.org/ffmpeg-filters.html): `highpass`, `agate`, `deesser`, `equalizer`, `acompressor`, `alimiter`, `loudnorm` | Rolling online manual, HTML read; local filter options checked separately. Defines operations, not optimal voice presets. |
-| S-VP-002 | DPA Microphones; manufacturer engineering reference | [Facts about speech intelligibility](https://www.dpamicrophones.com/mic-university/background-knowledge/facts-about-speech-intelligibility/): “The spectrum of speech”, “Executive summary”, “Important frequencies” | Undated page, HTML read. Pitch varies; presence-band evidence is not a universal EQ prescription. |
-| S-VP-003 | Shure Incorporated; manufacturer manual | [SM7B guide](https://pubs.shure.com/view/guide/SM7B/en-US.pdf), pp. 7–9 “Adjust the Frequency Response Switches” | Version 2.6 (2024-F), PDF text read. Presence switch is evidence of existence, not an exact bell filter. |
-| S-VP-004 | dbx; manufacturer application manual | [286A Owner/Operator Manual](https://dbxpro.com/en-asia/product_documents/dbx286amanuala2pdf), printed pp. 8–9 processing; pp. 11–12 noise, cutoff and lisp warnings (PDF pp. 10–11, 13–14) | Undated manual, English PDF text read. Its later expander is a counterexample to universal ordering. |
-| S-VP-005 | ElevenLabs; vendor capability documentation | [Voice cloning: how it works](https://elevenlabs.io/docs/eleven-api/concepts/voice-cloning), introduction and “Instant Voice Cloning” | Rolling documentation, HTML read. Vendor-specific evidence; applying the risk to local reference engines is a workshop inference. |
+| ID | Exact locators and access |
+|---|---|
+| S-VP-001 | FFmpeg's audio-filter manual was read as HTML at `highpass`, `agate`, `deesser`, `equalizer`, `acompressor`, `alimiter` and `loudnorm`. Local filter options were checked separately. |
+| S-VP-002 | DPA's article was read as HTML at “The spectrum of speech”, “Executive summary” and “Important frequencies”. |
+| S-VP-003 | The Shure PDF was read at pp. 7–9, “Adjust the Frequency Response Switches”. |
+| S-VP-004 | The English dbx PDF was read at printed pp. 8–9 for processing and pp. 11–12 for noise, cutoff and lisp warnings (PDF pp. 10–11 and 13–14). Its expander follows preceding gain stages. |
+| S-VP-005 | The ElevenLabs documentation was read as HTML at the introduction and “Instant Voice Cloning”. |

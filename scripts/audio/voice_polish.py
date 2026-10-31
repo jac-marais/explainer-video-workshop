@@ -1,4 +1,4 @@
-"""Bounded per-take voice processing; the voice method owns the acceptance rule."""
+"""See methods/voice-explainer-video.md#polish-each-take for the processing contract."""
 import math
 from pathlib import Path
 import subprocess
@@ -6,7 +6,6 @@ import subprocess
 import soundfile as sf
 
 REVISION = 1
-# Bounds constrain tuning, not a claim that every allowed setting suits every voice.
 PARAMETERS = {
     'highpass_hz': (70.0, 40.0, 120.0),
     'expander_threshold_dbfs': (-45.0, -70.0, -25.0),
@@ -31,7 +30,6 @@ PARAMETERS = {
 
 
 def resolve(config, spec):
-    """Merge workshop defaults, profile settings, then the selected voice override."""
     settings = {'enabled': spec['engine'] in ('qwen3', 'chatterbox'),
                 **{key: bounds[0] for key, bounds in PARAMETERS.items()}}
     for override in (config.get('voice_polish', {}), spec.get('voice_polish', {})):
@@ -57,7 +55,6 @@ def amplitude(decibels):
 
 
 def filter_graph(settings, rate):
-    """Keep expansion before compression and compensate the oversampled limiter delay."""
     if not settings['enabled']:
         return ''
     if not isinstance(rate, int) or rate < 24000 or rate > 192000:
@@ -80,7 +77,6 @@ def filter_graph(settings, rate):
 
 
 def process_take(source, destination, settings):
-    """Return the input on bypass; otherwise write verified floating-point PCM separately."""
     source, destination = Path(source), Path(destination)
     if not settings['enabled']:
         return source, {'enabled': False}

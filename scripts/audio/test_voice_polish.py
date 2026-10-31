@@ -1,4 +1,4 @@
-"""Voice chain configuration, integration, reuse and real-filter regressions."""
+"""See library/voice-polish-measurements.md#tests-and-remaining-questions for validation."""
 import hashlib
 import importlib.util
 import json
