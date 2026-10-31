@@ -47,6 +47,42 @@ These engines were the best local, commercially usable options that a bake-off o
 
 Kokoro needs eSpeak NG from Homebrew (`brew install espeak-ng`) on macOS or the distribution packages on Linux, and the model files that HyperFrames caches in `~/.cache/hyperframes/tts/`. The [Linux CPU setup](../README.md#linux-cpu-narration) describes backend selection, offline caches and reference validation.
 
+## Polish each take
+
+`voice.py` applies the configurable [voice chain](../scripts/audio/voice_polish.py) to each generated take before its existing loudness normalization and peak handling. It is on by default for the reference engines `qwen3` and `chatterbox`, and off for stock `kokoro` and `qwen3-preset`. This is a provisional workshop choice, not evidence that every clone needs processing. Reference artifacts can influence cloning, while stock voices have no operator reference. The [claim ledger](../library/voice-polish-claims.md) separates the evidence from this inference.
+
+The order is high-pass, downward expander, de-esser, presence EQ, compressor, then limiter. Keep the expander before the compressor, so its threshold acts before compression and later gain. Compression reduces louder passages; makeup or later normalization can then raise background noise. This ordering is the workshop rule, not a universal requirement of audio engineering (C-VP-011–014).
+
+The high-pass reduces low rumble. Start at 70 Hz and adjust for the voice; 100 Hz can remove useful low voice energy. The expander reduces sound below its threshold, including some noise between words, but cannot separate noise from equally quiet speech. De-essing reduces sharp high-frequency sounds and can dull consonants if pushed too far. The small EQ boost at 3.5 kHz sits within an important consonant region; its benefit depends on the recording. Mild compression reduces level contrasts. The oversampled limiter catches peaks at its processing rate; the final true-peak check still decides acceptance. These purposes and qualifications are traced in C-VP-001–017.
+
+Set `voice_polish` at the top level of `voice.json` for profile-wide settings, or inside a voice entry to override them for that voice. Unspecified values keep the defaults below. Set `"enabled": false` to bypass the entire chain, or `true` to opt a stock voice in. Unknown keys, nonnumeric or nonfinite values, and out-of-range values fail before model loading, even when disabled. For example, a low voice can use `"voice_polish": {"highpass_hz": 60, "presence_gain_db": 0}`. The numbers are bounded workshop starting points, not optimal settings established by the sources.
+
+| Parameter | Default | Allowed range |
+|---|---:|---:|
+| `highpass_hz` | 70 | 40–120 |
+| `expander_threshold_dbfs` | -45 | -70–-25 |
+| `expander_ratio` | 1.5 | 1–3 |
+| `expander_range_db` | -12 | -24–0 |
+| `expander_attack_ms` | 5 | 1–50 |
+| `expander_release_ms` | 100 | 20–500 |
+| `deesser_intensity` | 0.35 | 0–0.5 |
+| `deesser_max` | 0.25 | 0–0.5 |
+| `deesser_frequency` | 0.5 | 0–1 |
+| `presence_hz` | 3500 | 2000–4500 |
+| `presence_gain_db` | 0.5 | 0–3 |
+| `presence_q` | 1 | 0.5–2 |
+| `compressor_threshold_dbfs` | -18 | -30–-6 |
+| `compressor_ratio` | 1.5 | 1–3 |
+| `compressor_attack_ms` | 20 | 5–50 |
+| `compressor_release_ms` | 150 | 50–500 |
+| `limiter_dbfs` | -1.6 | -6–-1.5 |
+| `limiter_attack_ms` | 5 | 1–10 |
+| `limiter_release_ms` | 50 | 20–200 |
+
+The three `deesser_*` controls are FFmpeg's dimensionless `i`, `m` and `f`, not frequencies in Hz. Both dynamics stages use RMS detection and unity makeup. The high-pass has two poles; the limiter runs at four times the take's sample rate with automatic makeup off and latency compensation on. Filtering must preserve sample count, rate and mono channels or stop. Receipts record the effective settings, filter graph and revision. Enabled settings and revision enter the film's reuse identity, so changing them invalidates whole takes before cutting and timing. Bypassed stock configurations retain their existing identity and processing. Reused sentences are already processed and are not filtered again.
+
+Compare enabled and bypassed versions at final playback loudness before accepting a voice profile. Record quiet-interval RMS, speech energy in the 4–10 kHz band, loudness range, integrated loudness, true peak, recognition word errors and fallback words. The [synthetic trial](../library/voice-polish-measurements.md) gives a reproducible comparison, not a clone-quality benchmark. Keep every existing gate. Listen for lost quiet words, dull consonants and flattened delivery; reduce the responsible setting or bypass the chain if the voice gets worse. A lower band-energy number alone does not prove better sibilance. Changes to accepted audio still invalidate timing under the preparation method.
+
 ## Clone a voice
 
 The clone is Qwen3-TTS 1.7B Base (bf16) through mlx-audio. It is in-context cloning: the model hears the reference recording and its transcript, then continues in that voice. No training happens.
@@ -100,7 +136,7 @@ About 150 words, or a minute at a natural pace. The cues in brackets are for the
 
 ### Limitations
 
-- **It copies the reference, flaws and all.** Room noise, distance from the microphone, pace and energy all carry into the clone. A flat reading gives a flat clone. Record clean rather than clean up afterwards: in the bake-off, a denoised reference made the clone sound crunchy and synthetic, and the raw recording won.
+- **Reference quality can affect the clone.** Vendor documentation shows that reference noise and recording conditions can influence output, but cloning does not reproduce exact acoustics (C-VP-016). Applying this risk to the local engines is a workshop inference. In the local bake-off, delivery also depended on the reference. Record clean rather than clean up afterwards: in the bake-off, a denoised reference made the clone sound crunchy and synthetic, and the raw recording won.
 - **Longer references are better.** The full reference (about 47 s) beat 13 s and 20 s cuts of the same recording. The passage above changes emotion on purpose. In the one trial so far, a plain explainer reading made the preferred clone, so a second take in a calmer register is cheap insurance.
 - **Accents drift.** A non-American accent came through, but not perfectly. Fine-tuning would go further; this method does not cover it.
 - **Every take is different.** The same paragraph came out between 26 and 29 seconds long across takes. The CLI records the seed in the receipt, and `--seed` with the same text and reference gives a byte-identical take on the same machine. So a take the user likes can be made again.

@@ -19,6 +19,7 @@ into sentences by templates/voice/cut_takes.py. A take longer than twice its est
 has looped and is re-voiced, at most twice.
 On the CPU path, an unclean run is split at its failed boundaries and re-voiced, with one further split into
 single sentences if needed. Only clean replacements are accepted; split takes retain their original reuse group.
+voice.py polishes enabled takes before normalization and cutting; see methods/voice-explainer-video.md#polish-each-take.
 Sentence WAVs are keyed by voice config and spoken text, and takes.json records each sentence's original take id.
 --reuse and reruns follow the canonical take-level reuse rule in methods/voice-explainer-video.md#take-level-reuse.
 words.json holds one row per whitespace word or Han/Kana character of the script, timed by aligning Whisper's transcript of narration.wav to it.
@@ -59,6 +60,7 @@ from pathlib import Path
 os.environ["HF_HUB_OFFLINE"] = "1"
 
 from text_tokens import norm as letters, tokenize, normalized_tokens, sentences
+from voice_polish import resolve as resolve_polish, REVISION as POLISH_REVISION
 from number_readings import LANGUAGES, spoken_numbers
 
 import numpy as np
@@ -162,7 +164,10 @@ def voice_identity(name: str) -> tuple[dict, str]:
     spec = config["voices"][name]
     refs = {key: sha256((VOICE_DIR / spec[key]).read_bytes()) for key in ("ref_audio", "ref_text") if key in spec}
     identity = {"voice": name, "spec": spec, "refs": refs}
-    # CPU Qwen is a different generation backend; retain legacy Mac and Kokoro cache keys.
+    polish = resolve_polish(config, spec)
+    if polish["enabled"]:
+        identity["voice_polish"] = {"revision": POLISH_REVISION, "settings": polish}
+    # CPU Qwen needs a separate reuse identity even when polish is bypassed.
     if sys.platform == "linux" and spec["engine"] in ("qwen3", "qwen3-preset"):
         identity["backend"] = "qwen-tts-cpu-float32-v1"
     return spec, sha256(json.dumps(identity, sort_keys=True).encode())
