@@ -8,8 +8,8 @@ This workshop knows no brand. Brand guidelines come from the operator's local pr
 
 1. Read `local/brand.md`.
 2. If the file is missing, your first question to the user is: **"Do you have brand guidelines that you can point me toward?"** Ask it before you do any other work.
-3. If they have none, offer the workshop's nine styles. Link the gallery at https://jac-marais.github.io/explainer-video-workshop/brands/, where each style plays the same explainer; offline, link `brands/index.html` by its absolute path. List the nine style names and ask the user to reply with one. Each style's preset is `brands/<slug>.md`, linked under "The nine styles". The neutral readable default from `methods/prepare-explainer-video.md` remains an option.
-4. Write the answer to `local/brand.md` with `templates/brand.md` as the shape. A chosen style's preset is its Guidelines path. Record "none" when the user picks no style, so nobody asks again.
+3. If they have none, offer the workshop's nine styles. Link the gallery at https://jac-marais.github.io/explainer-video-workshop/brands/, where each style plays the same explainer; offline, link `brands/index.html` by its absolute path. List the nine style names and ask the user to choose a direction. Each style's preset is `brands/<slug>.md`, linked under "The nine styles". Also offer [a custom look](#build-a-custom-look-from-references) when the user wants a distinctive house style. The neutral readable default from `methods/prepare-explainer-video.md` remains an option.
+4. Write the answer to `local/brand.md` with `templates/brand.md` as the shape. A chosen style's preset is its Guidelines path. For a custom look, set Guidelines to "user rules below". Record "none" when the user chooses the neutral default, so nobody asks again.
 5. When the user changes brands or corrects a decision, update the profile. Don't keep a second copy somewhere else.
 
 Any of these can be a source: a brand workshop with its own `AGENTS.md` or skill, a PDF or folder of guidelines, a website, or a few sentences from the user. A workshop is best, because it lets you cite rules and look up assets. Use what the source offers, and write down any rule the user gives you in conversation.
@@ -31,6 +31,27 @@ Each preset is a self-contained style file that a video agent can build from.
 | NPS Unigrid-inspired | [`brands/nps-unigrid.md`](../brands/nps-unigrid.md) |
 | Spotify-inspired | [`brands/spotify.md`](../brands/spotify.md) |
 | Uber-inspired | [`brands/uber.md`](../brands/uber.md) |
+
+## Build a custom look from references
+
+The [claim ledger](../library/design-reference-claims.md) holds the evidence and qualifications behind these browsing suggestions.
+
+| Source | Look here for | Use boundary for a rendered film |
+|---|---|---|
+| [Visuelle](https://visuelle.co.uk/) | Grid and identity relationships | Inspiration only unless the rights holder grants reuse. |
+| [CARI](https://cari.institute/) | Aesthetic movements, including Y2K | Inspiration only; its research archive is not an asset licence. |
+| [Artvee](https://artvee.com/about-us/) | Palette, texture and historical artwork | Public-domain asset candidate; confirm the artwork’s source record and download tier. |
+| [Design Reviewed](https://designreviewed.com/about/) | Print grids and hierarchy | Inspiration only unless reproduction permission is obtained. |
+| [Fonts In Use](https://fontsinuse.com/) | Type pairing and packaging typography | Reference images only unless separately cleared. Obtain the font’s own licence from its foundry or distributor. |
+| [Public Work](https://www.cosmos.so/public-work) | Public-domain asset discovery | Verify rights at the original collection before reuse; a search result is not clearance. |
+| [Rawpixel](https://www.rawpixel.com/services/licenses) | Graphics and textures | Match the item’s CC0, government public-domain, free-with-conditions or premium terms to the intended use. Commercial films need the applicable Business entitlement for licensed content; exclude editorial-only items from them. |
+| [Are.na](https://www.are.na/about) | Connections across curated references | Inspiration only; follow a block to its original creator for reuse rights. |
+
+As a workshop design exercise, combine elements from at least two of these sources, using different underlying works. Look beyond their first or most familiar examples and explain why each choice fits the brief. This is a way to explore alternatives, not a tested guarantee of originality.
+
+In the brand profile’s reference table, record the source name and individual URL, the element taken (grid, palette, texture, type, movement or asset), and how it changes the design. Mark each as **inspiration only** or **asset for reuse**. Record the licence status, rights-evidence URL, check date and conditions, including attribution or usage limits; use **unconfirmed** when evidence is missing. For an asset, check its territory and any required releases alongside the medium-specific licence audit in [step 2](#2-audit-before-you-edit). For editorial films, confirm Rawpixel permission for the specific use; see [C-DR-050](../library/design-reference-claims.md).
+
+Carry the resulting choices through [Decide, then record](#3-decide-then-record) and [Apply as tokens](#4-apply-as-tokens-not-as-scattered-values). The existing [verification step](#5-verify) owns the asset manifest and release gate.
 
 ## Figure styles are not brands
 
@@ -71,6 +92,8 @@ The user decides anything the guidelines leave open: substitute fonts, weight ex
 - Brand never overrides a claim. A wording change that alters meaning goes through the claim map, not the brand pass.
 
 ### 5. Verify
+
+For a custom brand, flag any reference that fails the [reference-record requirements](#build-a-custom-look-from-references), whether it supplies inspiration or a reused asset.
 
 Run the route's layout and contrast checks, then look at stills of every changed scene. Also look at a companion deck under the same pass. After the render, check the exact final file as the production prompt requires. List each rule you applied, each rule you skipped with its reason, and each question still open for the brand owner. Record font and asset licenses in `assets-manifest.md`. When the license for this medium is unconfirmed, mark the output as unreleased until it is confirmed.
 

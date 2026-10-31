@@ -21,6 +21,14 @@ The user's choices where the guidelines leave the answer open. Each entry is one
 
 Use the shared [caption layout](composition/README.md#caption-layout); brand values belong here or in the linked preset, and the composition derives its content limit in `film.css`.
 
+## Custom-look references
+
+See [Build a custom look from references](../methods/brand-explainer-video.md#build-a-custom-look-from-references).
+
+| Source and individual URL | Element and design adaptation | Intended use | Licence status and rights-evidence URL | Checked on; conditions |
+|---|---|---|---|---|
+| | | | | |
+
 ## Assets and licenses
 
 - `[font or asset: local path; license for video, for web, or unconfirmed]`
