@@ -12,6 +12,8 @@ A Kokoro voice entry may set `"lang"` to an eSpeak language code (for example `"
 
 A Kokoro voice entry may set `"frontend": 3`, so that `voice.py` phonemizes its text with eSpeak instead of Kokoro's own tokenizer. The frontend removes eSpeak's language-switch flags and places pronunciation pins after `L’` or `L'`. A sentence terminator that Kokoro lacks, from any script (for example `।` or `。`), becomes the nearest of `.`, `?` and `!`. eSpeak phoneme symbols never reach Kokoro as punctuation: `ESPEAK_SYMBOLS` maps such a symbol to Kokoro's nearest clear phoneme, for example the retroflex flap `r.` to the tap `ɾ`, and the mark is dropped from any other. The key is part of the voice identity, so changing it voices cached sentences again; receipts record it as `settings.frontend`.
 
+See [Polish each take](../../methods/voice-explainer-video.md#polish-each-take) for `voice_polish` profile settings, per-voice overrides and bypass.
+
 ## Clone reference
 
 - `[none | reference.wav: microphone, duration, date recorded, transcript checked by]`

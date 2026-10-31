@@ -23,6 +23,8 @@ import soundfile as sf
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts/audio"))
 
+from voice_polish import resolve as resolve_polish, process_take
+
 PROFILE = Path(__file__).resolve().parents[2] / "local/voice"
 RATE = 24000
 LOUDNORM = "I=-16:TP=-1.5:LRA=11"
@@ -340,6 +342,7 @@ def main() -> None:
     engine = spec["engine"]
     if engine not in LOADERS:
         raise SystemExit(f"Voice '{name}' has unknown engine '{engine}'")
+    polish = resolve_polish(config, spec)
     texts = read_texts(args.texts)
 
     started = time.perf_counter()
@@ -358,11 +361,13 @@ def main() -> None:
         wav = args.out_dir / f"{path.stem}.wav"
         with tempfile.TemporaryDirectory() as tmp:
             raw_wav = Path(tmp) / "raw.wav"
-            sf.write(raw_wav, samples, rate)
-            ffmpeg_loudnorm(raw_wav, wav)
+            sf.write(raw_wav, samples, rate, subtype="DOUBLE" if polish["enabled"] else "PCM_16")
+            processed, polish_receipt = process_take(raw_wav, Path(tmp) / "polished.wav", polish)
+            ffmpeg_loudnorm(processed, wav)
         info = sf.info(wav)
         receipt = {
             "voice": name,
+            "voice_polish": polish_receipt,
             "engine": engine,
             **identity,
             **extra,

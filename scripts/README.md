@@ -64,3 +64,5 @@ To add music or effects, run through `--to data`, mix them with `AUDIO/narration
 ## Tests
 
 Run `scripts/run/py -m unittest discover -s scripts/DIR` for each of `audio`, `film`, `storyboard` and `run`, with `scripts/run/heavy` in front for `audio`, `film` and `storyboard`, because they load Stanza's English model. A test checks the workshop's code, not the computer, so it needs no model beyond Setup's English Stanza model and eSpeak, and no file under `local/`; it mocks Stanza for another language's rule. The audio tests do not load speech models. The run tests use tiny commands and mocked production tools, and the lock test needs permission to lower process priority. No test voices or renders a film or accesses the network.
+
+See [Polish each take](../methods/voice-explainer-video.md#polish-each-take) for processing and the [trial report](../library/voice-polish-measurements.md#reproduce) for its measurement command.

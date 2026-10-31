@@ -307,7 +307,7 @@ class RepetitionWindowTests(unittest.TestCase):
 
 
 class ReuseBackendTests(unittest.TestCase):
-    def test_mac_and_kokoro_identity_preserves_legacy_hash(self):
+    def test_bypassed_mac_and_kokoro_identity_preserves_legacy_hash(self):
         import narrate_film as film
         for engine in ("kokoro", "qwen3", "qwen3-preset"):
             voice = {"engine": engine, "model": "example-model", "ref_audio": "reference.wav"}
@@ -316,7 +316,7 @@ class ReuseBackendTests(unittest.TestCase):
                                                 sort_keys=True).encode()).hexdigest()
             with tempfile.TemporaryDirectory() as directory:
                 profile = Path(directory)
-                (profile / "voice.json").write_text(json.dumps({"voices": {"example": voice}}))
+                (profile / "voice.json").write_text(json.dumps({"voices": {"example": voice}, "voice_polish": {"enabled": False}}))
                 (profile / "reference.wav").write_bytes(b"reference bytes")
                 for platform in ("darwin", "linux"):
                     with self.subTest(engine=engine, platform=platform), \

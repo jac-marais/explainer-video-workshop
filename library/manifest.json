@@ -1036,6 +1036,66 @@
       "commit": "37d2e78dcb333ab30c3338e28ed4a690364ea014",
       "access": "shallow clone in an isolated container, read only; no package, skill or script was installed or run; MIT license",
       "private": false
+    },
+    {
+      "id": "S-VP-001",
+      "title": "FFmpeg audio filters",
+      "canonical_url": "https://ffmpeg.org/ffmpeg-filters.html",
+      "source_class": "authoritative_capability_documentation",
+      "publisher": "FFmpeg developers",
+      "fetched": "2026-10-31",
+      "source_date_or_version": "Rolling manual",
+      "commit": null,
+      "access": "See source-map.md#voice-polish-sources for the access receipt.",
+      "private": false
+    },
+    {
+      "id": "S-VP-002",
+      "title": "Facts about speech intelligibility",
+      "canonical_url": "https://www.dpamicrophones.com/mic-university/background-knowledge/facts-about-speech-intelligibility/",
+      "source_class": "authoritative_capability_documentation",
+      "publisher": "DPA Microphones",
+      "fetched": "2026-10-31",
+      "source_date_or_version": "Undated",
+      "commit": null,
+      "access": "See source-map.md#voice-polish-sources for the access receipt.",
+      "private": false
+    },
+    {
+      "id": "S-VP-003",
+      "title": "SM7B user guide",
+      "canonical_url": "https://pubs.shure.com/view/guide/SM7B/en-US.pdf",
+      "source_class": "authoritative_capability_documentation",
+      "publisher": "Shure Incorporated",
+      "fetched": "2026-10-31",
+      "source_date_or_version": "2.6 (2024-F)",
+      "commit": null,
+      "access": "See source-map.md#voice-polish-sources for the access receipt.",
+      "private": false
+    },
+    {
+      "id": "S-VP-004",
+      "title": "286A Owner/Operator Manual",
+      "canonical_url": "https://dbxpro.com/en-asia/product_documents/dbx286amanuala2pdf",
+      "source_class": "authoritative_capability_documentation",
+      "publisher": "dbx",
+      "fetched": "2026-10-31",
+      "source_date_or_version": "Undated",
+      "commit": null,
+      "access": "See source-map.md#voice-polish-sources for the access receipt.",
+      "private": false
+    },
+    {
+      "id": "S-VP-005",
+      "title": "Voice cloning: how it works",
+      "canonical_url": "https://elevenlabs.io/docs/eleven-api/concepts/voice-cloning",
+      "source_class": "authoritative_capability_documentation",
+      "publisher": "ElevenLabs",
+      "fetched": "2026-10-31",
+      "source_date_or_version": "Rolling documentation",
+      "commit": null,
+      "access": "See source-map.md#voice-polish-sources for the access receipt.",
+      "private": false
     }
   ]
 }
