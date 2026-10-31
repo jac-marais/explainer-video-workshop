@@ -18,6 +18,7 @@ The [manifest](manifest.json) maps stable IDs to canonical URLs. It contains pri
 | What does the Hairline figure module port, and under what license? | S-HL-001 | [Figure modules](../templates/composition/README.md#figure-modules); MIT notice in `templates/composition/figure-modules/HAIRLINE-LICENSE.txt` |
 | Which voice options are local? | S-VO-001/002, S-TC-003 | Original URLs in the manifest |
 | Where can a scene get 3D models, HDRIs and textures, and how is a file taken in? | S-AS-001–010 | [3D assets](3d-assets.md) |
+| Where can a custom look find references? | S-DR-001–021 | [Design reference claim map](design-reference-claims.md) |
 
 ## Authority and retention
 
@@ -46,3 +47,31 @@ See [the claim ledger](voice-polish-claims.md) for the evidence judgments and [t
 | S-VP-003 | The Shure PDF was read at pp. 7–9, “Adjust the Frequency Response Switches”. |
 | S-VP-004 | The English dbx PDF was read at printed pp. 8–9 for processing and pp. 11–12 for noise, cutoff and lisp warnings (PDF pp. 10–11 and 13–14). Its expander follows preceding gain stages. |
 | S-VP-005 | The ElevenLabs documentation was read as HTML at the introduction and “Instant Voice Cloning”. |
+
+## Design reference sources
+
+See [the claim ledger](design-reference-claims.md) for judgments and [the manifest](manifest.json) for URLs and publisher identities. Text checked on 2026-10-31; no assets were downloaded. Direct fetches used a stock browser User-Agent. These are page-level receipts, not asset licences.
+
+| ID | Exact locators and access |
+|---|---|
+| S-DR-001 | About panel, opening description and “Full spiel”. HTML read directly; /about/ and /privacy-policy/ returned 404. No reuse grant established. |
+| S-DR-002 | Opening description; copyright footer. HTML read directly; /about returned 404. |
+| S-DR-003 | Evan Collins; Froyo Tam; Sofi Xian biographies. HTML read directly. |
+| S-DR-004 | Opening scope; artwork attribution; copyright footer. HTML read directly. |
+| S-DR-005 | Y2K Aesthetic description; Attribution. HTML read directly; historical assertions beyond the category description were not adopted. |
+| S-DR-006 | Opening aggregation description; museum source list. HTML read directly; /about/ redirected to an unrelated artwork. |
+| S-DR-007 | Opening three paragraphs; public-domain reproduction discussion. HTML read directly. |
+| S-DR-008 | “Get Full Access to Hi-Res Images”; “What do i get with an Artvee Pro subscription?”. HTML read directly. |
+| S-DR-009 | Introduction; Mission; Explore the Archive. Own-page text read through web retrieval; direct HTTP returned 520. |
+| S-DR-010 | Images & Copyright. Own-page text read through web retrieval; direct HTTP returned 520. |
+| S-DR-011 | About This Site; Formats > Packaging. HTML read directly. |
+| S-DR-012 | Opening operator list. HTML read directly. |
+| S-DR-013 | Copyright & Trademarks; License and Site Access; opening legal identity. HTML read directly; /terms returned 500. |
+| S-DR-014 | Copyright paragraph beginning “The content on this site”. HTML read directly. |
+| S-DR-015 | Opening search-engine description. HTML read directly; public.work redirects here (also confirmed with web retrieval). |
+| S-DR-016 | Introduction; sections 5–7. HTML read directly via /pw-terms-of-service redirect; last updated August 1, 2024. |
+| S-DR-017 | In-house creative team; operator paragraph. HTML read directly. |
+| S-DR-018 | Personal, Business, Public Domain and Editorial summaries; Business usage licence introduction and sections 1–5. HTML read directly. |
+| S-DR-019 | Introduction sections 2–3; Image Collections 4.2.2.1–4.2.2.3. HTML read directly; /services/terms redirected to FAQ, so the linked User Terms were used. |
+| S-DR-020 | How it works; Team; Pricing & features. HTML read directly. |
+| S-DR-021 | Opening identity; Scope; User Content; Application Content. HTML read directly; effective November 8, 2023. |
