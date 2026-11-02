@@ -18,7 +18,8 @@ The [manifest](manifest.json) maps stable IDs to canonical URLs. It contains pri
 | What does the Hairline figure module port, and under what license? | S-HL-001 | [Figure modules](../templates/composition/README.md#figure-modules); MIT notice in `templates/composition/figure-modules/HAIRLINE-LICENSE.txt` |
 | Which voice options are local? | S-VO-001/002, S-TC-003 | Original URLs in the manifest |
 | Where can a scene get 3D models, HDRIs and textures, and how is a file taken in? | S-AS-001–010 | [3D assets](3d-assets.md) |
-| Where can a custom look find references? | S-DR-001–021 | [Design reference claim map](design-reference-claims.md) |
+| Where can a custom look find references? | S-DR-001–021, S-DR-032–039 | [Design reference claim map](design-reference-claims.md) |
+| Where can someone drawing a character find a pose, and what may the film show? | S-DR-022–031 | [Pose references](character-pose-references.md) |
 
 ## Authority and retention
 
@@ -50,7 +51,7 @@ See [the claim ledger](voice-polish-claims.md) for the evidence judgments and [t
 
 ## Design reference sources
 
-See [the claim ledger](design-reference-claims.md) for judgments and [the manifest](manifest.json) for URLs and publisher identities. Text checked on 2026-10-31; no assets were downloaded. Direct fetches used a stock browser User-Agent. These are page-level receipts, not asset licences.
+See [the claim ledger](design-reference-claims.md) for judgments and [the manifest](manifest.json) for URLs and publisher identities. S-DR-001–021 were checked on 2026-10-31 and S-DR-022–039 on 2026-11-01; no assets were downloaded. Direct fetches used a stock browser User-Agent. These are page-level receipts, not asset licences.
 
 | ID | Exact locators and access |
 |---|---|
@@ -75,3 +76,21 @@ See [the claim ledger](design-reference-claims.md) for judgments and [the manife
 | S-DR-019 | Introduction sections 2–3; Image Collections 4.2.2.1–4.2.2.3. HTML read directly; /services/terms redirected to FAQ, so the linked User Terms were used. |
 | S-DR-020 | How it works; Team; Pricing & features. HTML read directly. |
 | S-DR-021 | Opening identity; Scope; User Content; Application Content. HTML read directly; effective November 8, 2023. |
+| S-DR-022 | “About Posemaniacs”, opening paragraph. HTML read directly. |
+| S-DR-023 | Articles 1, 3, 11, 12 and 26; supplementary provision. Japanese HTML read directly; /terms returned 404. Article 12(1), item 4, bars automated access. These POSEMANIACS pages were fetched with a scripted client before that article was read, and no further pages were requested. |
+| S-DR-024 | Answers on publishing, selling, teaching, streaming, tutorials, exceptions and 3D-data use. Japanese HTML read directly; /en/faq served the same text. |
+| S-DR-025 | Seller entry (販売事業者). HTML read directly. |
+| S-DR-026 | Headline. HTML read directly. The supplied justsketchme.com redirected to an unrelated tracking domain. |
+| S-DR-027 | Models; Transform tools. HTML read directly. |
+| S-DR-028 | Use License; Disclaimer. HTML read directly; undated. |
+| S-DR-029 | Who; What; Our AI policy; copyright footer. HTML read directly. |
+| S-DR-030 | Answers beginning “Can I use the images in the gesture tools as references for images I plan to sell?”, “Can I post the images I created” and “I want to use your gesture tools on my livestream”. HTML read directly. |
+| S-DR-031 | Licence paragraph beginning “Permission is granted to temporarily download one copy”. HTML read directly; last updated August 3, 2022. |
+| S-DR-032 | Opening description; Meticulous Tagging; Built By Filmakers. Rendered page read in a browser; direct HTTP returned 403. |
+| S-DR-033 | Entire article; footer. HTML read directly. |
+| S-DR-034 | Not read. A browser showed a Cloudflare bot check, and web retrieval returned 403; /welcome/about and /welcome/pricing gave the same results. S-DR-033 says these terms override its summary. |
+| S-DR-035 | CC0 banner; category list; footer. Rendered page read in a browser, because direct HTTP returned only a script shell; /about showed only the shell and footer. |
+| S-DR-036 | Licence line under Download. Rendered page read in a browser; the file was not downloaded. |
+| S-DR-037 | Section 4, paragraphs a and c. HTML read directly. |
+| S-DR-038 | No DNS record for the name or its www host, and no Wayback Machine captures. Web searches found Shading Reference (shadingreference.com) and the Shading Practice tool at artteachertools.com. Either could be the intended tool, so neither was adopted. |
+| S-DR-039 | No DNS record for the .net, .com or www names, and no Wayback Machine captures. Web searches found no matching colour-design site. |
