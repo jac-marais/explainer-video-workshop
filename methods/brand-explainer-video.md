@@ -48,6 +48,8 @@ The [claim ledger](../library/design-reference-claims.md) holds the evidence and
 | [Are.na](https://www.are.na/about) | Connections across curated references | Inspiration only; follow a block to its original creator for reuse rights. |
 | [ShotDeck](https://shotdeck.com/) | Framing, lighting and colour in film stills | Inspiration only. Its help centre allows reference, research and internal pitches, and bars external commercial use and public republishing. |
 | [Texture Ninja](https://texture.ninja/) | Photographic surface textures | Asset candidate: each item page releases its photo under CC0, with no attribution required. CC0 does not clear a mark or artwork shown in the photo, such as a sign or graffiti. |
+| [Colormind](https://colormind.io/) | Colour palettes, generated or built around a locked colour | Inspiration only: record the chosen hex values in the brand profile. Its API is free only for personal and non-commercial use, so don't call it from a commercial production without the operator's permission. |
+| [Book of Shapes](https://bookofshapes.com/license) | Generative SVG patterns: grids, flow fields, isometric and radial forms | Asset candidate: its licence allows any use of a generated pattern, commercial included, with no attribution. A pattern may be part of the film but may not be redistributed on its own. Don't use Joy Division, Joy Division Mesh or Brockmann Beethoven Arcs, which recreate existing works. |
 
 For PBR materials and HDRIs, use Poly Haven and ambientCG through [3D assets](../library/3d-assets.md), which holds their licences and intake steps. For a pose to draw a character from, see [pose references](../library/character-pose-references.md).
 

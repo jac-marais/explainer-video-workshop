@@ -18,7 +18,7 @@ The [manifest](manifest.json) maps stable IDs to canonical URLs. It contains pri
 | What does the Hairline figure module port, and under what license? | S-HL-001 | [Figure modules](../templates/composition/README.md#figure-modules); MIT notice in `templates/composition/figure-modules/HAIRLINE-LICENSE.txt` |
 | Which voice options are local? | S-VO-001/002, S-TC-003 | Original URLs in the manifest |
 | Where can a scene get 3D models, HDRIs and textures, and how is a file taken in? | S-AS-001–010 | [3D assets](3d-assets.md) |
-| Where can a custom look find references? | S-DR-001–021, S-DR-028–035 | [Design reference claim map](design-reference-claims.md) |
+| Where can a custom look find references? | S-DR-001–021, S-DR-028–040 | [Design reference claim map](design-reference-claims.md) |
 | Where can someone drawing a character find a pose, and what may the film show? | S-DR-022–027 | [Pose references](character-pose-references.md) |
 
 ## Authority and retention
@@ -53,7 +53,7 @@ See [the claim ledger](voice-polish-claims.md) for the evidence judgments and [t
 
 ## Design reference sources
 
-See [the claim ledger](design-reference-claims.md) for judgments and [the manifest](manifest.json) for URLs and publisher identities. S-DR-001–021 were checked on 2026-10-31 and S-DR-022–035 on 2026-11-01; no assets were downloaded. Direct fetches used a stock browser User-Agent. These are page-level receipts, not asset licences.
+See [the claim ledger](design-reference-claims.md) for judgments and [the manifest](manifest.json) for URLs and publisher identities. S-DR-001–021 were checked on 2026-10-31, S-DR-022–035 on 2026-11-01 and S-DR-036–040 on 2026-11-03; no assets were downloaded. Direct fetches used a stock browser User-Agent. These are page-level receipts, not asset licences.
 
 | ID | Exact locators and access |
 |---|---|
@@ -92,3 +92,8 @@ See [the claim ledger](design-reference-claims.md) for judgments and [the manife
 | S-DR-033 | Section 4, paragraphs a and c. HTML read directly. |
 | S-DR-034 | No DNS record for the name or its www host, and no Wayback Machine captures. Web searches found Shading Reference (shadingreference.com) and the Shading Practice tool at artteachertools.com. Either could be the intended tool, so neither was adopted. |
 | S-DR-035 | No DNS record for the .net, .com or www names, and no Wayback Machine captures. Web searches found no matching colour-design site. |
+| S-DR-036 | Opening description; structured-data copyright holder. HTML read directly. |
+| S-DR-037 | Opening paragraph; models paragraph. HTML read directly. |
+| S-DR-038 | Cloudflare-managed content-signal block. File read directly. |
+| S-DR-039 | Headline; category list; footer. HTML read directly; robots.txt allows all paths except /api/. |
+| S-DR-040 | Use it for anything; One limit; Three exceptions; Not covered; Credit. HTML read directly; last changed September 2026. |

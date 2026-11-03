@@ -1516,6 +1516,66 @@
       "commit": null,
       "access": "See source-map.md#design-reference-sources for the access receipt.",
       "private": false
+    },
+    {
+      "id": "S-DR-036",
+      "title": "Colormind home page",
+      "canonical_url": "https://colormind.io/",
+      "source_class": "primary artifact inspected",
+      "publisher": "Jack Qiao (Colormind)",
+      "fetched": "2026-11-03",
+      "source_date_or_version": "Live page at retrieval; see source-map.md#design-reference-sources",
+      "commit": null,
+      "access": "See source-map.md#design-reference-sources for the access receipt.",
+      "private": false
+    },
+    {
+      "id": "S-DR-037",
+      "title": "Colormind API access",
+      "canonical_url": "https://colormind.io/api-access/",
+      "source_class": "primary artifact inspected",
+      "publisher": "Jack Qiao (Colormind)",
+      "fetched": "2026-11-03",
+      "source_date_or_version": "Live page at retrieval; see source-map.md#design-reference-sources",
+      "commit": null,
+      "access": "See source-map.md#design-reference-sources for the access receipt.",
+      "private": false
+    },
+    {
+      "id": "S-DR-038",
+      "title": "Colormind robots.txt",
+      "canonical_url": "https://colormind.io/robots.txt",
+      "source_class": "primary artifact inspected",
+      "publisher": "Jack Qiao (Colormind)",
+      "fetched": "2026-11-03",
+      "source_date_or_version": "Live file at retrieval; Cloudflare-managed content signals",
+      "commit": null,
+      "access": "See source-map.md#design-reference-sources for the access receipt.",
+      "private": false
+    },
+    {
+      "id": "S-DR-039",
+      "title": "Book of Shapes home page",
+      "canonical_url": "https://bookofshapes.com/",
+      "source_class": "primary artifact inspected",
+      "publisher": "Nikolaj Sokolowski (Book of Shapes)",
+      "fetched": "2026-11-03",
+      "source_date_or_version": "Live page at retrieval; see source-map.md#design-reference-sources",
+      "commit": null,
+      "access": "See source-map.md#design-reference-sources for the access receipt.",
+      "private": false
+    },
+    {
+      "id": "S-DR-040",
+      "title": "Book of Shapes licence",
+      "canonical_url": "https://bookofshapes.com/license",
+      "source_class": "primary artifact inspected",
+      "publisher": "Nikolaj Sokolowski (Book of Shapes)",
+      "fetched": "2026-11-03",
+      "source_date_or_version": "Last changed September 2026",
+      "commit": null,
+      "access": "See source-map.md#design-reference-sources for the access receipt.",
+      "private": false
     }
   ]
 }
