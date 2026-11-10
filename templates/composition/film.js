@@ -1,10 +1,9 @@
-// Shared plumbing for a HyperFrames explainer: one paused timeline, FILM lookups, style tokens and burned-in captions.
-// HyperFrames 0.8.57 runs external scripts from <head> before the body exists, so nothing here touches the page
-// until the scene script in index.html calls startFilm().
+// HyperFrames runs external scripts before the body exists (methods/renderer-traps.md), so nothing here touches the page until startFilm().
 window.FilmBrands = window.FilmBrands || {};
 window.FilmFigures = window.FilmFigures || {};
+window.FilmMotion = window.FilmMotion || {};
 
-window.startFilm = ({ brand, figures } = {}) => {
+window.startFilm = ({ brand, figures, motion } = {}) => {
   const FILM = window.FILM;
   if (!FILM) throw new Error("window.FILM is missing: write data.js with scripts/film/build_data.py");
   const root = document.querySelector("[data-composition-id]");
@@ -21,11 +20,8 @@ window.startFilm = ({ brand, figures } = {}) => {
     }
     return map[key];
   };
-  // cue("s01|quoted words") or cue("s01|s01-02+0.4"): the start of a Visual cue from the script.
   const cue = (key) => lookup(FILM.cues, key, "cue");
-  // onset("s01-02"): the start of that sentence's first caption, for hard cuts on a sentence.
   const onset = (sentence) => lookup(FILM.caption_onsets, `${sentence.split("-")[0]}|${sentence}`, "caption onset");
-  // sceneEnd("s01"): the end of the scene's last caption, that is, its last spoken line.
   const sceneEnd = (scene) => {
     const ends = FILM.captions.filter((c) => c.scene_id === scene).map((c) => c.end);
     if (!ends.length) throw new Error(`no captions for scene "${scene}" in data.js`);
@@ -61,7 +57,6 @@ window.startFilm = ({ brand, figures } = {}) => {
 
   const film = {
     FILM, tl, root, cue, onset, sceneEnd, token, px, seconds, ease,
-    // A brand module may replace reveal with its signature entrance; scenes call it the same way.
     reveal(target, at, { dur = "--dur-base", easing = "--ease-entrance" } = {}) {
       tl.fromTo(target, { autoAlpha: 0 }, { autoAlpha: 1, duration: seconds(dur), ease: ease(easing), immediateRender: false }, at);
     },
@@ -83,6 +78,10 @@ window.startFilm = ({ brand, figures } = {}) => {
     if (!window.FilmFigures[figures]) throw new Error(`figure module "${figures}" is not loaded; add figure-modules/${figures}.js after film.js`);
     window.FilmFigures[figures](film);
   }
+  if (motion) {
+    if (!window.FilmMotion[motion]) throw new Error(`motion module "${motion}" is not loaded; add motion-modules/${motion}.js after film.js`);
+    window.FilmMotion[motion](film);
+  }
 
   const band = root.appendChild(document.createElement("div"));
   band.id = "captions";
@@ -90,7 +89,6 @@ window.startFilm = ({ brand, figures } = {}) => {
     const line = band.appendChild(document.createElement("div"));
     line.className = "caption";
     line.appendChild(document.createElement("span")).textContent = c.text;
-    // Hard on and off, because check_film.py expects the band to change within one frame of each caption edge.
     tl.set(line, { autoAlpha: 1 }, c.start);
     tl.set(line, { autoAlpha: 0 }, c.end);
   }
@@ -104,7 +102,6 @@ window.startFilm = ({ brand, figures } = {}) => {
   for (const face of document.fonts) {
     face.load().catch(() => console.error(`font "${face.family}" ${face.weight} did not load; check fonts/ against tokens.css`));
   }
-  // A fallback font can wrap a caption differently, so measure the backing only once the real fonts are in.
   document.fonts.ready.then(() => {
     for (const span of band.querySelectorAll("span")) {
       const box = span.getBoundingClientRect();

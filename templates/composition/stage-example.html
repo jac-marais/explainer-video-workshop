@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="film.css">
+  <link rel="stylesheet" href="motion-modules/stage.css">
+  <script src="vendor/gsap.min.js"></script>
+</head>
+<body>
+  <div id="root" data-composition-id="film" data-start="0" data-duration="0" data-width="1920" data-height="1080">
+    <section id="s01" class="scene"><svg class="plate" viewBox="0 0 1920 1080"></svg></section>
+    <audio id="narration" class="clip" src="audio/narration.wav" data-start="0" data-track-index="9"></audio>
+  </div>
+  <script src="data.js"></script>
+  <script src="film.js"></script>
+  <script src="motion-modules/stage.js"></script>
+  <script>
+    const film = startFilm({ motion: "stage" });
+    const S = film.stage, { INK } = S.core;
+    window.__timelines = window.__timelines || {};
+    window.__timelines["film"] = film.tl;
+
+    const svg = S.plate(S.svg("s01"), { ground: 700 });
+    const BENCH = (i) => [290 + i * 90, 500], SHELF = (i) => [1330 + i * 105, 460], HOME = 660, DROP = 1220;
+    S.mount(svg, `<rect x="250" y="560" width="320" height="28" rx="6" class="f-layer" ${INK(4)}/><path d="M280 588 V700 M540 588 V700" ${INK(4)}/>
+      <rect x="1300" y="520" width="360" height="24" rx="6" class="f-layer" ${INK(4)}/><path d="M1320 544 V700 M1640 544 V700" ${INK(4)}/>
+      <circle cx="1100" cy="250" r="64" class="f-layer" ${INK(4)}/><path d="M1100 250 V206" ${INK(4)}/>
+      <circle id="s01-sweep" cx="1100" cy="250" r="64" class="f-none h-emph" stroke-width="6" transform="rotate(-90 1100 250)" stroke-dasharray="402.1" stroke-dashoffset="402.1"/>
+      ${[0, 1, 2].map((i) => `<circle id="s01-tick${i}" cx="${1060 + i * 40}" cy="350" r="12" class="f-layer" ${INK(2)}/>`).join("")}`, "back");
+    S.mount(svg, S.text(1190, 366, "3 minutes", { size: 48, weight: 600, id: "s01-total", hide: true }));
+    S.mount(svg, S.figure("s01-w", HOME, 700));
+    [0, 1, 2].forEach((i) => S.mount(svg, S.parcel(`s01-p${i}`, ...BENCH(i), { hide: true }), "top"));
+
+    const cue = S.cues("s01");
+    const jobs = cue("Three small jobs"), minute = cue("takes a minute"), together = cue("Add them together"), busy = cue("busy for three minutes");
+    S.enter("s01");
+    S.idle("s01-w", 0, minute);
+    [0, 1, 2].forEach((i) => S.drop(`s01-p${i}`, jobs + i * 0.24));
+    S.look("s01-w", jobs + 0.8, -1);
+    const trip = (i, at, dur, back) => {
+      const lift = dur * 0.15, carry = dur * (back ? 0.45 : 0.7), place = dur * 0.15, p = `s01-p${i}`;
+      S.pose("s01-w", at, { aR: 70, aL: 40, look: 0 }, { dur: lift });
+      // Facing the shelf first makes the lift and carry use the same hand position.
+      S.face("s01-w", at + lift, 1);
+      const [hx, hy] = S.hand("s01-w", at + lift);
+      S.ride(p, [[hx - 40, hy - 30]], at, at + lift, { sfx: null });
+      S.attr("s01-sweep", "stroke-dashoffset", at, 0, 402.1);
+      S.attr("s01-sweep", "stroke-dashoffset", at, lift + carry + place, 0);
+      S.carry("s01-w", p, [[DROP, 700]], at + lift, at + lift + carry);
+      S.ride(p, [SHELF(2 - i)], at + lift + carry, at + lift + carry + place, { sfx: null });
+      S.rest("s01-w", at + lift + carry, { dur: place });
+      S.cls(`s01-tick${i}`, at + lift + carry + place, "f-emph");
+      S.sfx("ding", at + lift + carry + place, 0.3, i);
+      if (back) S.walk("s01-w", [[HOME, 700]], at + lift + carry + place, at + dur);
+    };
+    trip(0, minute, together - minute, true);
+    S.cam("s01", minute, { x: 120, y: 40, w: 1800 }, { dur: (together - minute) * 0.7 });
+    const half = (busy - together) / 2;
+    trip(1, together, half, true);
+    trip(2, together + half, half, false);
+    S.cam("s01", busy, { x: 640, y: 160, w: 1280 }, { dur: 0.9 });
+    S.pose("s01-w", busy, { sq: 0.94, headY: 10 }, { dur: 0.6 });
+    S.eyes("s01-w", busy + 0.3, "closed");
+    S.show("s01-total", busy + 0.6, { dur: 0.3 });
+    film.exitScene("s01");
+    S.finish();
+  </script>
+</body>
+</html>
