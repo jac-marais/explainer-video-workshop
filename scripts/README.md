@@ -23,6 +23,7 @@ Narration, cues, captions, film data and storyboards share [audio/text_tokens.py
 ## film/
 
 - Use `build_data.py` for composition data. Its header owns measured and estimated timing, and the translation rules below own cue mapping.
+- Use `build_scenes.py --project DIR --template FILE [sNN ...]` to assemble scene fragments when a composition uses a page template. Its help owns placeholders, duration, closures and separate selected-scene outputs.
 - Use `render.py` through [M5](../templates/production-prompt.md). Its source owns renderer fixes, browser selection and `encoded_true_peak()` for callers mixing a master.
 - Use [stills.mjs](film/stills.mjs) for layout and pose inspection, and [sheet.py](film/sheet.py) for pose comparisons. Their help owns capture modes, outputs and guards.
 - Use [render-seek.mjs](film/render-seek.mjs) for the host-browser fallback. Its help owns capture ranges, retained segments and the audio post-processing command. [Write a scene](../templates/composition/README.md#write-a-scene) covers timeline registration.
@@ -33,6 +34,7 @@ Both JavaScript capture tools share [seek-browser.mjs](film/seek-browser.mjs), w
 ## run/
 
 - Follow [Setup](../README.md#setup) for `setup_check.sh` and `py [PYTHON_ARG...]`.
+- Use `scenes_json.py --script SCRIPT.md --out SCENES.json` to create narration input from an authored script. Its help owns the fields and the fresh-take mark.
 - Use `receipts.py` through [M1 and M5](../templates/production-prompt.md) for receipt tables.
 - `runlog.py` prices sessions and appends timed phase rows to `run-state.md`.
 - `heavy COMMAND ARG...` serializes expensive work across projects and terminals under `~/.cache/explainer-video-heavy.lock`. Wrap standalone production mixes with `scripts/run/heavy` too. All participating commands must use it under the same OS account. Nested calls inherit the ancestor's lock through `EXPLAINER_VIDEO_HEAVY_LOCK`, so child commands must finish before the ancestor exits. Keep the lock file while commands are active. The [source](run/heavy) defines priority, waiting and lock release.
