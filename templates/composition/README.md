@@ -30,6 +30,8 @@ A brand with other token names, such as `brands/mozilla.md`, needs the base name
 
 ## Write a scene
 
+For a composition split into `scenes/sNN.js` fragments, assemble its page with [build_scenes.py](../../scripts/film/build_scenes.py). Pass that composition's own template; the starter `index.html` is a complete example page.
+
 Use a `<section class="scene" id="sNN">` for each scene and mark reveal targets with `beat` so they stay hidden until the timeline reveals them. Lay them out in the `<style>` block of `index.html` from tokens and the `--u` unit.
 
 Call `startFilm()` once in the scene script and register its `tl` in `index.html` under the [HyperFrames preflight contract](../../methods/renderer-traps.md#hyperframes-preflight-traps). Plan the beats under [step 4 of methods/prepare-explainer-video.md](../../methods/prepare-explainer-video.md#4-convert-the-narrative-into-a-scene-and-shot-sequence), then use these helpers to place them.
