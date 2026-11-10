@@ -5,12 +5,13 @@
   <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="film.css">
   <style>
-    /* Scene layout. Every value comes from a token or the 30 px unit. */
-    .job { top: calc(var(--u) * 11); width: calc(var(--u) * 12); height: calc(var(--u) * 6); box-sizing: border-box;
-      display: flex; align-items: center; justify-content: center; border: var(--stroke) solid var(--line);
-      border-radius: var(--radius); font-size: var(--fs-h2); }
-    .bar { top: calc(var(--u) * 19); width: calc(var(--u) * 12); height: var(--u); background: var(--emph-fill); }
-    #s01-total { left: calc(var(--margin) + var(--u) * 37); top: calc(var(--u) * 21.5); font-size: var(--fs-h2); }
+    /* Scene layout. Colors and sizes come from tokens; the world's SVG ends at --content-bottom, so it clips above the captions. */
+    .world { left: 0; top: 0; width: 1920px; height: var(--content-bottom); }
+    .ink { fill: none; stroke: var(--line); stroke-width: calc(var(--stroke) * 2); stroke-linecap: round; stroke-linejoin: round; }
+    .fill { fill: var(--layer); }
+    .emph { stroke: var(--emph); }
+    .tick { fill: var(--layer); stroke: var(--line); stroke-width: var(--stroke); }
+    .label { fill: var(--text); font-family: var(--font-sans); font-size: var(--fs-h2); font-weight: var(--w-heading); }
   </style>
   <script src="vendor/gsap.min.js"></script>
 </head>
@@ -18,15 +19,39 @@
   <!-- build_data.py rewrites the first data-duration in this file, so the root keeps it first. -->
   <div id="root" data-composition-id="film" data-start="0" data-duration="0" data-width="1920" data-height="1080">
     <section id="s01" class="scene">
-      <p class="eyebrow beat">Example</p>
-      <h1 class="headline beat">Three small jobs</h1>
-      <div class="abs job beat" style="left: calc(var(--margin))">Job 1</div>
-      <div class="abs job beat" style="left: calc(var(--margin) + var(--u) * 14)">Job 2</div>
-      <div class="abs job beat" style="left: calc(var(--margin) + var(--u) * 28)">Job 3</div>
-      <div class="abs bar beat" style="left: calc(var(--margin))"></div>
-      <div class="abs bar beat" style="left: calc(var(--margin) + var(--u) * 14)"></div>
-      <div class="abs bar beat" style="left: calc(var(--margin) + var(--u) * 28)"></div>
-      <div id="s01-total" class="abs beat">3 minutes</div>
+      <svg class="abs world" viewBox="0 0 1920 840">
+        <!-- The camera moves this group, so every prop stays in one world. -->
+        <g id="s01-world">
+          <path class="ink" d="M120 700 H1800"/>
+          <g id="s01-bench"><rect class="ink fill" x="250" y="560" width="320" height="28" rx="6"/><path class="ink" d="M280 588 V700 M540 588 V700"/></g>
+          <g id="s01-shelf"><rect class="ink fill" x="1300" y="520" width="360" height="24" rx="6"/><path class="ink" d="M1320 544 V700 M1640 544 V700"/></g>
+          <g id="s01-timer">
+            <circle class="ink fill" cx="1100" cy="250" r="64"/>
+            <circle id="s01-sweep" class="ink emph" cx="1100" cy="250" r="64" transform="rotate(-90 1100 250)" stroke-dasharray="402.1" stroke-dashoffset="402.1"/>
+            <path class="ink" d="M1100 250 V206"/>
+            <circle class="tick s01-tick" cx="1060" cy="350" r="12"/><circle class="tick s01-tick" cx="1100" cy="350" r="12"/><circle class="tick s01-tick" cx="1140" cy="350" r="12"/>
+            <text id="s01-total" class="label beat" x="1190" y="366">3 minutes</text>
+          </g>
+          <!-- The worker's origin is between its feet. Each moving part is its own group, so a beat tweens one part. -->
+          <g id="s01-worker">
+            <g id="s01-legL"><path class="ink" d="M-14 -96 V0"/></g>
+            <g id="s01-legR"><path class="ink" d="M14 -96 V0"/></g>
+            <g id="s01-body">
+              <rect class="ink fill" x="-40" y="-200" width="80" height="110" rx="34"/>
+              <g id="s01-armL"><path class="ink" d="M-30 -176 L-46 -110"/></g>
+              <g id="s01-armR"><path class="ink" d="M30 -176 L46 -110"/></g>
+              <g id="s01-head">
+                <circle class="ink fill" cx="0" cy="-250" r="44"/>
+                <g id="s01-eyes"><circle cx="-14" cy="-254" r="6" fill="var(--line)"/><circle cx="14" cy="-254" r="6" fill="var(--line)"/></g>
+              </g>
+            </g>
+          </g>
+          <!-- Parcels come after the worker, so a carried parcel sits in front of its arms. -->
+          <g class="s01-parcel"><rect class="ink fill" width="80" height="60" rx="6"/><path class="ink" d="M40 0 V60"/></g>
+          <g class="s01-parcel"><rect class="ink fill" width="80" height="60" rx="6"/><path class="ink" d="M40 0 V60"/></g>
+          <g class="s01-parcel"><rect class="ink fill" width="80" height="60" rx="6"/><path class="ink" d="M40 0 V60"/></g>
+        </g>
+      </svg>
     </section>
     <audio id="narration" class="clip" src="audio/narration.wav" data-start="0" data-track-index="9"></audio>
   </div>
@@ -34,21 +59,67 @@
   <script src="film.js"></script>
   <script>
     const film = startFilm();
-    const { tl, cue, seconds, px, ease, reveal, enterScene, exitScene } = film;
+    const { tl, cue, token, seconds, ease, reveal, enterScene, exitScene } = film;
     // The lint reads this key from this file, and it must equal the root's data-composition-id.
     window.__timelines = window.__timelines || {};
     window.__timelines["film"] = tl;
-    const D = { stagger: seconds("--stagger"), slow: seconds("--dur-slow") };
-    const u = px("--u");
+    const D = { base: seconds("--dur-base"), slow: seconds("--dur-slow"), stagger: seconds("--stagger") };
+    const standard = ease("--ease-standard"), entrance = ease("--ease-entrance");
+    const parcels = gsap.utils.toArray("#s01 .s01-parcel");
+    const ticks = gsap.utils.toArray("#s01 .s01-tick");
+    const BENCH = (i) => ({ x: 290 + i * 90, y: 500 }), SHELF = (i) => ({ x: 1330 + i * 105, y: 460 });
+    const HOME = 660, DROP = 1220, HOLD = { dx: 60, y: 515 };
+
+    // The rest pose: parcels wait above the frame, and the worker stands beside the bench.
+    parcels.forEach((p, i) => gsap.set(p, { x: BENCH(i).x, y: -120 }));
+    gsap.set("#s01-worker", { x: HOME, y: 700 });
+    gsap.set(["#s01-legL", "#s01-legR"], { svgOrigin: "0 -96" });
+    gsap.set("#s01-armL", { svgOrigin: "-30 -176" });
+    gsap.set("#s01-armR", { svgOrigin: "30 -176" });
+
+    // One walk: the worker and anything it holds move together, and the legs swing only while it moves.
+    const walk = (to, at, dur, held) => {
+      tl.to("#s01-worker", { x: to, duration: dur, ease: standard }, at);
+      if (held) tl.to(held, { x: to + HOLD.dx, duration: dur, ease: standard }, at);
+      // An even count of swings ends each leg back at rest.
+      const steps = 2 * Math.max(1, Math.round(dur / 0.36));
+      tl.to("#s01-legL", { rotation: 16, duration: dur / steps, ease: "sine.inOut", yoyo: true, repeat: steps - 1 }, at);
+      tl.to("#s01-legR", { rotation: -16, duration: dur / steps, ease: "sine.inOut", yoyo: true, repeat: steps - 1 }, at);
+      tl.set(["#s01-legL", "#s01-legR"], { rotation: 0 }, at + dur);
+    };
+    // One trip: lift a parcel, carry it to the shelf while the ring sweeps once, and slide it along, so the first parcel fills the far end.
+    const trip = (i, at, dur, back) => {
+      const lift = dur * 0.15, carry = dur * (back ? 0.45 : 0.7), place = dur * 0.15;
+      const slot = SHELF(2 - i);
+      tl.to("#s01-armR", { rotation: -60, duration: lift, ease: standard }, at);
+      tl.to("#s01-armL", { rotation: -20, duration: lift, ease: standard }, at);
+      tl.to(parcels[i], { x: HOME + HOLD.dx, y: HOLD.y, duration: lift, ease: standard }, at);
+      tl.set("#s01-sweep", { attr: { "stroke-dashoffset": 402.1 } }, at);
+      tl.to("#s01-sweep", { attr: { "stroke-dashoffset": 0 }, duration: lift + carry + place, ease: "none" }, at);
+      walk(DROP, at + lift, carry, parcels[i]);
+      tl.to(parcels[i], { x: slot.x, y: slot.y, duration: place, ease: standard }, at + lift + carry);
+      tl.to(["#s01-armL", "#s01-armR"], { rotation: 0, duration: place, ease: standard }, at + lift + carry);
+      tl.to(ticks[i], { fill: token("--emph"), duration: D.base }, at + lift + carry + place);
+      if (back) walk(HOME, at + lift + carry + place, dur * 0.25);
+    };
 
     // Scene 1. Each beat starts on the words its Visual line quotes in the script.
     enterScene("s01");
-    reveal("#s01 .eyebrow, #s01 .headline", cue("s01|Three small jobs"));
-    gsap.utils.toArray("#s01 .job").forEach((el, i) => reveal(el, cue("s01|Three small jobs") + (i + 1) * D.stagger));
-    gsap.utils.toArray("#s01 .bar").forEach((el, i) => reveal(el, cue("s01|takes a minute") + i * D.stagger));
-    gsap.utils.toArray("#s01 .bar").forEach((el, i) =>
-      tl.to(el, { x: -2 * u * i, y: 3 * u, duration: D.slow, ease: ease("--ease-standard") }, cue("s01|Add them together")));
-    reveal("#s01-total", cue("s01|busy for three minutes"));
+    const jobs = cue("s01|Three small jobs"), minute = cue("s01|takes a minute");
+    const together = cue("s01|Add them together"), busy = cue("s01|busy for three minutes");
+    parcels.forEach((p, i) => tl.to(p, { y: BENCH(i).y, duration: D.slow, ease: "bounce.out" }, jobs + i * D.stagger * 3));
+    tl.to("#s01-head", { x: -10, duration: D.base, ease: standard }, jobs + D.slow);
+    tl.to("#s01-eyes", { x: -8, duration: D.base, ease: standard }, jobs + D.slow);
+    trip(0, minute, together - minute, true);
+    tl.to("#s01-world", { x: -120, duration: (together - minute) * 0.7, ease: standard }, minute);
+    const half = (busy - together) / 2;
+    trip(1, together, half, true);
+    trip(2, together + half, half, false);
+    tl.to("#s01-world", { scale: 1.25, x: -380, y: -40, svgOrigin: "1100 400", duration: D.slow * 1.5, ease: standard }, busy);
+    tl.to("#s01-body", { scaleY: 0.94, svgOrigin: "0 -90", duration: D.slow, ease: entrance }, busy);
+    tl.to("#s01-head", { y: 10, duration: D.slow, ease: entrance }, busy);
+    tl.to("#s01-eyes", { scaleY: 0.25, svgOrigin: "0 -254", duration: D.base }, busy);
+    reveal("#s01-total", busy + D.slow);
     exitScene("s01");
   </script>
 </body>

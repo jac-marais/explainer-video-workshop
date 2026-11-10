@@ -24,10 +24,11 @@ This is a preparation brief. A complete brief does not claim that a renderer ran
 - Aspect ratio / resolution / FPS: `[values]`
 - Language / captions / accessibility: `[values]`
 - Tone and visual constraints: `[values]`
+- Cast and world: `[the character or cast and the world they act in, or "none" and why]`
 - Pacing: `[measured or fast]`, which decides whether the motion gate in step 8 of `methods/prepare-explainer-video.md` binds
 - Required delivery files: `[editable project, MP4, captions, sources, receipts, etc.]`
 
-The word/WPM figure is planning arithmetic, which step 3 of `methods/prepare-explainer-video.md` explains. Replace it with measured audio timing after an approved voice track exists.
+The word/WPM figure is planning arithmetic, which step 3 of `methods/prepare-explainer-video.md` explains.
 
 ## Sources and use boundaries
 
