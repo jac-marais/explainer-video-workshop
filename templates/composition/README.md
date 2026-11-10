@@ -1,131 +1,134 @@
 # Starter composition
 
-A HyperFrames composition to copy into a run, so the run writes only its scenes. It holds the paused timeline, the narration audio, the burned-in captions and the lookups that read audio-bound times from `data.js`. A brand module adds a style's signature motion, and a figure module adds a drawing style that works with any brand.
+Copy this HyperFrames starter into a run and write its scenes. The shared files handle the film's setup.
 
 ## Files
 
 | File | Job | A run edits it |
 |---|---|---|
-| `index.html` | the root, the scenes and the scene script | yes; replace the example scene |
-| `film.js` | `startFilm()`: timeline, FILM lookups, token helpers, captions | no |
-| `film.css` | base layout read from the tokens: scene, beat, eyebrow, headline, caption band | no |
-| `tokens.css` | neutral placeholder tokens | replace it with the brand's tokens |
-| `example-script.md` | the invented script that cues the example scene | no; a run uses its own script |
-| `brand-modules/<brand>.js`, `.css` | a brand's signature motion | no |
-| `figure-modules/hairline.js`, `.css`, `HAIRLINE-LICENSE.txt` | isometric line figures drawn from the timeline | no |
+| `index.html` | It holds the root, scenes, scene script and narration audio. | Replace the example scene. |
+| `film.js` | `startFilm()` supplies the paused timeline, FILM lookups, token helpers and burned-in captions. | Keep it unchanged. |
+| `film.css` | It lays out scenes, beats, eyebrows, headlines and the caption band from tokens. | Keep it unchanged. |
+| `tokens.css` | It supplies neutral placeholder tokens. | Follow [Set up a run](#set-up-a-run). |
+| `example-script.md` | It cues the invented example scene. | Use the run's own script. |
+| `brand-modules/<brand>.js`, `.css` | See [Brand modules](#brand-modules). | Keep them unchanged. |
+| `figure-modules/hairline.js`, `.css`, `HAIRLINE-LICENSE.txt` | See [Figure modules](#figure-modules). | Keep them unchanged. |
+| `motion-modules/stage.js`, `.css` | See [Motion modules](#motion-modules). | Keep them unchanged. |
+| `stage-example.html` | It supplies a stage scene to adapt. | Follow [Motion modules](#motion-modules). |
+
+Link each optional module's `.css` in `<head>` and load its `.js` after `film.js`. `startFilm()` applies brand, figure and motion modules in that order, before scene code. [film.js](film.js) owns missing-module errors.
 
 ## Set up a run
 
-1. Copy the folder: `mkdir -p outputs/<topic>/project && cp -R templates/composition/. outputs/<topic>/project/`.
-2. Replace `tokens.css` with the `css` block under "Tokens" in the chosen `brands/<brand>.md`, unchanged. Copy the font files that its "Assets and licenses" table names into `fonts/`, with their OFL texts. The workshop does not ship them, because each brand file owns its faces and their sources. Keep the placeholder only for the neutral default.
+1. Copy the folder with `mkdir -p outputs/<topic>/project && cp -R templates/composition/. outputs/<topic>/project/`.
+2. Replace `tokens.css` with the unchanged `css` block under "Tokens" in the chosen `brands/<brand>.md`. Copy the fonts named in its "Assets and licenses" table into `fonts/`, with their OFL texts. Each brand file owns its faces and sources, so the workshop does not ship them. Keep the placeholder for the neutral default.
 3. Put GSAP in `vendor/gsap.min.js`. Install it beside the HyperFrames CLI with `npm install gsap@3.14.2` and copy `node_modules/gsap/dist/gsap.min.js`. GSAP's own license (`gsap.com/standard-license`) covers that file, so the workshop does not ship it.
-4. Build `data.js` with `scripts/film/build_data.py`, `--estimate` for a silent preview or `--audio` after M1. It also writes the root's `data-duration`, which `startFilm()` checks against `data.js`.
-5. Before a voice exists, write a silent `audio/narration.wav` as long as the estimate, because the lint fails on a missing audio file: `ffmpeg -f lavfi -i anullsrc=r=48000:cl=mono -t SECONDS -c:a pcm_s16le audio/narration.wav`. `narrate_film.py` replaces it.
+4. See [scripts/film/build_data.py](../../scripts/film/build_data.py) for `data.js`, `--estimate` and `--audio`. [M1](../production-prompt.md) supplies the measured inputs.
+5. Before a voice exists, write a silent `audio/narration.wav` as long as the estimate, because lint fails on a missing audio file. Run `ffmpeg -f lavfi -i anullsrc=r=48000:cl=mono -t SECONDS -c:a pcm_s16le audio/narration.wav`. `narrate_film.py` replaces it.
 
-A brand with other token names, such as `brands/mozilla.md`, needs the base names (`--bg`, `--text`, `--ease-entrance`, `--dur-base` and the others in `tokens.css`) mapped to its own in a `:root` block in `index.html`. `token()` throws on a missing name, but CSS skips one silently, so map them all.
+A brand with other token names, such as `brands/mozilla.md`, needs the base names (`--bg`, `--text`, `--ease-entrance`, `--dur-base` and the others in `tokens.css`) mapped to its own in a `:root` block in `index.html`. CSS silently skips a missing token. [film.js](film.js) owns the helper checks.
 
 ## Write a scene
 
 Each scene is a `<section class="scene" id="sNN">` whose elements carry `beat`, so they stay hidden until the timeline reveals them. Lay them out in the `<style>` block of `index.html` from tokens and the `--u` unit.
 
-In the scene script, call `startFilm()` once, register its `tl` under the root's `data-composition-id` in `index.html` (the lint reads the key there), and then add each beat at a time from `data.js`:
+Call `startFilm()` once in the scene script and register its `tl` under the root's `data-composition-id` in `index.html`, where lint reads the key. Plan the beats under [step 4 of methods/prepare-explainer-video.md](../../methods/prepare-explainer-video.md#4-convert-the-narrative-into-a-scene-and-shot-sequence), then use these helpers to place them.
 
-- `cue("s01|quoted words")` or `cue("s01|s01-02+0.4")` gives a Visual cue's start. `scripts/README.md` defines both cue forms.
-- `onset("s01-02")` gives the start of a sentence's first caption, for a hard cut on it.
-- `sceneEnd("s01")` gives the end of a scene's last caption.
-- `reveal(target, at, {dur, easing})` and `hide(target, at, {dur, easing})` fade by tokens. A brand module may replace `reveal` with its signature entrance.
-- `enterScene("s01")` shows the section at its first caption, and `exitScene("s01")` hides it 0.1 s after its last.
-- `token`, `px`, `seconds` and `ease` read a token as a string, pixels, seconds and a GSAP ease.
-
-A lookup with a missing key throws and lists that scene's keys, so a renamed quote fails `hyperframes check` instead of drawing at second 0. Plan the beats under the beat rule in step 4 of `methods/prepare-explainer-video.md`.
+- Use `cue("s01|quoted words")` or `cue("s01|s01-02+0.4")` with the forms in [scripts/README.md](../../scripts/README.md#sentence-cues-and-translations).
+- Use `onset("s01-02")` to read `FILM.caption_onsets` for the [cut timing rules](../../scripts/README.md#sentence-cues-and-translations).
+- Use `sceneEnd("s01")` to read the end of a scene's last caption.
+- Use `reveal(target, at, {dur, easing})` and `hide(target, at, {dur, easing})` for token-based fades. A brand module can supply its signature entrance through `reveal`.
+- Use `enterScene("s01")` and `exitScene("s01")` to show and hide the section. [film.js](film.js) defines their timing and missing-key errors.
+- Use `token`, `px`, `seconds` and `ease` to read a token as a string, pixels, seconds and a GSAP ease.
 
 ## Draw a cast
 
-The example scene's worker is the pattern for a character under the cast rule in step 4 of `methods/prepare-explainer-video.md`. Draw each character and each prop as one SVG group whose moving parts are named child groups, such as its legs, arms, head and eyes. Set each part's pivot with `svgOrigin`, so a beat turns that part around its joint. Put the whole scene in one world group, and move the camera by tweening that group.
+Use the example scene's worker as the drawing pattern under the [cast rule in step 4](../../methods/prepare-explainer-video.md#cast). Draw each character and prop as one SVG group with named child groups for moving parts, such as legs, arms, head and eyes. Set each part's pivot with `svgOrigin` so it turns around its joint. Put the scene in one world group and tween that group to move the camera. [Motion modules](#motion-modules) describes the optional route.
 
-Draw to these rules.
-
-- Joints bend the way a body bends, and a held thing sits in the hands.
-- Props keep their true scale beside the character, and a carried prop paints in front of it.
-- Nothing sits crooked unless a beat says so.
-- The character stays whole inside the frame at its most extreme pose.
+Joints bend the way a body bends, and held things sit in the hands. Props keep their true scale beside the character, and carried props paint in front of it. Keep things level unless a beat calls for a tilt. Keep the character whole inside the frame at its most extreme pose.
 
 ## Caption layout
 
-This section owns the caption geometry contract for every brand and the neutral starter; each preset's Layout and Tokens sections supply its values. In the 1920×1080 canvas, `film.css` derives `--caption-top = 1080px - --caption-bottom - --caption-h` and `--content-bottom = --caption-top - --u`. The complete zone must end at or before `--caption-limit` (990 px), with a margin before the renderer's blank strip. The [renderer traps](../../methods/renderer-traps.md) explain that strip.
+This section owns the caption geometry contract for every brand and the neutral starter. Each preset's Layout and Tokens sections supply its values. In the 1920×1080 canvas, `film.css` derives `--caption-top = 1080px - --caption-bottom - --caption-h` and `--content-bottom = --caption-top - --u`. The complete zone ends at or before `--caption-limit` (990 px), leaving a margin before the blank strip explained in [renderer traps](../../methods/renderer-traps.md).
 
-Keep all foreground content above `--content-bottom`, including grids, panel fills, title and end-card groups, marks, shadows and the furthest point of entrance motion. Canvas backgrounds and transitions may fill the frame behind captions. The band clips painted overflow as a final guard; clipping text is a layout failure. Measure the complete caption span, including padding, against the zone, and keep it to two lines. `film.js` rejects an unsafe band or a span that does not fit when the film starts.
+Keep all foreground content above `--content-bottom`, including grids, panel fills, title and end-card groups, marks, shadows and the furthest point of entrance motion. Canvas backgrounds and transitions can fill the frame behind captions. Measure the complete caption span, including padding, against the zone and keep it to two lines. The band clips painted overflow, so clipped text is a layout failure. [film.js](film.js) owns the startup geometry checks.
 
-The captions come from `FILM.captions` and switch on and off hard, because `check_film.py` looks for the change at each caption edge. Pass the brand's caption font and size to `captions.py`, so its line breaks fit. Pass font files from the project's `fonts/`, the same faces the composition's `@font-face` rules load, never operating-system fonts: system faces differ between macOS and Linux, so the measured breaks would not match the rendered captions on the other platform. For Han, Hangul or Devanagari captions, add an OFL face such as Noto Sans SC, KR or Devanagari, with its license, and list it in the same fallback order in the CSS and in the repeated `--font` options. The `--caption-pad` token supplies padding when a brand defines it. `check_film.py --help` owns the default inspection crop and its resolution scaling; use the preset's entire zone for a different brand crop.
+Captions from `FILM.captions` switch on and off hard because `check_film.py` inspects each caption edge. Give `captions.py` the brand's caption font and size. Use the same font files from the project's `fonts/` that its `@font-face` rules load, because system faces differ between macOS and Linux and would change the measured breaks. For Han, Hangul or Devanagari captions, add an OFL face such as Noto Sans SC, KR or Devanagari, copy its license text into `fonts/`, and list it in the same fallback order in CSS and the repeated `--font` options. `--caption-pad` supplies padding when the brand defines it. `check_film.py --help` owns the inspection crop and resolution scaling. Use the preset's entire zone for a different brand crop.
 
 ## Brand modules
 
-A module registers `window.FilmBrands["<brand>"] = (film) => { ... }` and loads after `film.js`. `startFilm({ brand: "<brand>" })` calls it before any scene code, and fails when it is not loaded. It takes durations, easings, sizes and colors from the tokens, and fixed timings from the brand file. Add a module only for a brand whose film needs one.
+A brand module adds a style's signature motion. Register it as `window.FilmBrands["<brand>"] = (film) => { ... }` and select it with `startFilm({ brand: "<brand>" })`. It takes durations, easings, sizes and colors from tokens and fixed timings from the brand file. Add one when the brand's film needs it.
 
-`mit-media-lab` follows "Motion" in `brands/mit-media-lab.md`:
+The `mit-media-lab` module implements "Motion" in `brands/mit-media-lab.md`. Its [source](brand-modules/mit-media-lab.js) defines the mark's shape encoding and transition checks. Use these calls to schedule it.
 
-- `reveal` becomes the column-module reveal.
-- `film.mark({s01: rows, s02: rows})` adds the one 7×7 mark. Each shape is 7 strings of 7 characters: `.` empty, `#` a black cell, `*` the one magenta accent cell.
+- `film.mark({s01: rows, s02: rows})` creates the mark.
 - `mark.intro("s01")` assembles it at the film start and moves it to the corner.
-- `const at = mark.change("s01", "s02")` morphs it at the center between the scenes and returns the time it settles in the corner, when the next scene's content may start.
+- `const at = mark.change("s01", "s02")` morphs it at the center between scenes and returns when it settles in the corner, ready for the next scene's content.
 - `mark.hide(at)` fades it out.
 
-The preset's Layout section owns the mark positions and bounds.
-
-`change` throws when the pause before the next scene is too short for the morph. Write `[pause]` before each later scene's first sentence. The estimate's scene gap can pass where measured narration's does not, so only the measured `data.js` proves it.
+The preset's Layout section owns mark positions and bounds. Write `[pause]` before each later scene's first sentence to leave room for the morph. An estimated scene gap can fit when measured narration does not, so verify it with measured `data.js`.
 
 ## Figure modules
 
-A figure module registers `window.FilmFigures["<name>"] = (film) => { ... }` and loads after `film.js`. `startFilm({ figures: "<name>" })` calls it after the brand module, and fails when it is not loaded. A run that uses one links its `.css` in `<head>` and its `.js` after `film.js`.
+A figure module adds a drawing style that works with any brand. Register it as `window.FilmFigures["<name>"] = (film) => { ... }` and select it with `startFilm({ figures: "<name>" })`.
 
-`hairline` draws isometric line figures of rounded solids in the style of [Hairline](https://github.com/lucasmarkes/hairline) (S-HL-001). Its geometry and its two motion curves are ported from that MIT package, and `HAIRLINE-LICENSE.txt` must stay beside the module. The package itself moves on `requestAnimationFrame` and the pointer, which a seeked render cannot follow, so do not load it in a composition. In the port every moving value is a timeline property, and a seek redraws the part that it changes.
+`hairline` ports the MIT geometry and two motion curves of [Hairline](https://github.com/lucasmarkes/hairline) (S-HL-001) for isometric line figures. Keep `HAIRLINE-LICENSE.txt` beside the module. The original package follows `requestAnimationFrame` and the pointer, so a seeked composition uses this port's timeline properties and redraws.
 
-- `const fig = film.hairline.figure("#s02-fig", { S })` draws into an element of class `abs` that has a width. The figure is a 400 × 320 viewBox at a 5:4 ratio, in Hairline's 2:1 view. `S` is the world-to-viewBox scale, 1.6 by default.
-- `fig.box({ x, y, w, d, h, z, r, bevel, ground })` adds a rounded solid with its foot at `(x, y, z)`. It draws one silhouette and one crease, and never the vertical corners. Set `ground: true` for a plinth, which stays under every link and part.
-- `fig.link(a, b)` adds a dashed ground line between the centres of two boxes. `box.dot(u, v)` adds a flat dot on the box's lid, offset from its centre, to number the part without a word.
-- `fig.fit(cx, cy, points)` centres the figure on `(cx, cy)` in the viewBox, by default (200, 166). Call it once, after the parts. `points` are world `[x, y, z]` points of the most extreme pose, which rule 03 needs. It moves the drawing but never scales it, and it throws when the rest pose and those points span more than 400 × 320; lower `S` or the motion. A centred figure can still cross the box's edge when it sits off centre, so check the extreme pose's still.
-- A box tweens `x`, `y`, `z`, `h`, `hi` and `opacity` with plain `tl.to`. A link tweens `hi` and a dot tweens `on`.
-- `film.hairline.ripple(boxes, at, { from, step, clock, ...values })` tweens each box `|i − from| × step` seconds after `at`, so the motion spreads from one part. `clock: "lift"` is the 700 ms curve for a change of state, and `"spring"` is the settling spring for a follow. It returns the time the last box lands.
-- `film.hairline.light(target, at, on)` switches the bright stroke.
+- `const fig = film.hairline.figure("#s02-fig", { S })` draws into an element of class `abs` that has a width. The figure has a 400 × 320 viewBox at a 5:4 ratio in Hairline's 2:1 view. `S` controls its world-to-viewBox scale. [hairline.js](figure-modules/hairline.js) defines defaults and fit guards.
+- `fig.box({ x, y, w, d, h, z, r, bevel, ground })` places a solid's foot at `(x, y, z)`. Follow rule 09 for its drawing and rule 06 for `ground: true`.
+- `fig.link(a, b)` adds a dashed ground line between two boxes' centres. `box.dot(u, v)` adds a flat lid dot at an offset from its centre.
+- Call `fig.fit(cx, cy, points)` once after adding the parts. It centres the drawing without scaling it. Rule 03 describes the world `[x, y, z]` points to pass. Lower `S` or the motion when the fit fails.
+- Tween a box's `x`, `y`, `z`, `h`, `hi` and `opacity` with plain `tl.to`, a link's `hi`, or a dot's `on`.
+- `film.hairline.ripple(boxes, at, { from, step, clock, ...values })` schedules the spread under rules 02 and 08 and returns when the last box lands. Use `clock: "lift"` or `"spring"` as those rules specify.
+- `film.hairline.light(target, at, on)` switches the bright stroke under rule 04.
 
-The palette comes from the brand's tokens. Plates fill with `--bg`, the lit stroke is `--emph`, and the other strokes are `--text` mixed into `--bg`. Strokes are `--stroke` wide. Set `--hairline-plate`, `--hairline-hi`, `--hairline-edge`, `--hairline-mid`, `--hairline-lo` or `--hairline-stroke` to override one. A brand that forbids tints sets all four strokes. Set the plate to the panel colour when a figure sits on a panel.
+The palette comes from the brand's tokens. Plates fill with `--bg`, the lit stroke uses `--emph`, and other strokes mix `--text` into `--bg` at `--stroke` width. Set `--hairline-plate`, `--hairline-hi`, `--hairline-edge`, `--hairline-mid`, `--hairline-lo` or `--hairline-stroke` to override them. A brand that forbids tints sets all four strokes. Set the plate to the panel colour for a figure on a panel.
 
 ### Design a Hairline figure
 
-A figure is an object, not a diagram. Find something that could sit on a desk and that holds the scene's idea: a rack of blades, a stack of trays, a hub with its tiles. Name the two or three features that make each kind of part that thing, and draw them. Find the one number or choice that the scene's narration turns on, and let the figure's motion show only that. Then design the rest pose. Write the figure in the shot's Visual line as its object, what moves on which cue, and its rest pose.
+Choose an object that could sit on a desk and carry the scene's idea, such as a rack of blades, a stack of trays or a hub with its tiles. Name and draw the two or three features that make each kind of part recognizable. Let motion show the one number or choice the narration turns on. Write the object, its motion cue and its rest pose in the shot's Visual line.
 
-Drop or rework a concept when it is dead at rest, when it needs a word to be understood, when it holds two ideas, when it is boxes joined by arrows, or when it depends on colour.
+Rework a concept that is dead at rest, needs a word to be understood, holds two ideas, reduces to boxes joined by arrows or depends on colour. Apply the rest, accent and label constraints in [Hairline rules](#hairline-rules).
 
 ### Hairline rules
 
-These are Hairline's ten rules (S-HL-001), adapted for a seeked film. Rule 01 (hit areas) and rule 07 (loops sleep offscreen) govern the pointer and the frame loop, which the timeline replaces.
+These are Hairline's ten rules (S-HL-001), adapted for a seeked film. Rule 01 (hit areas) and rule 07 (loops sleep offscreen) govern the pointer and frame loop that the timeline replaces.
 
-- **02 Order.** Stagger by distance, never by list order. `ripple` delays each box by `|i − from| × step`, so order the boxes by their distance from the source. Use a `step` of 0.03 to 0.06 s, and keep `max(|i − from|) × step` under the clock's duration (0.7 s for the lift), so the last box starts before the first one lands. For a long row, lower the step or ripple from the middle.
-- **03 Reach.** The motion has a far end, and the figure is still composed there. Clamp every lift, gap and lean. Pass the most extreme pose's world points to `fit(cx, cy, points)`, so nothing leaves the figure's box.
-- **04 Accent.** The bright stroke is the only highlight: no fills, glows, shadows or colours of a figure's own. At rest one bright mark says where to look. When a beat picks a part, the bright moves to it and the rest mark goes dim. One highlight may cover the parts of one thing, but it marks one place.
-- **05 Rest.** The rest pose is designed, never flat: not zero, not uniform, never a regular grid. It is the still a viewer sees first.
-- **06 Honesty.** Plates are opaque and paint back to front by their centres, and parts on one centre paint bottom up, so no far edge shows through a near solid. Links paint under the parts, and a plinth is `ground`. Parts that intersect, or a large part among small ones, need `ground` or a split.
-- **08 Clocks.** A change of state, such as which part, uses the 700 ms lift. A follow uses the spring. Keep their constants unless the scene has a reason you can state.
-- **09 Radius.** Every corner is round. A solid is its silhouette, one dim crease and at most a few marks the object would really have. Never draw a vertical corner line.
-- **10 Quiet.** No words, digits, arrows or icons inside a figure. Number parts with lid dots, and put labels in the scene beside the figure.
-- **The frame.** A figure must still read at a quarter of the frame's width, 480 px. Past about a hundred solids, or with parts under ten viewBox units, it will not.
+- **02 Order.** `ripple` delays each box by `|i − from| × step`, so order the boxes by their distance from the source. Use a `step` of 0.03 to 0.06 s and keep `max(|i − from|) × step` under the clock's duration, so the last box starts before the first lands. For a long row, lower the step or ripple from the middle.
+- **03 Reach.** Clamp every lift, gap and lean to keep the extreme pose composed inside the figure's box. Pass its world points to `fit(cx, cy, points)`. A centred figure can still cross an edge when placed off centre, so inspect the extreme pose's still.
+- **04 Accent.** Use the bright stroke as the only highlight. Leave out glows, shadows and colours of the figure's own. One bright mark draws attention at rest and moves to the part a beat selects. The previous mark goes dim, so only one place is bright at a time. A highlight can cover several parts of one thing while marking one place.
+- **05 Rest.** Compose the pose the viewer sees first with varied, deliberate values. Avoid zeroed, uniform poses and regular grids.
+- **06 Honesty.** Opaque plates paint back to front by their centres, and parts on one centre paint bottom up, so far edges stay behind near solids. Links paint under parts, and a plinth uses `ground`. Intersections or a large part among small ones need `ground` or a split.
+- **08 Clocks.** Use the 700 ms lift for a change of state and the spring for a follow. Keep their constants unless the scene has a reason you can state.
+- **09 Radius.** Round every corner. Draw a solid as its silhouette, one dim crease and at most a few marks the object would have. Omit vertical corner lines.
+- **10 Quiet.** Keep words, digits, arrows and icons outside the figure. Number parts with lid dots and place labels beside it.
+- **The frame.** Make the object and its features readable at 480 px, a quarter of the frame's width. Past about a hundred solids, or with parts under ten viewBox units, it will not read.
 
-[Figure styles are not brands](../../methods/brand-explainer-video.md#figure-styles-are-not-brands) settles a conflict between a brand rule and a Hairline rule. For a brand with no rounded corners, pass `r: 0` to every box, which drops rule 09. Keep rounded corners only when the user approves that exception.
+[Figure styles are not brands](../../methods/brand-explainer-video.md#figure-styles-are-not-brands) owns conflicts between brand and figure rules, including exceptions. For a brand with no rounded corners, pass `r: 0` to every box to apply its rule instead of rule 09.
 
 ### Check a Hairline figure
 
-In the scene's stills, at rest and at each beat's landed pose, answer yes or no, and fix every no:
+Inspect the scene's stills at rest and at each beat's landed pose against rules 02, 03, 04, 05, 06, 10 and "The frame" in [Hairline rules](#hairline-rules). Record yes or no for each listed rule, point to the object's visible features and fix every no.
 
-1. The object is clear from the figure scaled to 480 px wide; point to its features in it (the frame).
-2. Rest is a composition, with one bright mark (rules 04 and 05).
-3. The motion spreads from its source; it is not everything at once (rule 02).
-4. At most one place is bright (rule 04).
-5. No far edge or link crosses a near solid (rule 06).
-6. Nothing leaves the figure's box at the most extreme pose (rule 03).
-7. Nothing inside the figure is a word, digit, arrow or icon (rule 10).
+A small lift can fall below `check_film.py`'s frozen-picture threshold. Repair quiet stretches under the [beat rule in step 4](../../methods/prepare-explainer-video.md#4-convert-the-narrative-into-a-scene-and-shot-sequence). In 0.8.145, `hyperframes check` can warn `connector_detached` when a link's ends sit under a part. Read a still before accepting or fixing that warning.
 
-A figure's motion is small against the 1920 × 1080 frame, so the frozen-picture check in `check_film.py` can fail on a scene with only a small lift. Give each scene a larger move or a planned hold. In 0.8.145, `hyperframes check` can also warn `connector_detached` for links whose ends sit under a part; read a still before you accept or fix that warning.
+## Motion modules
+
+Register a motion module as `window.FilmMotion["<name>"] = (film) => { ... }` and select it with `startFilm({ motion: "<name>" })`.
+
+The optional stage suits a cast moving through one world under a camera. The plain GSAP `index.html` stays the default. To choose the stage, copy `stage-example.html` over `index.html`, keep its links to `motion-modules/stage.css` and `stage.js`, and replace its scene. `startFilm({ motion: "stage" })` exposes the helpers as `film.stage`, called `S` in the example. Call `S.finish()` once after every scene is defined.
+
+Draw each scene in one `<svg class="plate">` in a 1920 × 1080 plate space. Move stage nodes through the helpers so seeks in any order reconstruct the same frame. Direct GSAP tweens on those nodes break that contract. [stage.js](motion-modules/stage.js) owns the channel implementation, helper arguments, return values, timings and guards. [stage.css](motion-modules/stage.css) owns the token-based drawing classes and overrides.
+
+- Use `S.plate(S.svg("s01"), { ground })` to build the scene layers and `S.mount(svg, markup, layer)` to add drawings. `S.core.INK(w)` supplies outlines. See the stylesheet for `f-*`, `h-*` and `t-*`, the hues `emph`, `text`, `dim`, `good`, `bad` and `wait`, and `--stage-ink`, `--stage-good`, `--stage-bad` and `--stage-wait`.
+- Use `S.text`, `S.mono`, `S.caps` and `S.display` to draw text, `S.type` to type it and `S.setText` to replace it.
+- Use `S.ride` to move a placed figure or prop along points, `S.place` to jump it and `S.at(id, t)` to query its position. The source defines the `<id>-at` and `<id>` groups.
+- Use `show`, `hide`, `fade`, `drop`, `slide`, `slideOut`, `move`, `stamp`, `popIn`, `popOut`, `pulse`, `squash`, `wobble`, `turn`, `spin`, `scale`, `attr`, `draw`, `trace`, `blink`, `light`, `lightRun` and `cls` for individual motion and state changes.
+- Use `S.cam(scene, at, { x, y, w })` or `"wide"` to reframe the camera. `S.limitIn(frame)` applies [Caption layout](#caption-layout) to that framing. `S.enter(scene)` handles cuts and `S.shake` moves the picture. See the source for `S.loop` intervals and the cast's `S.idle`.
+- Use `S.figure(id, x, y)` for the built-in character and `S.pose`, `S.rest`, `S.look`, `S.face`, `S.eyes`, `S.walk`, `S.hand(id, at)` and `S.carry(id, prop, points, t0, t1)` to act it out. For another character, copy `S.figure` and its rig in `stage.js` and redraw the body while keeping its part IDs and joints.
+- Use `S.parcel`, `S.envelope`, `S.card` and `S.verdict` for props. See the source for `<id>-l<i>` text nodes and the centre `S.hold` puts in the hand.
+- `S.sfx(name, at)` records events in `window.SFX`, and several helpers add their own. [scripts/README.md](../../scripts/README.md#audio) lists the capture and synthesis tools.
 
 ## Check
 
-Run `hyperframes check`, then render and check the MP4 as M5 of `templates/production-prompt.md` says, under the HyperFrames preflight traps in `methods/renderer-traps.md`.
+Run `hyperframes check`, then follow [M5 of templates/production-prompt.md](../production-prompt.md) for rendering and checking the MP4 under the HyperFrames preflight traps in [methods/renderer-traps.md](../../methods/renderer-traps.md).

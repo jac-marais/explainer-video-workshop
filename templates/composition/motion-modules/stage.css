@@ -1,0 +1,25 @@
+/* The stage: one 1920x1080 SVG plate per scene. Colours come from the brand tokens; a brand may set any --stage-*,
+   and each use falls back to a default only when it doesn't. */
+.scene > svg.plate { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; }
+svg .beat { visibility: hidden; opacity: 0; }
+
+.f-bg { fill: var(--bg); }
+.f-layer { fill: var(--layer); }
+.f-ink { fill: var(--stage-ink, var(--line)); }
+.f-none { fill: none; }
+.f-emph { fill: var(--emph); }
+
+.h-emph { stroke: var(--emph); }
+.h-text { stroke: var(--text); }
+.h-dim { stroke: var(--text-2); }
+.h-good { stroke: var(--stage-good, #2e7d32); }
+.h-bad { stroke: var(--stage-bad, #c62828); }
+.h-wait { stroke: var(--stage-wait, #b26a00); }
+
+.t-emph { fill: var(--emph); }
+.t-text { fill: var(--text); }
+.t-dim { fill: var(--text-2); }
+.t-good { fill: var(--stage-good, #2e7d32); }
+.t-bad { fill: var(--stage-bad, #c62828); }
+.t-wait { fill: var(--stage-wait, #b26a00); }
+.t-bg { fill: var(--bg); }

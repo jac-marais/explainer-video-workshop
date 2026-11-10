@@ -61,7 +61,7 @@ Carry the resulting choices through [Decide, then record](#3-decide-then-record)
 
 ## Figure styles are not brands
 
-A figure style sets how diagrams are drawn and how they move. It has no type, layout or captions, so it works with any brand or with the neutral default. The workshop's one figure style is Hairline, in [figure modules](../templates/composition/README.md#figure-modules). Choose it per run in the scene plan's global visual system, not in `local/brand.md`, unless the user wants it for every run. Its palette comes from the brand's tokens. Where a brand rule and a figure-style rule disagree, the brand wins; the audit records the conflict.
+A figure style sets how diagrams are drawn and how they move. It has no type, layout or captions, so it works with any brand or with the neutral default. The workshop's one figure style is Hairline, in [figure modules](../templates/composition/README.md#figure-modules). Choose it per run in the scene plan's global visual system, not in `local/brand.md`, unless the user wants it for every run. Its palette comes from the brand's tokens. Where a brand rule and a figure-style rule disagree, the brand wins; the audit records the conflict. Keep the figure rule instead only when the user approves that exception.
 
 ## Procedure
 

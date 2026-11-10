@@ -3,8 +3,9 @@
 // until the scene script in index.html calls startFilm().
 window.FilmBrands = window.FilmBrands || {};
 window.FilmFigures = window.FilmFigures || {};
+window.FilmMotion = window.FilmMotion || {};
 
-window.startFilm = ({ brand, figures } = {}) => {
+window.startFilm = ({ brand, figures, motion } = {}) => {
   const FILM = window.FILM;
   if (!FILM) throw new Error("window.FILM is missing: write data.js with scripts/film/build_data.py");
   const root = document.querySelector("[data-composition-id]");
@@ -82,6 +83,10 @@ window.startFilm = ({ brand, figures } = {}) => {
   if (figures) {
     if (!window.FilmFigures[figures]) throw new Error(`figure module "${figures}" is not loaded; add figure-modules/${figures}.js after film.js`);
     window.FilmFigures[figures](film);
+  }
+  if (motion) {
+    if (!window.FilmMotion[motion]) throw new Error(`motion module "${motion}" is not loaded; add motion-modules/${motion}.js after film.js`);
+    window.FilmMotion[motion](film);
   }
 
   const band = root.appendChild(document.createElement("div"));
