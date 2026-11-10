@@ -1,3 +1,6 @@
+// Capture uses installed Chrome with its sandbox on and Playwright from the project or PLAYWRIGHT.
+// PAGE supplies the page when --page is absent; ordinary captures default to index.html.
+// Capture allows file and data requests, waits for fonts and image decoding, and rejects page errors.
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { existsSync } from 'node:fs';

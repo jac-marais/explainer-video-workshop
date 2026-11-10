@@ -4,7 +4,8 @@
   scripts/run/py scripts/film/sheet.py DIR [COLS]
 
 COLS defaults to 4 and must be a positive integer. Each tile is 640x360 with a
-24-pixel label strip. Empty folders and nonnumeric still names fail clearly.
+24-pixel label strip. Input names must contain finite, nonnegative times. An
+empty folder or a nonnumeric still name exits with an error.
 """
 import argparse
 from pathlib import Path

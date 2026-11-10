@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Check synthesized stems, event handling and narration guards with generated audio."""
 import json
 import subprocess
 import sys

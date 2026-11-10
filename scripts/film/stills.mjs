@@ -1,16 +1,14 @@
-// Usage: node scripts/film/stills.mjs --project DIR OUT_DIR TIME... | OUT_DIR --every STEP FROM TO | OUT_DIR --sheets [--page frames.html]
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { argumentsFor, stillTimes, launchBrowser, openPage, pageDuration, seekPage, assertPageHealthy } from './seek-browser.mjs';
 
-const usage = `Save 1920x1080 stills from a paused composition, or each section.sheet of a frames page.
+const usage = `Save stills from a paused composition or capture each section.sheet of a frames page.
   node scripts/film/stills.mjs --project DIR OUT_DIR TIME...
   node scripts/film/stills.mjs --project DIR OUT_DIR --every STEP FROM TO
   node scripts/film/stills.mjs --project DIR OUT_DIR --sheets [--page frames.html]
---page defaults to index.html (frames.html with --sheets); PAGE also sets it.
+Each still is a 1920x1080 t<time>.png in OUT_DIR. With --sheets, --page defaults to frames.html.
 Writes OUT_DIR/sfx.json from window.SFX, or [] when absent.
-Uses installed Chrome with its sandbox on, file/data requests only, and Playwright
-resolved from the project/run or the PLAYWRIGHT module path. Page errors exit 1.`;
+See seek-browser.mjs for browser setup, page selection and capture guards.`;
 
 async function main() {
   if (process.argv.includes('--help')) { console.log(usage); return; }
@@ -41,7 +39,6 @@ async function main() {
       if (times.some(time => time > duration) || (options['--every'] && Number(options['--every'][2]) > duration)) throw new Error('stills must be within data-duration');
       for (const time of times) {
         await seekPage(page, time);
-        // A fixed-width name sorts in time order, such as t0001.500.png.
         await page.screenshot({ path: join(output, `t${time.toFixed(3).padStart(8, '0')}.png`) });
         assertPageHealthy(errors);
       }

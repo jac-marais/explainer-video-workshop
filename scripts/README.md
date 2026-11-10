@@ -2,7 +2,7 @@
 
 This is the shared tool list for a production. Run the tools from the workshop root. Each CLI's `--help` and source header own its options, defaults and guards. [M0 to M6 of templates/production-prompt.md](../templates/production-prompt.md) supply the production commands and milestones.
 
-The underlying voice tools (`voice.py`, `cut_takes.py`, `plan_runs.py`) live in `templates/voice/`.
+See [the voice method](../methods/voice-explainer-video.md#generate-narration) for the underlying voice tools.
 
 ## assets/
 
@@ -12,34 +12,31 @@ The underlying voice tools (`voice.py`, `cut_takes.py`, `plan_runs.py`) live in 
 
 Narration, cues, captions, film data and storyboards share [audio/text_tokens.py](audio/text_tokens.py) for Unicode matching and sentence splitting. Its `sentences()` contract owns language-specific sentence boundaries, and [audio/captions.py](audio/captions.py) owns the dependency parse that places caption breaks. Run tools that split or parse with `scripts/run/py`, using the Stanza models from [Setup](../README.md#setup).
 
-- `narrate_film.py` voices scenes, cuts them into sentences, assembles narration, aligns the script's words, writes timing and checks the audio. Run `scripts/run/py scripts/audio/narrate_film.py`. Its header describes `--language`, `--check-only`, number readings and alignment repairs, including `audio-checks.json` and `retranscribed_spans`. [The voice method](../methods/voice-explainer-video.md#estimated-runs) owns take-length limits.
-- `cues.py` writes measured visual cue times to `cues.json`. Use it after narration alignment, with the shared naming rules in [Sentence cues and translations](#sentence-cues-and-translations).
-- `captions.py` builds sentence captions from measured timing and words. Apply the composition's [Caption layout](../templates/composition/README.md#caption-layout) when choosing its fonts and line width.
-- `mix.py` synthesizes a music bed and sound effects under mono narration from code, without samples or downloads. Run `scripts/run/py scripts/audio/mix.py --project outputs/sample-film/project --events outputs/sample-film/stills/sfx.json --out outputs/sample-film/mix.wav --stems outputs/sample-film/stems`. Its [source](audio/mix.py) documents event fields and names, `--narration WAV`, `--timing JSON`, `PROJECT/audio/narration.wav`, `PROJECT/audio/timing.json`, music sequencing, ducking, output levels and the `music.wav` and `effects.wav` stems.
+- Use `narrate_film.py` through [M1](../templates/production-prompt.md) for narration. Its header covers number readings, alignment repairs and check reports. [The voice method](../methods/voice-explainer-video.md#estimated-runs) owns take-length limits.
+- Use `cues.py` and `captions.py` through [M1](../templates/production-prompt.md). [Sentence cues and translations](#sentence-cues-and-translations) owns cue naming, and [Caption layout](../templates/composition/README.md#caption-layout) owns font selection and geometry.
+- Use [mix.py](audio/mix.py) for generated music and effects, with [the mix restart](#one-command-per-language). Its help owns event fields, sequencing, output levels and stems, and its source owns the event names and ducking levels.
 
 ## storyboard/
 
-- `storyboard.py` builds `storyboard.html` from a script for checking shots against narration before rendering. [Step 4 of the prepare method](../methods/prepare-explainer-video.md#4-convert-the-narrative-into-a-scene-and-shot-sequence) owns the page's layout and preparation use. The tool's header owns the `--audio` clip-matching guard and sentence-fraction hover estimates. Its word floor comes from [step 3](../methods/prepare-explainer-video.md#3-draft-the-narrative-and-honest-time-estimate). Translation naming is below.
+- Use `storyboard.py` through [step 4 of the prepare method](../methods/prepare-explainer-video.md#4-convert-the-narrative-into-a-scene-and-shot-sequence). Its header owns clip matching and hover estimates. [Step 3](../methods/prepare-explainer-video.md#3-draft-the-narrative-and-honest-time-estimate) owns the word floor, and the translation rules below own cue naming.
 
 ## film/
 
-- `build_data.py` writes a composition's `data.js` from cues, captions and narration length and sets `data-duration`. Use `--estimate --language CODE` for a silent preview before voicing. Its header owns timing details, and the translation rules below describe `--key-script`.
-- `render.py` renders and post-processes HyperFrames compositions. Its source owns renderer fixes and browser selection. For a caller mixing a master, `encoded_true_peak()` measures its peak after AAC encoding.
-- `stills.mjs` captures a built composition for layout and pose inspection, saving `t*.png` and exporting `sfx.json` from `window.SFX`. Run `node scripts/film/stills.mjs --project outputs/sample-film/project outputs/sample-film/stills 0 1.5 3`. Its help and source describe `--every 0.5 0 3`, `--sheets` capture of `<section class="sheet">` in `PROJECT/frames.html`, and time and page guards.
-- `sheet.py` tiles `t*.png` in numeric time order into labelled `sheet.png` for comparing poses. Run `scripts/run/py scripts/film/sheet.py outputs/sample-film/stills 4`. Its [docstring](film/sheet.py) owns columns, tile sizes and input guards.
-- `render-seek.mjs` provides a silent MP4 fallback when HyperFrames' bundled browser cannot run on the host. Run `scripts/run/heavy node scripts/film/render-seek.mjs --project outputs/sample-film/project outputs/sample-film/silent.mp4 --from 0 --to 2 --fps 30 --workers 2`, then `scripts/run/py scripts/film/render.py --skip-render outputs/sample-film/silent.mp4 -o outputs/sample-film/film.mp4 --narration outputs/sample-film/mix.wav`. Its help owns range defaults, output guards and retained `.seek-*` segments. The [composition](../templates/composition/README.md#write-a-scene) explains timeline registration, and [Motion modules](../templates/composition/README.md#motion-modules) owns stage seek determinism.
-- `check_film.py` checks an exact MP4 and reports motion metrics and failures. [Step 8 of the prepare method](../methods/prepare-explainer-video.md#8-run-machine-checks-and-bounded-checkpoints) owns when the `measure_motion.py` gate binds, including `--pacing fast`.
+- Use `build_data.py` for composition data. Its header owns measured and estimated timing, and the translation rules below own cue mapping.
+- Use `render.py` through [M5](../templates/production-prompt.md). Its source owns renderer fixes, browser selection and `encoded_true_peak()` for callers mixing a master.
+- Use [stills.mjs](film/stills.mjs) for layout and pose inspection, and [sheet.py](film/sheet.py) for pose comparisons. Their help owns capture modes, outputs and guards.
+- Use [render-seek.mjs](film/render-seek.mjs) for the host-browser fallback. Its help owns capture ranges, retained segments and the audio post-processing command. [Write a scene](../templates/composition/README.md#write-a-scene) covers timeline registration.
+- Use `check_film.py` through [M5 and M6](../templates/production-prompt.md). [Step 8 of the prepare method](../methods/prepare-explainer-video.md#8-run-machine-checks-and-bounded-checkpoints) owns the motion gate.
 
-Both JavaScript capture tools share [seek-browser.mjs](film/seek-browser.mjs). Their help describes `--page NAME` and `PAGE`. The shared source owns Chrome and Playwright setup, including project or run-folder `node_modules` and `PLAYWRIGHT`, request restrictions, capture readiness and page errors.
+Both JavaScript capture tools share [seek-browser.mjs](film/seek-browser.mjs), whose header owns browser setup, page selection, request restrictions, readiness and page errors.
 
 ## run/
 
-- `setup_check.sh` checks the local tools a production needs and downloads nothing.
-- `py [PYTHON_ARG...]` runs Python in the environment shared by every checkout on this computer. See [Setup](../README.md#setup).
-- `receipts.py` regenerates measured tables in receipt documents.
+- Follow [Setup](../README.md#setup) for `setup_check.sh` and `py [PYTHON_ARG...]`.
+- Use `receipts.py` through [M1 and M5](../templates/production-prompt.md) for receipt tables.
 - `runlog.py` prices sessions and appends timed phase rows to `run-state.md`.
 - `heavy COMMAND ARG...` serializes expensive work across projects and terminals under `~/.cache/explainer-video-heavy.lock`. Wrap standalone production mixes with `scripts/run/heavy` too. All participating commands must use it under the same OS account. Nested calls inherit the ancestor's lock through `EXPLAINER_VIDEO_HEAVY_LOCK`, so child commands must finish before the ancestor exits. Keep the lock file while commands are active. The [source](run/heavy) defines priority, waiting and lock release.
-- `make_film.py` drives the mechanical language build on an existing composition, with an installed HyperFrames CLI and configured voice. Its [source](run/make_film.py) owns input checks, step execution, heavy-work wrapping and failure guards. Use [One command per language](#one-command-per-language) for repairs and mixes. [The production milestones](../templates/production-prompt.md) supply visual work and playback review.
+- Use [make_film.py](run/make_film.py) through [One command per language](#one-command-per-language) for builds, repairs and mixes. Its help and source own input checks, step execution and failure guards. [The production milestones](../templates/production-prompt.md) supply visual work and playback review.
 
 ## Sentence cues and translations
 
@@ -51,7 +48,7 @@ For a hard cut on a sentence, use `FILM.caption_onsets["s03|s03-02"]`, the start
 
 ## One command per language
 
-Follow [the production contract and milestones](../templates/production-prompt.md) for prerequisites and language-specific paths. The composition references that language's `audio/narration.wav` and generated `data.js`.
+Follow [the production contract and milestones](../templates/production-prompt.md) for prerequisites and language-specific paths. Follow the composition's [Files](../templates/composition/README.md#files) and [Set up a run](../templates/composition/README.md#set-up-a-run) for its audio and data references.
 
 ```sh
 scripts/run/make_film.py --language fr --voice VOICE_NAME \
@@ -60,11 +57,11 @@ scripts/run/make_film.py --language fr --voice VOICE_NAME \
   --out outputs/paper-garden/fr/film.mp4
 ```
 
-`make_film.py --help` owns `--audio` and `PROJECT/audio`, `--strings`, `--key-script`, `--key-language`, `--spoken`, `--reuse`, `--aliases`, repeated `--embed NAME=FILE.json`, and `--composition`. It also describes `--caption-font`, `--caption-font-size`, `--caption-font-weight`, `--caption-line-width`, `--tail`, `--pacing`, `--holds`, `--uncaptioned`, `--caption-band`, `--size`, `--fps`, and arguments after a bare `--`. The composition must use the dimensions and frame rate declared to render and check.
+`make_film.py --help` describes every option, including render forwarding after a bare `--`.
 
-Choose `--from STEP` from the changed input. Start at `narrate` after a voice or narration edit, `captions` after caption settings change, `cues` after cue edits, `data` after strings or embedded data change, `render` after a picture-only edit, or `check` to inspect an existing exact MP4. Earlier artifacts must still match their inputs because the tool does not detect stale dependencies automatically. Use a new `--out` when rerendering and keep a failed MP4 for inspection. The tool's source owns `--to STEP` and the render-only MP4 guard.
+Choose `--from STEP` from the changed input. Start at `narrate` after a voice or narration edit, `captions` after caption settings change, `cues` after cue edits, `data` after strings or embedded data change, `render` after a picture-only edit, or `check` to inspect an existing exact MP4. Earlier artifacts must still match their inputs because the tool does not detect stale dependencies automatically. Follow [M5](../templates/production-prompt.md) for rerender outputs and failed-file inspection. The tool's source owns `--to STEP` and the render-only MP4 guard.
 
-To add music or effects, run through `--to data`, capture events with `stills.mjs` and mix them with `AUDIO/narration.wav` using `mix.py`. Resume with `--from render --mix MIX.wav`. Render muxes that track and check uses it as the audio reference. See [make_film.py](run/make_film.py) for the `--mix` restart guard.
+To add music or effects, run through `--to data`, capture events with `stills.mjs` and mix them with `AUDIO/narration.wav` using `mix.py`. Resume with `--from render --mix MIX.wav`.  See [make_film.py](run/make_film.py) for the `--mix` restart guard.
 
 ## Tests
 

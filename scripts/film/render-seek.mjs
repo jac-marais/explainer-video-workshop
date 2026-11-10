@@ -1,19 +1,18 @@
-// Usage: node scripts/film/render-seek.mjs --project DIR OUT.mp4 [--from S] [--to S] [--fps 30] [--workers 4] [--page index.html]
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { argumentsFor, renderRange, launchBrowser, openPage, pageDuration, seekPage, assertPageHealthy } from './seek-browser.mjs';
 
-const usage = `Render a silent MP4 by seeking the paused timeline frame by frame in installed Chrome.
+const usage = `Render a silent MP4 by seeking the paused timeline frame by frame.
   node scripts/film/render-seek.mjs --project DIR OUT.mp4 [--from S] [--to S]
       [--fps 30] [--workers 4] [--page index.html]
-Uses Chrome's sandbox, file/data requests only, and Playwright from the project/run
-or PLAYWRIGHT. PAGE also sets the page. --from defaults to 0 and --to to data-duration.
-OUT is never overwritten; temporary encoded segments remain beside it for inspection.
-Use when HyperFrames' bundled browser cannot run on the host. Add audio afterwards:
+--from defaults to 0 and --to to data-duration.
+OUT is never overwritten; encoded segments remain beside it in .seek-* for inspection.
+Use this fallback when HyperFrames' bundled browser cannot run on the host.
+Add audio afterwards with the post-processing tool.
   scripts/run/py scripts/film/render.py --skip-render OUT.mp4 -o FILM.mp4 --narration MIX.wav
-Page and encoder errors exit 1.`;
+Encoder errors exit 1. See seek-browser.mjs for browser setup, page selection and capture guards.`;
 
 export function concatEntry(path) {
   return `file '${path.replaceAll("'", "'\\''")}'\n`;

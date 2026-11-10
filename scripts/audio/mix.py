@@ -4,15 +4,14 @@
   scripts/run/py scripts/audio/mix.py --project DIR --events STILLS/sfx.json --out MIX.wav
       [--narration WAV] [--timing JSON] [--stems DIR]
 
-Narration and timing default to DIR/audio/narration.wav and DIR/audio/timing.json.
-Timing has a nonempty scenes list with finite, strictly increasing start times;
-scene IDs do not select the music: programs cycle in scene order.
-Events are {name, t, gain, pitch}; gain defaults to 1 and pitch to 0 semitones.
-Everything is synthesized with numpy/scipy, with no samples or downloads. Stems
-are music.wav and effects.wav after ducking, before the master limiter.
-The narration is added at unity gain; only the master true-peak limiter changes
-its peaks. The 24-bit output must retain its sample count, stay at or below
--1.5 dBTP, and move no more than 1 LU from its integrated loudness, or exit 1.
+Timing needs a nonempty scenes list with finite, strictly increasing start times.
+Scene programs cycle in scene order before the final chord.
+Events use {name, t, gain, pitch}; gain defaults to 1 and pitch to 0 semitones.
+Everything is synthesized with numpy/scipy, with no samples or downloads.
+The --stems help describes the separate outputs.
+Narration is added at unity gain before master true-peak limiting. The 24-bit
+output must retain the narration's sample count, stay at or below -1.5 dBTP, and
+stay within 1 LU of the narration's integrated loudness, or exit 1.
 Empty, silent, nonfinite, stereo, sub-20-ms or below-24-kHz narration fails clearly.
 Sound events may be empty; their times must fall within the narration, gains
 must be nonnegative, and pitches must be within +/-120 semitones.
@@ -40,7 +39,7 @@ MUSIC_UNDER_SPEECH_DB = -20.0  # music RMS relative to speech RMS while the voic
 MUSIC_DUCK_DEPTH_DB = 9.0  # how far the music rises back up in a clear gap
 EFFECTS_REFERENCE_DB = 0.0  # peak of a trim-0, gain-1 effect relative to speech RMS
 EFFECTS_DUCK_DEPTH_DB = 3.0
-TRUE_PEAK_CEILING_DBTP = -1.7  # 0.2 dB under the -1.5 dBTP spec for margin
+TRUE_PEAK_CEILING_DBTP = -1.7  # Leave 0.2 dB of margin below the peak specification.
 TRUE_PEAK_SPEC_DBTP = -1.5
 LOUDNESS_TOLERANCE_LU = 1.0
 
@@ -51,10 +50,9 @@ REPEAT_ATTENUATION = 0.8
 REPEAT_GAIN_FLOOR = 0.5
 SAME_NAME_MIN_SPACING_SECONDS = 0.030
 
-NOTE_BASE_MIDI = 74  # D5: `note` pitch 0 is the tonic of D major
-DING_BASE_MIDI = 81  # A5: `ding` pitch 0 is the fifth of D major
+NOTE_BASE_MIDI = 74
+DING_BASE_MIDI = 81
 
-# Key of D major; each chord has a bass note, pad voicing and five arpeggio tones (MIDI numbers).
 CHORDS = {
     "Dmaj9": dict(bass=38, pad=[50, 57, 64, 66, 73], arp=[62, 66, 69, 73, 76]),
     "Dadd9": dict(bass=38, pad=[50, 57, 62, 64, 66], arp=[62, 64, 66, 69, 74]),
@@ -73,13 +71,13 @@ SCENE_PROGRAMS = (
 )
 FINAL_PROGRAM = dict(chords=["Dadd9"], arp_a=0.35, arp_b=0.2, pulse=0.0, mallet=0.3, level=0.8)
 
-# Downbeats first, so a lower density keeps the strongest steps of the bar.
+# Prioritizing downbeats preserves the strongest steps at lower density.
 STEP_PRIORITY = [0, 8, 4, 12, 2, 10, 6, 14, 3, 11, 7, 15, 1, 9, 5, 13]
 ARP_A_PATTERN = [0, 2, 1, 3, 2, 4, 3, 1]
 ARP_B_PATTERN = [4, 2, 3, 1]
 MALLET_PATTERN = [4, 2, 3, 0]
 
-# Designer trims (dB) so every peak-normalized effect lands at a similar perceived level.
+# These designer trims aim for similar perceived levels across effects.
 EFFECT_TRIM_DB = {
     "key": -9, "tick": -14, "click": -10, "pop": -8, "thump": -4, "thud": -4, "slam": -1,
     "whoosh": -9, "swish": -12, "ding": -9, "note": -8, "spring": -11, "riser": -8,
@@ -87,7 +85,7 @@ EFFECT_TRIM_DB = {
 
 
 def k_weighting_coefficients(sample_rate):
-    """BS.1770-4 K-weighting as two biquads, in the libebur128 form that reproduces the published 48 kHz values."""
+    """Use the libebur128 biquad form of BS.1770-4 K-weighting."""
     f0, gain_db, q = 1681.974450955533, 3.999843853973347, 0.7071752369554196
     k = np.tan(np.pi * f0 / sample_rate)
     vh = 10 ** (gain_db / 20)
@@ -122,7 +120,7 @@ def integrated_loudness_lufs(audio, sample_rate):
 
 
 def true_peak_per_sample(audio):
-    """Absolute peak of each sample and its three 4x-oversampled neighbours."""
+    """Return the largest absolute value of each sample and its three oversampled neighbours."""
     oversampled = signal.resample_poly(audio, 4, 1)[: len(audio) * 4]
     return np.maximum(np.abs(audio), np.abs(oversampled).reshape(-1, 4).max(axis=1))
 
@@ -141,7 +139,7 @@ def rms(audio):
 
 
 class SpeechAnalysis:
-    """20 ms frame levels of the narration, speech/gap masks and the sidechain ducking curve."""
+    """Analyze narration levels, speech and gaps for sidechain ducking."""
 
     FRAME_SECONDS = 0.020
 
@@ -161,15 +159,15 @@ class SpeechAnalysis:
         self.reference_db = reference_db
 
     def ducking_gain(self, narration, depth_db, length):
-        """Sidechain gain from the narration: 0 dB in clear gaps, -depth_db under speech."""
+        """Return sidechain gain approaching 0 dB in clear gaps and -depth_db under speech."""
         control_rate = 1000
         step = self.sample_rate // control_rate
-        # The running mean can round a hair below zero over digital silence, and sqrt of that is NaN.
+        # Digital silence can round the mean below zero, so clamp it before taking the square root.
         mean_square = np.maximum(uniform_filter1d(narration ** 2, size=int(0.030 * self.sample_rate)), 0)
         envelope = np.sqrt(mean_square[::step])
         envelope_db = db(envelope)
         presence = np.clip((envelope_db - (self.reference_db - 38)) / 14, 0, 1)
-        # Hold 150 ms so word gaps do not pump; look ahead 60 ms so the dip starts before the syllable.
+        # Holding presence across word gaps keeps the music from pumping.
         presence = maximum_filter1d(presence, size=150, origin=-15)
         smoothed = np.empty_like(presence)
         level = presence[0]
@@ -188,7 +186,7 @@ def midi_to_hz(midi):
 
 
 class Instruments:
-    """Cached synthesized notes; a few seeded variants per pitch so repeats are not identical."""
+    """Cache seeded note variants per pitch to vary repeated notes."""
 
     VARIANTS = 3
 
@@ -210,7 +208,7 @@ class Instruments:
         return np.clip(t / seconds, 0, 1)
 
     def _pluck(self, midi, rng):
-        """Felt-piano-like pluck: harmonic partials, upper ones fade faster."""
+        """Synthesize a pluck whose upper harmonics fade faster."""
         t = self._time(1.6)
         frequency = midi_to_hz(midi) * 2 ** (rng.uniform(-3, 3) / 1200)
         wave = np.zeros_like(t)
@@ -222,7 +220,7 @@ class Instruments:
         return wave / np.abs(wave).max()
 
     def _bell(self, midi, rng):
-        """Higher, glassier pluck for the interlocking second voice."""
+        """Synthesize the glassier second voice."""
         t = self._time(1.8)
         frequency = midi_to_hz(midi) * 2 ** (rng.uniform(-3, 3) / 1200)
         partials = [(1.0, 1.0, 2.2), (2.0, 0.25, 4.0), (3.0, 0.08, 6.0), (4.07, 0.06, 9.0)]
@@ -233,7 +231,7 @@ class Instruments:
         return wave / np.abs(wave).max()
 
     def _mallet(self, midi, rng):
-        """Soft marimba-like mallet with the 4x and 10x bar partials."""
+        """Synthesize a soft mallet with partials near four and ten times the fundamental."""
         t = self._time(1.4)
         frequency = midi_to_hz(midi) * 2 ** (rng.uniform(-3, 3) / 1200)
         wave = np.sin(2 * np.pi * frequency * t) * np.exp(-3.0 * t)
@@ -243,7 +241,7 @@ class Instruments:
         return wave / np.abs(wave).max()
 
     def _pulse(self, midi, rng):
-        """Muted low pulse: fundamental plus octave so small speakers still hear the beat."""
+        """Add an octave to the low pulse so small speakers can carry the beat."""
         t = self._time(0.45)
         frequency = midi_to_hz(midi + 12)
         wave = np.sin(2 * np.pi * frequency * t) + 0.35 * np.sin(4 * np.pi * frequency * t) * np.exp(-12 * t)
@@ -265,7 +263,7 @@ def final_chord_start(total_seconds):
 
 
 def chord_timeline(scenes, total_seconds):
-    """List of (start, end, chord name, program) sections; scene boundaries change the harmony."""
+    """Return (start, end, chord name, program) sections."""
     sections = []
     final_start = final_chord_start(total_seconds)
     for index, scene in enumerate(scenes):
@@ -292,7 +290,7 @@ def section_at(sections, time_seconds):
 
 
 def synthesize_pad(sections, sample_rate, length):
-    """Warm detuned additive pad, rendered at a quarter rate then upsampled; crossfades at each chord change."""
+    """Synthesize a detuned additive pad with crossfades at chord changes."""
     pad_rate = sample_rate // 4
     pad_length = length // 4 + 1
     pad = np.zeros(pad_length)
@@ -327,7 +325,7 @@ def synthesize_music(scenes, sample_rate, length):
     music = 0.55 * synthesize_pad(sections, sample_rate, length)
     rng = np.random.default_rng(102)
     step_count = int(total_seconds / SIXTEENTH_SECONDS)
-    arp_entry_seconds = 2 * BAR_SECONDS  # pad alone for two bars, then the first voice enters
+    arp_entry_seconds = 2 * BAR_SECONDS
     for step in range(step_count):
         time_seconds = step * SIXTEENTH_SECONDS
         _, _, chord_name, program = section_at(sections, time_seconds)
@@ -337,27 +335,22 @@ def synthesize_music(scenes, sample_rate, length):
         start_sample = int(round(time_seconds * sample_rate))
         humanize_db = rng.normal(0, 1.0)
         accent = 1.0 if step_in_bar % 4 == 0 else 0.8
-        # Voice A: sixteenth-note arpeggio; density keeps the highest-priority steps of each bar.
         if time_seconds >= arp_entry_seconds and step_in_bar in STEP_PRIORITY[: round(program["arp_a"] * 16)]:
             midi = chord["arp"][ARP_A_PATTERN[step % len(ARP_A_PATTERN)]]
             add_at(music, start_sample, instruments.note("pluck", midi, step), 0.16 * accent * level * 10 ** (humanize_db / 20))
-        # Voice B: dotted-eighth cycle an octave up, so it phases against voice A every three bars.
+        # The dotted-eighth cycle shifts against voice A over three bars.
         if program["arp_b"] > 0 and step % 3 == 1:
             midi = chord["arp"][ARP_B_PATTERN[(step // 3) % len(ARP_B_PATTERN)]] + 12
             add_at(music, start_sample, instruments.note("bell", midi, step), 0.07 * program["arp_b"] * level * 10 ** (humanize_db / 20))
-        # Pulse: quarter notes on the chord root, softer on the off-beats.
         if program["pulse"] > 0 and step_in_bar % 4 == 0:
             beat_gain = 1.0 if step_in_bar in (0, 8) else 0.6
             add_at(music, start_sample, instruments.note("pulse", chord["bass"], step), 0.22 * program["pulse"] * beat_gain * level)
-        # Mallet: a slow four-note line on beats 1 and 3.
         if program["mallet"] > 0 and step_in_bar in (0, 8):
             midi = chord["arp"][MALLET_PATTERN[(step // 8) % len(MALLET_PATTERN)]] + 12
             add_at(music, start_sample, instruments.note("mallet", midi, step), 0.10 * program["mallet"] * level)
-    # Chapter mark: a low mallet bloom on the root at every scene boundary after the first.
     for scene in scenes[1:]:
         chord = CHORDS[section_at(sections, scene["start"] + 0.01)[2]]
         add_at(music, int(scene["start"] * sample_rate), instruments.note("mallet", chord["bass"] + 24, 0), 0.30)
-    # Resolution: the final tonic rings out from the last chord change.
     final_start = final_chord_start(total_seconds)
     add_at(music, int(final_start * sample_rate), instruments.note("mallet", 62, 1), 0.30)
     t = np.arange(length) / sample_rate
@@ -368,7 +361,7 @@ def synthesize_music(scenes, sample_rate, length):
 
 
 class Effects:
-    """Each effect is a function of (rng, pitch) returning a peak-normalized mono sound."""
+    """Each named effect receives a random generator and a pitch argument."""
 
     def __init__(self, sample_rate):
         self.sample_rate = sample_rate
@@ -400,7 +393,7 @@ class Effects:
         return np.sin(2 * np.pi * np.cumsum(frequency) / self.sample_rate)
 
     def _key(self, rng, pitch):
-        """Light, weighted typewriter tick: a bright strike, a small body and the key bottoming out."""
+        """Synthesize a typewriter key strike, body and bottoming sound."""
         t = self._time(0.07)
         variation = rng.uniform(0.85, 1.15)
         strike = self._band_noise(rng, len(t), 1800 * variation, 6500 * variation) * np.exp(-t / (0.004 * variation))
@@ -444,7 +437,7 @@ class Effects:
         return (body + 0.5 * noise / (np.abs(noise).max() + 1e-12)) * np.clip(t / 0.0015, 0, 1)
 
     def _slam(self, rng, pitch):
-        """Low impact with metallic resonance and delayed clicks."""
+        """Synthesize a low impact with metallic resonance and delayed clicks."""
         t = self._time(2.4)
         variation = rng.uniform(0.95, 1.05)
         boom = self._sweep_sine(t, 70, 36, 0.08) * np.exp(-t / 0.45)
@@ -463,7 +456,7 @@ class Effects:
         return sound * np.clip(t / 0.002, 0, 1)
 
     def _air(self, rng, seconds, bands_hz, peak_fraction):
-        """Filtered-noise sweep: band envelopes peak one after another, so the colour rises then falls."""
+        """Stagger filtered-noise peaks so the sweep rises and falls."""
         t = self._time(seconds)
         sound = np.zeros_like(t)
         for index, (low_hz, high_hz) in enumerate(bands_hz):
@@ -490,7 +483,7 @@ class Effects:
         return sound * np.clip(t / 0.001, 0, 1)
 
     def _note(self, rng, pitch):
-        """Soft mallet pluck in D major; pitch is semitones above D5."""
+        """Synthesize a soft mallet at D5 plus pitch semitones."""
         t = self._time(0.9)
         frequency = midi_to_hz(NOTE_BASE_MIDI + pitch) * 2 ** (rng.uniform(-4, 4) / 1200)
         decay = rng.uniform(0.9, 1.1)
@@ -507,7 +500,7 @@ class Effects:
         return (np.sin(phase) + 0.2 * np.sin(2 * phase)) * np.exp(-t / 0.13) * np.clip(t / 0.002, 0, 1)
 
     def _riser(self, rng, pitch):
-        """Gentle ~1 s swell: rising filtered air and a soft D-A-E chord, with a short tail."""
+        """Synthesize a swell of about one second with rising air, a D-A-E chord and a short tail."""
         seconds = 1.0 * rng.uniform(0.95, 1.05)
         tail_seconds = 0.25
         t = self._time(seconds + tail_seconds)
@@ -521,7 +514,7 @@ class Effects:
 
 
 def thin_events(events):
-    """Drop events beyond the per-window cap and soften close repeats of the same sound."""
+    """Thin crowded events and soften close repeats."""
     kept = []
     for event in sorted(events, key=lambda item: item["t"]):
         recent = [other for other in kept if event["t"] - other["t"] < THIN_WINDOW_SECONDS]
@@ -548,7 +541,7 @@ def synthesize_effects(events, sample_rate, length):
 
 
 def true_peak_limit(audio, ceiling_dbtp, sample_rate):
-    """Lookahead true-peak limiter; returns the limited audio and the maximum gain reduction in dB."""
+    """Return limited audio and its maximum gain reduction in dB."""
     ceiling = 10 ** (ceiling_dbtp / 20)
     width = int(0.010 * sample_rate)
     total_reduction = np.ones_like(audio)
@@ -597,12 +590,12 @@ def validate_inputs(timing, events, total_seconds):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--project", required=True, type=Path, help="run composition folder")
-    parser.add_argument("--narration", type=Path, help="default: PROJECT/audio/narration.wav")
-    parser.add_argument("--timing", type=Path, help="default: PROJECT/audio/timing.json")
-    parser.add_argument("--events", required=True, type=Path)
-    parser.add_argument("--out", required=True, type=Path)
-    parser.add_argument("--stems", type=Path, help="directory for music-only and effects-only WAVs")
+    parser.add_argument("--project", required=True, type=Path, help="Use this run's composition folder.")
+    parser.add_argument("--narration", type=Path, help="Read mono narration here; the default is PROJECT/audio/narration.wav.")
+    parser.add_argument("--timing", type=Path, help="Read scene timing here; the default is PROJECT/audio/timing.json.")
+    parser.add_argument("--events", required=True, type=Path, help="Read sound events from this JSON file.")
+    parser.add_argument("--out", required=True, type=Path, help="Write the mixed WAV here.")
+    parser.add_argument("--stems", type=Path, help="Write music.wav and effects.wav here after ducking and before master limiting.")
     arguments = parser.parse_args()
 
     arguments.narration = arguments.narration or arguments.project / "audio" / "narration.wav"

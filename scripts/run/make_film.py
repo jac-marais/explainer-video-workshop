@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""Build one language of a prepared HyperFrames film.
-
-Run the steps from --from through --to. Arguments after a bare -- go to hyperframes render.
-"""
+"""Build one language of a prepared HyperFrames film, running the steps from --from through --to."""
 import argparse
 import json
 from pathlib import Path
@@ -28,7 +25,7 @@ def execute(command, heavy=False):
 
 
 def split_sentences(texts):
-    """Each (language, text) pair's sentence texts, split by text_tokens.py in the workshop environment."""
+    """Return sentence texts for each (language, text) pair using the shared splitter."""
     result = subprocess.run([SCRIPTS / "run/heavy", SCRIPTS / "run/py", SCRIPTS / "audio/text_tokens.py"],
                             input=json.dumps(texts), stdout=subprocess.PIPE, text=True)
     if result.returncode:
@@ -73,35 +70,44 @@ def validate_inputs(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__, epilog="Arguments after a bare -- go to the HyperFrames render, through render.py.")
+    parser = argparse.ArgumentParser(description=__doc__, epilog="Arguments after a bare -- go through render.py to HyperFrames render.")
     for name in ("script", "scenes", "project", "hf", "out"):
-        parser.add_argument(f"--{name}", type=Path, required=True)
-    parser.add_argument("--voice", required=True)
-    parser.add_argument("--language", required=True)
-    parser.add_argument("--key-language", help="the --key-script's language code")
-    parser.add_argument("--audio", type=Path, help="defaults to PROJECT/audio")
-    parser.add_argument("--from", dest="start", choices=STEPS, default="narrate")
-    parser.add_argument("--to", dest="stop", choices=STEPS, default="check")
-    parser.add_argument("--composition", default=".", help="composition path inside PROJECT passed to render.py (default .)")
-    parser.add_argument("--key-script", type=Path, help="the script a translation follows; sets the word floor and cue names")
-    parser.add_argument("--strings", type=Path, help="translated on-screen strings, passed to build_data.py")
+        parser.add_argument(f"--{name}", type=Path, required=True, help={
+            "script": "Read the authored scene script from this Markdown file.",
+            "scenes": "Read narration scenes from this JSON file; they must match the script.",
+            "project": "Use this existing composition folder, which must contain index.html.",
+            "hf": "Run this installed HyperFrames CLI.",
+            "out": "Render or check this MP4 path; rendering requires a new path.",
+        }[name])
+    parser.add_argument("--voice", required=True, help="Use this configured narration voice.")
+    parser.add_argument("--language", required=True, help="Use this narration language code.")
+    parser.add_argument("--key-language", help="Supply the language code required by --key-script.")
+    parser.add_argument("--audio", type=Path, help="Use audio artifacts in this directory; the default is PROJECT/audio.")
+    parser.add_argument("--from", dest="start", choices=STEPS, default="narrate",
+                        help="Start at this step, including it; the default is narrate.")
+    parser.add_argument("--to", dest="stop", choices=STEPS, default="check",
+                        help="Stop after this step; the default is check.")
+    parser.add_argument("--composition", default=".", help="Render this path inside PROJECT; the default is .")
+    parser.add_argument("--key-script", type=Path, help="Read the key script for translation cue names and word-floor checks.")
+    parser.add_argument("--strings", type=Path, help="Pass translated on-screen strings to build_data.py.")
     for name in ("spoken", "reuse"):
-        parser.add_argument(f"--{name}", type=Path, help="passed to narrate_film.py, which describes it")
-    parser.add_argument("--aliases", type=Path, help="cue aliases, passed to cues.py")
+        parser.add_argument(f"--{name}", type=Path, help={"spoken": "Pass spoken-form mappings to narrate_film.py; its help defines the JSON format.",
+                                                   "reuse": "Reuse narration from this audio directory under narrate_film.py rules."}[name])
+    parser.add_argument("--aliases", type=Path, help="Pass cue aliases to cues.py.")
     parser.add_argument("--embed", action="append", default=[], metavar="NAME=FILE.json",
-                        help="JSON embedded in data.js; repeatable; passed to build_data.py")
-    parser.add_argument("--tail", type=float, default=0, help="seconds after the narration, for data, render and check")
-    parser.add_argument("--pacing", choices=("measured", "fast"), default="measured", help="check_film.py motion pacing")
-    parser.add_argument("--holds", default="", help="declared holds, passed to check_film.py")
-    parser.add_argument("--uncaptioned", default="", help="spans without captions, passed to check_film.py")
+                        help="Embed JSON under NAME in data.js; repeat for additional files.")
+    parser.add_argument("--tail", type=float, default=0, help="Add these seconds after narration for data, render and check; the default is 0.")
+    parser.add_argument("--pacing", choices=("measured", "fast"), default="measured", help="Use this motion pacing for check_film.py; the default is measured.")
+    parser.add_argument("--holds", default="", help="Pass declared hold spans to check_film.py.")
+    parser.add_argument("--uncaptioned", default="", help="Pass comma-separated cue IDs shown without captions, such as title cards, to check_film.py.")
     parser.add_argument("--caption-font", action="append", default=[], metavar="FILE[#INDEX]",
-                        help="caption font file; repeat in CSS fallback order; passed to captions.py as --font")
+                        help="Pass this font file to captions.py as --font; repeat it in CSS fallback order (templates/composition/README.md#caption-layout).")
     for name in ("caption-font-size", "caption-font-weight", "caption-line-width"):
-        parser.add_argument(f"--{name}", type=float, help=f"passed to captions.py as --{name[8:]}")
-    parser.add_argument("--caption-band", help="passed to check_film.py, which owns the default")
-    parser.add_argument("--size", default="1920x1080", help="frame size the composition declares, for check_film.py")
-    parser.add_argument("--fps", type=float, default=30, help="frame rate the composition declares, for check_film.py")
-    parser.add_argument("--mix", type=Path, help="mono mix to mux and check instead of AUDIO/narration.wav")
+        parser.add_argument(f"--{name}", type=float, help=f"Pass this value to captions.py as --{name[8:]}.")
+    parser.add_argument("--caption-band", help="Pass the inspection crop to check_film.py, which owns the default.")
+    parser.add_argument("--size", default="1920x1080", help="Check this declared composition size; the default is 1920x1080.")
+    parser.add_argument("--fps", type=float, default=30, help="Check this declared composition frame rate; the default is 30.")
+    parser.add_argument("--mix", type=Path, help="Mux and check this mono master; --from must be render or check.")
     argv = sys.argv[1:]
     extra = argv[argv.index("--") + 1:] if "--" in argv else []
     argv = argv[:argv.index("--")] if "--" in argv else argv
@@ -164,7 +170,7 @@ def main():
                 command += ["--", *extra]
             execute(command, heavy=True)
         elif step == "check":
-            # check_film.py owns the default caption band, so pass one only when the user sets it.
+
             band = ["--caption-band", args.caption_band] if args.caption_band else []
             execute([sys.executable, SCRIPTS / "film/check_film.py", args.out, "--timing", timing,
                      "--captions", captions, "--narration", master, "--tail", args.tail,

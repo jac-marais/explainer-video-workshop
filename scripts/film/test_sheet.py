@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Check contact sheet order, pixels, labels, columns and empty-input errors."""
 import subprocess
 import sys
 import tempfile

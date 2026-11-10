@@ -1,5 +1,3 @@
-/* The stage: one 1920x1080 SVG plate per scene. Colours come from the brand tokens; a brand may set any --stage-*,
-   and each use falls back to a default only when it doesn't. */
 .scene > svg.plate { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; }
 svg .beat { visibility: hidden; opacity: 0; }
 

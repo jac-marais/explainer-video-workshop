@@ -8,7 +8,6 @@
   <script src="vendor/gsap.min.js"></script>
 </head>
 <body>
-  <!-- The example scene of index.html, built on the stage module. build_data.py rewrites the first data-duration. -->
   <div id="root" data-composition-id="film" data-start="0" data-duration="0" data-width="1920" data-height="1080">
     <section id="s01" class="scene"><svg class="plate" viewBox="0 0 1920 1080"></svg></section>
     <audio id="narration" class="clip" src="audio/narration.wav" data-start="0" data-track-index="9"></audio>
@@ -19,11 +18,9 @@
   <script>
     const film = startFilm({ motion: "stage" });
     const S = film.stage, { INK } = S.core;
-    // The lint reads this key from this file, and it must equal the root's data-composition-id.
     window.__timelines = window.__timelines || {};
     window.__timelines["film"] = film.tl;
 
-    // Scene 1. Each beat starts on the words its Visual line quotes in example-script.md.
     const svg = S.plate(S.svg("s01"), { ground: 700 });
     const BENCH = (i) => [290 + i * 90, 500], SHELF = (i) => [1330 + i * 105, 460], HOME = 660, DROP = 1220;
     S.mount(svg, `<rect x="250" y="560" width="320" height="28" rx="6" class="f-layer" ${INK(4)}/><path d="M280 588 V700 M540 588 V700" ${INK(4)}/>
@@ -41,12 +38,10 @@
     S.idle("s01-w", 0, minute);
     [0, 1, 2].forEach((i) => S.drop(`s01-p${i}`, jobs + i * 0.24));
     S.look("s01-w", jobs + 0.8, -1);
-    // One trip: reach out, lift a parcel to the hand, carry it to the shelf while the ring sweeps once, and slide
-    // it along, so the first parcel fills the far end.
     const trip = (i, at, dur, back) => {
       const lift = dur * 0.15, carry = dur * (back ? 0.45 : 0.7), place = dur * 0.15, p = `s01-p${i}`;
       S.pose("s01-w", at, { aR: 70, aL: 40, look: 0 }, { dur: lift });
-      // Turn toward the shelf before reading the hand, so the lift ends where the carry holds the parcel.
+      // Facing the shelf first makes the lift and carry use the same hand position.
       S.face("s01-w", at + lift, 1);
       const [hx, hy] = S.hand("s01-w", at + lift);
       S.ride(p, [[hx - 40, hy - 30]], at, at + lift, { sfx: null });
