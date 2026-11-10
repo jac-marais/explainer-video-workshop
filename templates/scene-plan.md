@@ -2,13 +2,13 @@
 
 Status: `draft` | Brief: `[path or ID]` | Audio receipt: `not available / [ID]`
 
-One scene has one learner-facing comprehension job. One shot is a contiguous renderable interval. A fade, zoom, or camera move by itself is not a comprehension job.
+Step 4 of `methods/prepare-explainer-video.md` defines a scene, a shot and a beat.
 
 ## Narrative map
 
 | Scene | Comprehension job | Claim IDs | Narration purpose | Visual idea | Why motion helps | Words | Target WPM/range | Speech seconds* | Breathing pause budget* | Learner pause budget* | Total planned window* |
 |---|---|---|---|---|---|---:|---:|---:|---:|---:|---:|
-| `S01` | `[one job]` | `C-…` | `[setup / mechanism / contrast / recap]` | `[diagram, UI, formula, etc.]` | `[specific temporal relationship]` | `[count]` | `[e.g. 130–165]` | `[words/WPM × 60]` | `[seconds]` | `[seconds]` | `[speech + pauses]` |
+| `S01` | `[one job]` | `C-…` | `[setup / mechanism / contrast / recap]` | `[what the cast does with which props, or why this scene has no cast]` | `[specific temporal relationship]` | `[count]` | `[e.g. 130–165]` | `[words/WPM × 60]` | `[seconds]` | `[seconds]` | `[speech + pauses]` |
 
 \* Speech seconds are estimated from the scene's words and target WPM and exclude breathing and learner-processing pauses. Total planned window includes speech plus both pause budgets. After the voice track is approved, measured audio duration supersedes the total-window estimate; retain planned pause annotations unless the timing artifact measures them separately.
 
@@ -22,7 +22,7 @@ Before accepting the plan, apply the per-scene timing rule in step 3 of `methods
 |---|---|---|---|---|---|---|---|---|
 | `S01-01` | `S01` | `[line or audio range]` | `[estimate, or On "quoted spoken words"]` | `[what moves and why]` | `[exact text]` | `[path, source, license]` | `[HyperFrames/live-app capture/Remotion/Manim/Motion Canvas/HTML-Canvas/Pexo]` | `[condition]` |
 
-Cue format: write a visual that lands on speech as `On "exact spoken words"`, or `**"exact spoken words"**` in a list. Quote consecutive words of that scene's narration, enough to be unique in it, never a second. The script holds them in `## Scene N: title` sections, each with a `**Narration**` part and then a `**Visual**` part. Each list item in a Visual part is one shot, placed at its first cue, and a shot without a cue follows the shot above it. Link a shot's key frames inside its item as `![what it shows](path)`, with paths relative to the script. A shot that holds an earlier frame links that frame again, because the storyboard shows each shot with only the frames that it links. `scripts/audio/cues.py` times the cues from `words.json`, and `scripts/storyboard/storyboard.py` builds the storyboard from the same sections.
+Cue format: write a visual that lands on speech as `On "exact spoken words"`, or `**"exact spoken words"**` in a list. Quote consecutive words of that scene's narration, enough to be unique in it. The script holds them in `## Scene N: title` sections, each with a `**Narration**` part and then a `**Visual**` part. Each list item in a Visual part is one shot, placed at its first cue, and a shot without a cue follows the shot above it. Link a shot's key frames inside its item as `![what it shows](path)`, with paths relative to the script. A shot that holds an earlier frame links that frame again, because the storyboard shows each shot with only the frames that it links. `scripts/audio/cues.py` times the cues from `words.json`, and `scripts/storyboard/storyboard.py` builds the storyboard from the same sections.
 
 ## Required scene checks
 
@@ -43,6 +43,7 @@ For every scene, answer these questions in one or two sentences:
 - Canvas and safe area: `[values]`
 - Type sizes and contrast: `[values or tokens]`
 - Color meaning: `[mapping]`
+- Prop ledger: `[prop → the one concept it stands for]`
 - Reusable components: `[names]`
 - Accessibility rules: `[captions, color, motion, audio]`
 - Route decision and disqualifiers: `[reason]`

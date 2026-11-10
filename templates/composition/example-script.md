@@ -1,6 +1,6 @@
 # Example script for the starter composition
 
-The example scene in `index.html` is cued from this script. Replace both with the run's own script and scenes.
+The example scene in `index.html` is cued from this script.
 
 ## Scene 1: Three small jobs
 
@@ -8,7 +8,7 @@ The example scene in `index.html` is cued from this script. Replace both with th
 
 **Visual.**
 
-- On "Three small jobs", the headline and three outlined job boxes enter, because the viewer has to count them.
-- On "takes a minute", a one-minute bar appears under each box, because the time is what the jobs share.
-- On "Add them together", the three bars join into one long bar, because the total is their sum.
-- On "busy for three minutes", the long bar gets its "3 minutes" label, because that number answers the question.
+- On "Three small jobs", three parcels drop onto the bench, and the worker turns to look at them, because the viewer has to count them.
+- On "takes a minute", the worker carries the first parcel to the shelf while the timer ring sweeps once and the camera follows it, because a minute is what one job costs.
+- On "Add them together", the worker carries the other two parcels in turn, and the ring sweeps again for each, because the total is the sum of the three trips.
+- On "busy for three minutes", the camera moves in on the timer, the worker sags, and "3 minutes" appears beside the three lit ticks, because that number answers the question.

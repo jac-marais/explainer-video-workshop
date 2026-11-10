@@ -37,7 +37,18 @@ In the scene script, call `startFilm()` once, register its `tl` under the root's
 - `enterScene("s01")` shows the section at its first caption, and `exitScene("s01")` hides it 0.1 s after its last.
 - `token`, `px`, `seconds` and `ease` read a token as a string, pixels, seconds and a GSAP ease.
 
-A lookup with a missing key throws and lists that scene's keys, so a renamed quote fails `hyperframes check` instead of drawing at second 0. Never write a second for an audio-bound event. Plan the beats under the beat rule in step 4 of `methods/prepare-explainer-video.md`.
+A lookup with a missing key throws and lists that scene's keys, so a renamed quote fails `hyperframes check` instead of drawing at second 0. Plan the beats under the beat rule in step 4 of `methods/prepare-explainer-video.md`.
+
+## Draw a cast
+
+The example scene's worker is the pattern for a character under the cast rule in step 4 of `methods/prepare-explainer-video.md`. Draw each character and each prop as one SVG group whose moving parts are named child groups, such as its legs, arms, head and eyes. Set each part's pivot with `svgOrigin`, so a beat turns that part around its joint. Put the whole scene in one world group, and move the camera by tweening that group.
+
+Draw to these rules.
+
+- Joints bend the way a body bends, and a held thing sits in the hands.
+- Props keep their true scale beside the character, and a carried prop paints in front of it.
+- Nothing sits crooked unless a beat says so.
+- The character stays whole inside the frame at its most extreme pose.
 
 ## Caption layout
 
@@ -75,7 +86,7 @@ A figure module registers `window.FilmFigures["<name>"] = (film) => { ... }` and
 - `fig.fit(cx, cy, points)` centres the figure on `(cx, cy)` in the viewBox, by default (200, 166). Call it once, after the parts. `points` are world `[x, y, z]` points of the most extreme pose, which rule 03 needs. It moves the drawing but never scales it, and it throws when the rest pose and those points span more than 400 × 320; lower `S` or the motion. A centred figure can still cross the box's edge when it sits off centre, so check the extreme pose's still.
 - A box tweens `x`, `y`, `z`, `h`, `hi` and `opacity` with plain `tl.to`. A link tweens `hi` and a dot tweens `on`.
 - `film.hairline.ripple(boxes, at, { from, step, clock, ...values })` tweens each box `|i − from| × step` seconds after `at`, so the motion spreads from one part. `clock: "lift"` is the 700 ms curve for a change of state, and `"spring"` is the settling spring for a follow. It returns the time the last box lands.
-- `film.hairline.light(target, at, on)` switches the bright stroke. That stroke is the only highlight.
+- `film.hairline.light(target, at, on)` switches the bright stroke.
 
 The palette comes from the brand's tokens. Plates fill with `--bg`, the lit stroke is `--emph`, and the other strokes are `--text` mixed into `--bg`. Strokes are `--stroke` wide. Set `--hairline-plate`, `--hairline-hi`, `--hairline-edge`, `--hairline-mid`, `--hairline-lo` or `--hairline-stroke` to override one. A brand that forbids tints sets all four strokes. Set the plate to the panel colour when a figure sits on a panel.
 
@@ -99,7 +110,7 @@ These are Hairline's ten rules (S-HL-001), adapted for a seeked film. Rule 01 (h
 - **10 Quiet.** No words, digits, arrows or icons inside a figure. Number parts with lid dots, and put labels in the scene beside the figure.
 - **The frame.** A figure must still read at a quarter of the frame's width, 480 px. Past about a hundred solids, or with parts under ten viewBox units, it will not.
 
-Where a brand rule and a Hairline rule disagree, the brand wins, under [Figure styles are not brands](../../methods/brand-explainer-video.md#figure-styles-are-not-brands). For a brand with no rounded corners, pass `r: 0` to every box, which drops rule 09, and record the conflict in the brand audit. Keep rounded corners only when the user approves that exception.
+[Figure styles are not brands](../../methods/brand-explainer-video.md#figure-styles-are-not-brands) settles a conflict between a brand rule and a Hairline rule. For a brand with no rounded corners, pass `r: 0` to every box, which drops rule 09. Keep rounded corners only when the user approves that exception.
 
 ### Check a Hairline figure
 
