@@ -6,9 +6,9 @@ Step 4 of `methods/prepare-explainer-video.md` defines a scene, a shot and a bea
 
 ## Narrative map
 
-| Scene | Comprehension job | Claim IDs | Narration purpose | Visual idea | Why motion helps | Words | Target WPM/range | Speech seconds* | Breathing pause budget* | Learner pause budget* | Total planned window* |
-|---|---|---|---|---|---|---:|---:|---:|---:|---:|---:|
-| `S01` | `[one job]` | `C-…` | `[setup / mechanism / contrast / recap]` | `[what the cast does with which props, or why this scene has no cast]` | `[specific temporal relationship]` | `[count]` | `[e.g. 130–165]` | `[words/WPM × 60]` | `[seconds]` | `[seconds]` | `[speech + pauses]` |
+| Scene | Join from previous | Comprehension job | Claim IDs | Narration purpose | Visual idea | Why motion helps | Words | Target WPM/range | Speech seconds* | Breathing pause budget* | Learner pause budget* | Total planned window* |
+|---|---|---|---|---|---|---|---:|---:|---:|---:|---:|---:|
+| `S01` | `[none for the first scene; but / therefore]` | `[one job]` | `C-…` | `[setup / mechanism / contrast / recap]` | `[what the cast does with which props, or why this scene has no cast]` | `[specific temporal relationship]` | `[count]` | `[e.g. 130–165]` | `[words/WPM × 60]` | `[seconds]` | `[seconds]` | `[speech + pauses]` |
 
 \* Speech seconds are estimated from the scene's words and target WPM and exclude breathing and learner-processing pauses. Total planned window includes speech plus both pause budgets. After the voice track is approved, measured audio duration supersedes the total-window estimate; retain planned pause annotations unless the timing artifact measures them separately.
 
