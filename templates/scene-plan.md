@@ -20,7 +20,9 @@ Before accepting the plan, apply the per-scene timing rule in step 3 of `methods
 
 | Shot | Scene | Audio segment | Start/end or timing key | Visual elements and motion grammar | On-screen text | Assets and rights | Renderer/dependency | Entry/exit condition |
 |---|---|---|---|---|---|---|---|---|
-| `S01-01` | `S01` | `[line or audio range]` | `[estimate, or On "quoted spoken words"]` | `[what moves and why]` | `[exact text]` | `[path, source, license]` | `[HyperFrames/live-app capture/Remotion/Manim/Motion Canvas/HTML-Canvas/Pexo]` | `[condition]` |
+| `S01-01` | `S01` | `[line, caption phrase or audio range]` | `[estimate, or On "quoted spoken words"]` | `[what moves and why; palette before/after if changed]` | `[exact labels; caption phrase and gesture/pause cue]` | `[path, source, license]` | `[HyperFrames/live-app capture/Remotion/Manim/Motion Canvas/HTML-Canvas/Pexo]` | `[condition]` |
+
+Apply [character rollout coloring](../methods/prepare-explainer-video.md#character-rollout-coloring) and [disjointed dialogue](../methods/prepare-explainer-video.md#disjointed-dialogue) from step 4 when planning those beats.
 
 Cue format: write a visual that lands on speech as `On "exact spoken words"`, or `**"exact spoken words"**` in a list. Quote consecutive words of that scene's narration, enough to be unique in it. The script holds them in `## Scene N: title` sections, each with a `**Narration**` part and then a `**Visual**` part. Each list item in a Visual part is one shot, placed at its first cue, and a shot without a cue follows the shot above it. Link a shot's key frames inside its item as `![what it shows](path)`, with paths relative to the script. A shot that holds an earlier frame links that frame again, because the storyboard shows each shot with only the frames that it links. `scripts/audio/cues.py` times the cues from `words.json`, and `scripts/storyboard/storyboard.py` builds the storyboard from the same sections.
 
