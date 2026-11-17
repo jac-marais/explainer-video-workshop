@@ -18,7 +18,7 @@ The [manifest](manifest.json) maps stable IDs to canonical URLs. It contains pri
 | What does the Hairline figure module port, and under what license? | S-HL-001 | [Figure modules](../templates/composition/README.md#figure-modules); MIT notice in `templates/composition/figure-modules/HAIRLINE-LICENSE.txt` |
 | Which voice options are local? | S-VO-001/002, S-TC-003 | Original URLs in the manifest |
 | Where can a scene get 3D models, HDRIs and textures, and how is a file taken in? | S-AS-001–010 | [3D assets](3d-assets.md) |
-| Where can a custom look find references? | S-DR-001–021, S-DR-028–040 | [Design reference claim map](design-reference-claims.md) |
+| Where can a custom look find references? | S-DR-001–021, S-DR-028–045 | [Design reference claim map](design-reference-claims.md) |
 | Where can someone drawing a character find a pose, and what may the film show? | S-DR-022–027 | [Pose references](character-pose-references.md) |
 
 ## Authority and retention
@@ -53,7 +53,7 @@ See [the claim ledger](voice-polish-claims.md) for the evidence judgments and [t
 
 ## Design reference sources
 
-See [the claim ledger](design-reference-claims.md) for judgments and [the manifest](manifest.json) for URLs and publisher identities. S-DR-001–021 were checked on 2026-10-31, S-DR-022–035 on 2026-11-01 and S-DR-036–040 on 2026-11-03; no assets were downloaded. Direct fetches used a stock browser User-Agent. These are page-level receipts, not asset licences.
+See [the claim ledger](design-reference-claims.md) for judgments and [the manifest](manifest.json) for URLs and publisher identities. S-DR-001–021 were checked on 2026-10-31, S-DR-022–035 on 2026-11-01, S-DR-036–040 on 2026-11-03 and S-DR-041–045 on 2026-11-17; no assets were downloaded. Direct fetches used a stock browser User-Agent. These are page-level receipts, not asset licences.
 
 | ID | Exact locators and access |
 |---|---|
@@ -97,3 +97,8 @@ See [the claim ledger](design-reference-claims.md) for judgments and [the manife
 | S-DR-038 | Cloudflare-managed content-signal block. File read directly. |
 | S-DR-039 | Headline; category list; footer. HTML read directly; robots.txt allows all paths except /api/. |
 | S-DR-040 | Use it for anything; One limit; Three exceptions; Not covered; Credit. HTML read directly; last changed September 2026. |
+| S-DR-041 | Museum's Digital page: Collection online; eFont font platform. Own-page text read through web retrieval. eMuseum's /, /about and /terms returned an Anubis bot check in direct HTML; web retrieval also showed the check at /, /start and /collections and could not retrieve /about, /about/emuseum, /en/about or /terms. The museum's description was used instead. |
+| S-DR-042 | Poster: opening three paragraphs. Museum's own-page text read through web retrieval; images were not inspected. |
+| S-DR-043 | Copyright: opening English paragraph; displayed date `01/06/2022`. Own-page text read through web retrieval, following the Copyright link on /services. Direct HTML at /rights returned an Anubis bot check. |
+| S-DR-044 | About Gurafiku; Contact attribution paragraph; Popular categories; Design decades; footer. Own-page text read through web retrieval at the archive's Tumblr host. gurafiku.com redirects to a domain-sale page, so the supplied domain is not the archive. Direct HTML returned 403 at gurafiku.tumblr.com /about, /copyright, /terms, /disclaimer and /tagged/packaging; web retrieval could not retrieve the last four. No archive-specific rights statement was read; use S-DR-045 for the host's terms. |
+| S-DR-045 | Terms of Service: section 6, Your Rights in User Content; User Content License to Tumblr; Content License to You. HTML read directly; Last Modified: 2026-01-16. Web retrieval returned 406 at this URL and /policy/en/terms_of_service. The alternative policies.tumblr.com/terms-of-service/ returned 403 directly and could not be retrieved through web retrieval. |

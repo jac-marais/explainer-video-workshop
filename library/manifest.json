@@ -1576,6 +1576,66 @@
       "commit": null,
       "access": "See source-map.md#design-reference-sources for the access receipt.",
       "private": false
+    },
+    {
+      "id": "S-DR-041",
+      "title": "Museum für Gestaltung Zürich digital collection description",
+      "canonical_url": "https://museum-gestaltung.ch/en/whats/digital",
+      "source_class": "primary artifact inspected",
+      "publisher": "Museum für Gestaltung Zürich",
+      "fetched": "2026-11-17",
+      "source_date_or_version": "Live page at retrieval; see source-map.md#design-reference-sources",
+      "commit": null,
+      "access": "See source-map.md#design-reference-sources for the access receipt.",
+      "private": false
+    },
+    {
+      "id": "S-DR-042",
+      "title": "Museum für Gestaltung Zürich Poster Collection",
+      "canonical_url": "https://museum-gestaltung.ch/en/poster",
+      "source_class": "primary artifact inspected",
+      "publisher": "Museum für Gestaltung Zürich",
+      "fetched": "2026-11-17",
+      "source_date_or_version": "Live page at retrieval; see source-map.md#design-reference-sources",
+      "commit": null,
+      "access": "See source-map.md#design-reference-sources for the access receipt.",
+      "private": false
+    },
+    {
+      "id": "S-DR-043",
+      "title": "eMuseum copyright",
+      "canonical_url": "https://www.emuseum.ch/rights",
+      "source_class": "primary artifact inspected",
+      "publisher": "Museum für Gestaltung Zürich / Zurich University of the Arts",
+      "fetched": "2026-11-17",
+      "source_date_or_version": "Displayed date: 01/06/2022",
+      "commit": null,
+      "access": "See source-map.md#design-reference-sources for the access receipt.",
+      "private": false
+    },
+    {
+      "id": "S-DR-044",
+      "title": "About Gurafiku",
+      "canonical_url": "https://gurafiku.tumblr.com/about",
+      "source_class": "primary artifact inspected",
+      "publisher": "Ryan Hageman (Gurafiku)",
+      "fetched": "2026-11-17",
+      "source_date_or_version": "Live page at retrieval; see source-map.md#design-reference-sources",
+      "commit": null,
+      "access": "See source-map.md#design-reference-sources for the access receipt.",
+      "private": false
+    },
+    {
+      "id": "S-DR-045",
+      "title": "Tumblr Terms of Service",
+      "canonical_url": "https://www.tumblr.com/policy/en/terms-of-service",
+      "source_class": "primary artifact inspected",
+      "publisher": "Tumblr, Inc.",
+      "fetched": "2026-11-17",
+      "source_date_or_version": "Last Modified: 2026-01-16",
+      "commit": null,
+      "access": "See source-map.md#design-reference-sources for the access receipt.",
+      "private": false
     }
   ]
 }
