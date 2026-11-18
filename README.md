@@ -45,6 +45,7 @@ Narration uses a stock local voice, Kokoro `af_heart`, unless you clone your own
 | Get 3D models, HDRIs and textures for a scene | [3D assets](library/3d-assets.md) and `scripts/assets/check_asset.py` |
 | Find a pose to draw a character from | [Pose references](library/character-pose-references.md) |
 | Prepare a run | [Method](methods/prepare-explainer-video.md), [brief](templates/brief.md), [scene plan](templates/scene-plan.md), [storyboard builder](scripts/storyboard/storyboard.py) |
+| Shape shots, captions and scene palettes with comic craft | [Comic craft](methods/comic-craft.md) |
 | Align output with your brand | [Brand method](methods/brand-explainer-video.md) and [profile template](templates/brand.md) |
 | Execute a prepared run | [Production prompt](templates/production-prompt.md) and [scorecard](scorecards/run-quality.md) |
 | Check evidence | [Source map](library/source-map.md) and [manifest](library/manifest.json) |
