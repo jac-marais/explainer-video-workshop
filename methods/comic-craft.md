@@ -1,12 +1,12 @@
 # Comic craft for narrated explainers and vertical Shorts
 
-These are craft techniques from comics. No learning study backs these adaptations yet. The evidence-based rules in the [preparation method](prepare-explainer-video.md) win if they conflict.
+These are craft techniques from comics. No learning study backs these adaptations yet. The rules in the [preparation method](prepare-explainer-video.md) win if they conflict.
 
 ## Solve it in the writing first
 
 If a scene's meaning or feeling is unclear, repair the script before adding lettering, motion or color.
 
-Use this method within the preparation method's [narration rules](prepare-explainer-video.md#3-draft-the-narrative-and-honest-time-estimate) and [scene rules](prepare-explainer-video.md#4-convert-the-narrative-into-a-scene-and-shot-sequence), including its [cast contract](prepare-explainer-video.md#cast).
+The preparation method's [cast rules](prepare-explainer-video.md#cast) apply to every technique here.
 
 ## Scripting and layout
 
@@ -20,7 +20,7 @@ The [starter composition](../templates/composition/README.md#caption-layout) use
 
 ### Reading order
 
-Translate balloon order into the order in which the viewer encounters actions and their labels. In an English-language diagram, an upper element followed by a lower one can guide the eye when a left-to-right arrangement would crowd the vertical frame. Follow the audience's reading direction and keep connectors from crossing when a different layout makes the path clearer.
+Translate balloon order into the order in which the viewer encounters actions and their labels. In an English-language diagram, an upper element followed by a lower one can guide the eye when a left-to-right arrangement would crowd the vertical frame. Follow the audience's reading direction, and rearrange the layout so that connectors never cross.
 
 For example, reveal a filter above a storage tray, then move an item between them. If both must stay visible, make the active step clear through its action rather than making the viewer choose between simultaneous reveals.
 
@@ -32,25 +32,23 @@ Use the preparation method's [claim map](prepare-explainer-video.md#2-build-the-
 
 ## Lettering and captions
 
-For the video equivalent of a comic balloon, use the narration caption layer. Put any proposed extra text through the preparation method's [screen-text rule](prepare-explainer-video.md#4-convert-the-narrative-into-a-scene-and-shot-sequence). For caption fonts and geometry, use [caption layout](../templates/composition/README.md#caption-layout).
+For the video equivalent of a comic balloon, use the narration caption layer. Put any proposed extra text through the preparation method's [screen-text rule](prepare-explainer-video.md#4-convert-the-narrative-into-a-scene-and-shot-sequence). For caption fonts and geometry, use [caption layout](../templates/composition/README.md#caption-layout). Keep narration captions plain, steady in size and outside any effect; put each treatment below on the pictured object instead, because a styled caption costs readability without explaining anything.
 
-### Disjointed dialogue
+### Hesitant narration
 
-Use this when the narrator's hesitation matters to the explanation. Keep a filler such as "well" when it carries that hesitation, and mark a deliberate pause before a sentence with `[pause]`. Pin each gesture or reaction to the quoted words after its pause. Spread those actions over shots so the picture carries the halting rhythm instead of squeezing it into one busy frame.
+Use this when the narration voices a hesitation the lesson needs, such as a learner's first guess before the misconception beat breaks it. Keep a filler such as "um" when it carries that hesitation, and mark a deliberate pause before a sentence with `[pause]`. Pin each gesture or reaction to the quoted words after its pause. Spread those actions over shots so the picture carries the halting rhythm instead of squeezing it into one busy frame.
 
-For example, the narrator says, "Well, the first route looks clear. [pause] The next item still cannot pass." A silent character tries the route, waits, then notices the obstruction.
+For example, the narrator says, "Um, the first route looks clear. [pause] The next item still cannot pass." A silent character tries the route, waits, then notices the obstruction.
 
 The [caption builder](../scripts/audio/captions.py) breaks captions by line width and grammar, not by pause; separately timed caption phrases need a change to that script first.
 
 ### Quiet-to-urgent contrast
 
-Use the small-to-large balloon idea when a quiet condition becomes an urgent consequence. Translate size into framing and action, such as moving from a distant gauge to a close view of a valve closing. The narration supplies the change in meaning. Tiny captions followed by giant captions would spend readability to buy emphasis.
-
-Automatic whisper-to-shout delivery is not a control in the current [voice configuration](../templates/voice/voice.json); audition a supplied performance if the lesson needs that delivery.
+Use the small-to-large balloon idea when a quiet condition becomes an urgent consequence. Translate size into framing and action, such as moving from a distant gauge to a close view of a valve closing. The narration supplies the change in meaning.
 
 ### Sound and material cues
 
-Use auditory or pictorial lettering ideas when the physical property is itself part of the lesson. A vibrating enclosure can show where a hum originates; a granular fill inside a container can distinguish a powder from a solid block. Apply the treatment to the pictured object, keeping its short name and the narration captions legible. A textured caption would make the explanation harder to read without making the mechanism clearer.
+Use auditory or pictorial lettering ideas when the physical property is itself part of the lesson. A vibrating enclosure can show where a hum originates; a granular fill inside a container can distinguish a powder from a solid block. Keep the object's short name legible.
 
 ### Encoded notation
 
@@ -58,7 +56,7 @@ Use dots, dashes or another encoding only when the learner needs to read that no
 
 ### Progressive corruption
 
-Use staged corruption when degradation is the mechanism being taught. For an invented damaged-image example, keep a clean reference beside a version that loses a few blocks and then more blocks. Each stage needs a visible change in the represented data. Keep the captions outside the effect so the viewer can still follow the explanation.
+Use staged corruption when degradation is the mechanism being taught. For an invented damaged-image example, keep a clean reference beside a version that loses a few blocks and then more blocks. Each stage needs a visible change in the represented data.
 
 The [rendering routes](../library/renderers.md) provide no shared corruption effect; build and verify it in the chosen scene renderer before depending on it.
 
@@ -72,7 +70,7 @@ Record the before and after palettes and the triggering cue in the scene plan. S
 
 ### Palette and mood
 
-Try two palettes on the same key frame before choosing a scene's atmosphere. For example, compare a low-contrast slate background with a high-contrast plum background around the same neutral machine. Judge the intended mood from the actual frame instead of assuming that a hue has one universal meaning.
+Try two palettes on the same key frame before choosing a scene's atmosphere. For example, compare a low-contrast slate background with a high-contrast plum background around the same neutral machine. Draw both drafts from the brand's palette roles. Judge the intended mood from the actual frame instead of assuming that a hue has one universal meaning.
 
 This is a choice between drafts. Carry the selected palette through the scene; it is not an instruction to animate a palette swap during playback.
 
